@@ -121,17 +121,6 @@ async function streamOutputToSSE(
 	}
 }
 
-function normalizeStorageHost(
-	endpoint: string | undefined,
-	bucket: string | undefined
-): string | undefined {
-	if (!endpoint || !bucket) return endpoint;
-
-	const host = endpoint.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-	const bucketPrefix = `${bucket}.`;
-	return host.startsWith(bucketPrefix) ? host.slice(bucketPrefix.length) : endpoint;
-}
-
 async function withHeartbeat<T>(
 	stream: { writeSSE: (event: { event: string; data: string }) => Promise<void> },
 	operation: () => Promise<T>
@@ -206,8 +195,6 @@ const router = new Hono<ApiEnv>().get(
 			OPENAI_BASE_URL: `${AI_GATEWAY_URL}/openai`,
 			ANTHROPIC_API_KEY: apiKey,
 			ANTHROPIC_BASE_URL: `${AI_GATEWAY_URL}/anthropic`,
-			GOOGLE_API_KEY: apiKey,
-			GOOGLE_GENERATIVE_AI_BASE_URL: `${AI_GATEWAY_URL}/google`,
 			GROQ_API_KEY: apiKey,
 			GROQ_BASE_URL: `${AI_GATEWAY_URL}/groq`,
 		};
@@ -218,31 +205,16 @@ const router = new Hono<ApiEnv>().get(
 			envVars.AGENTUITY_CLOUD_DEPLOYMENT_ID = process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID;
 		if (process.env.DATABASE_URL) envVars.DATABASE_URL = process.env.DATABASE_URL;
 
-		// @agentuity/storage reads AWS_*; Bun's S3 helpers also accept S3_*.
-		// Pass both aliases when either one is configured so sandbox demos match
-		// the public storage docs and still support older local env names.
-		const storageBucket = process.env.AWS_BUCKET ?? process.env.S3_BUCKET;
-		const storageEndpoint = normalizeStorageHost(
-			process.env.AWS_ENDPOINT ?? process.env.S3_ENDPOINT,
-			storageBucket
-		);
 		const storageEnv = {
-			AWS_BUCKET: storageBucket,
-			AWS_ENDPOINT: storageEndpoint,
-			AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ?? process.env.S3_ACCESS_KEY_ID,
-			AWS_SECRET_ACCESS_KEY:
-				process.env.AWS_SECRET_ACCESS_KEY ?? process.env.S3_SECRET_ACCESS_KEY,
-			AWS_REGION: process.env.AWS_REGION ?? process.env.S3_REGION,
+			AWS_BUCKET: process.env.AWS_BUCKET,
+			AWS_ENDPOINT: process.env.AWS_ENDPOINT,
+			AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+			AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
+			AWS_REGION: process.env.AWS_REGION,
 		};
 		for (const [key, value] of Object.entries(storageEnv)) {
 			if (value) envVars[key] = value;
 		}
-		if (storageEnv.AWS_BUCKET) envVars.S3_BUCKET = storageEnv.AWS_BUCKET;
-		if (storageEnv.AWS_ENDPOINT) envVars.S3_ENDPOINT = storageEnv.AWS_ENDPOINT;
-		if (storageEnv.AWS_ACCESS_KEY_ID) envVars.S3_ACCESS_KEY_ID = storageEnv.AWS_ACCESS_KEY_ID;
-		if (storageEnv.AWS_SECRET_ACCESS_KEY)
-			envVars.S3_SECRET_ACCESS_KEY = storageEnv.AWS_SECRET_ACCESS_KEY;
-		if (storageEnv.AWS_REGION) envVars.S3_REGION = storageEnv.AWS_REGION;
 
 		const scriptPath = `dist/run/${scriptName}.js`;
 		const command = ['bun', 'run', scriptPath, JSON.stringify(input)];

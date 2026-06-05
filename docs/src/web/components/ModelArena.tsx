@@ -98,15 +98,15 @@ const FIXED_PROMPT = 'A robot discovers it can dream';
 const FIXED_TONE = 'sci-fi';
 
 const PROVIDER_STYLES: Record<string, { bg: string; border: string; text: string }> = {
+	openai: {
+		bg: 'bg-emerald-500 dark:bg-emerald-400',
+		border: 'border-emerald-500 dark:border-emerald-400',
+		text: 'text-emerald-600 dark:text-emerald-400',
+	},
 	anthropic: {
 		bg: 'bg-orange-500 dark:bg-orange-400',
 		border: 'border-orange-500 dark:border-orange-400',
 		text: 'text-orange-600 dark:text-orange-400',
-	},
-	google: {
-		bg: 'bg-blue-600 dark:bg-blue-500',
-		border: 'border-blue-600 dark:border-blue-500',
-		text: 'text-blue-600 dark:text-blue-400',
 	},
 };
 

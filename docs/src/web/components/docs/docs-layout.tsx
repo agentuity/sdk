@@ -105,18 +105,18 @@ export function DocsLayout() {
 	// Keyboard shortcut for search
 	React.useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
-				if (searchOpen) {
+			if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)) {
+				e.preventDefault();
+				if (searchOpen || document.querySelector('[data-agentuity-search-dialog]')) {
 					return;
 				}
 
-				e.preventDefault();
 				openSearch('search');
 			}
 		};
 
-		window.addEventListener('keydown', handleKeyDown);
-		return () => window.removeEventListener('keydown', handleKeyDown);
+		window.addEventListener('keydown', handleKeyDown, { capture: true });
+		return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
 	}, [searchOpen, openSearch]);
 
 	return (

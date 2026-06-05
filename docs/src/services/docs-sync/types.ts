@@ -1,9 +1,12 @@
+export type SyncMode = 'incremental' | 'full';
+
 export interface FilePayload {
 	path: string;
 	content: string; // base64-encoded
 }
 
 export interface SyncPayload {
+	mode?: SyncMode;
 	commit?: string;
 	repo?: string;
 	changed?: FilePayload[];

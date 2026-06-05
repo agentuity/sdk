@@ -1,5 +1,5 @@
 /**
- * Chat Agent
+ * Chat Explorer demo
  *
  * Multi-turn conversation with a conversation-scoped state store. The current
  * docs demo implements that state on top of the compatibility thread store so
@@ -11,7 +11,7 @@
  * - Persists for 1 hour of inactivity, then resets
  * - Perfect for conversation history, user preferences, multi-step workflows
  *
- * This agent uses push() with maxRecords for automatic sliding window behavior,
+ * This demo uses push() with maxRecords for automatic sliding window behavior,
  * keeping only the last MAX_MESSAGES to prevent unbounded growth.
  *
  * Docs: https://agentuity.dev/cookbook/patterns/chat-with-history
@@ -19,8 +19,7 @@
 
 import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
-import { generateText } from 'ai';
-import { createGoogleProvider } from '../../lib/ai-gateway';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import agentuityDocs from './agentuity-context.txt';
 
 interface Message {
@@ -30,6 +29,7 @@ interface Message {
 
 // Sliding window: keep last 50 messages (25 turns) to bound memory usage
 const MAX_MESSAGES = 50;
+const CHAT_MODEL = 'openai/gpt-5.4-mini';
 
 const agent = defineDemoAgent('chat', {
 	description: 'Agentuity expert chat with thread-based memory',
@@ -94,9 +94,13 @@ const agent = defineDemoAgent('chat', {
 
 			default: {
 				// Generate response with Agentuity-focused context
-				const { text } = await generateText({
-					model: createGoogleProvider()('gemini-3-flash-preview'),
-					system: `You are an Agentuity expert assistant. Your primary purpose is to help users understand and use the Agentuity platform.
+				const gateway = new AIGatewayClient();
+				const { text } = await gateway.completeText({
+					model: CHAT_MODEL,
+					messages: [
+						{
+							role: 'system',
+							content: `You are an Agentuity expert assistant. Your primary purpose is to help users understand and use the Agentuity platform.
 
 ## Guidelines
 - Focus on Agentuity, its SDK, APIs, features, and platform capabilities
@@ -108,7 +112,10 @@ const agent = defineDemoAgent('chat', {
 
 ## Agentuity Documentation
 ${agentuityDocs || 'Documentation currently unavailable. Answer based on general knowledge of Agentuity.'}`,
-					messages: [...messages, { role: 'user' as const, content: message }],
+						},
+						...messages,
+						{ role: 'user' as const, content: message },
+					],
 				});
 
 				// Use push() with maxRecords for automatic sliding window

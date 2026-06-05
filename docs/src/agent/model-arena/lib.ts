@@ -3,9 +3,7 @@
  *
  * Common configuration and functions used by both the agent and route.
  */
-import { generateObject, generateText } from 'ai';
-import { createGroqProvider } from '../../lib/ai-gateway';
-import { getModel as getGatewayModel } from '../../lib/models';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { getJudgePrompt, getStorySystemPrompt } from './prompts';
 import { JudgmentSchema } from './types';
 import type { Judgment, ModelResult, Provider, Tone } from './types';
@@ -15,27 +13,101 @@ export interface GenerationConfig {
 	model: string;
 }
 
-async function repairJudgmentText({ text }: { text: string }): Promise<string | null> {
-	const start = text.indexOf('{');
-	const end = text.lastIndexOf('}');
+const JUDGE_MODEL = 'openai/gpt-5.4-mini';
+const gateway = new AIGatewayClient();
 
-	if (start === -1 || end === -1 || end <= start) {
-		return null;
-	}
-
-	return text.slice(start, end + 1);
-}
+const JUDGMENT_RESPONSE_SCHEMA = {
+	type: 'object',
+	properties: {
+		winner: { type: 'string', enum: ['openai', 'anthropic'] },
+		reasoning: { type: 'string' },
+		scores: {
+			type: 'object',
+			properties: {
+				creativity: {
+					type: 'array',
+					items: {
+						type: 'object',
+						properties: {
+							provider: { type: 'string', enum: ['openai', 'anthropic'] },
+							score: { type: 'number' },
+							reason: { type: 'string' },
+						},
+						required: ['provider', 'score', 'reason'],
+						additionalProperties: false,
+					},
+				},
+				engagement: {
+					type: 'array',
+					items: {
+						type: 'object',
+						properties: {
+							provider: { type: 'string', enum: ['openai', 'anthropic'] },
+							score: { type: 'number' },
+							reason: { type: 'string' },
+						},
+						required: ['provider', 'score', 'reason'],
+						additionalProperties: false,
+					},
+				},
+			},
+			required: ['creativity', 'engagement'],
+			additionalProperties: false,
+		},
+		checks: {
+			type: 'object',
+			properties: {
+				toneMatch: {
+					type: 'array',
+					items: {
+						type: 'object',
+						properties: {
+							provider: { type: 'string', enum: ['openai', 'anthropic'] },
+							passed: { type: 'boolean' },
+							reason: { type: 'string' },
+						},
+						required: ['provider', 'passed', 'reason'],
+						additionalProperties: false,
+					},
+				},
+				wordCount: {
+					type: 'array',
+					items: {
+						type: 'object',
+						properties: {
+							provider: { type: 'string', enum: ['openai', 'anthropic'] },
+							passed: { type: 'boolean' },
+							reason: { type: 'string' },
+						},
+						required: ['provider', 'passed', 'reason'],
+						additionalProperties: false,
+					},
+				},
+			},
+			required: ['toneMatch', 'wordCount'],
+			additionalProperties: false,
+		},
+	},
+	required: ['winner', 'reasoning', 'scores', 'checks'],
+	additionalProperties: false,
+};
 
 export const MODELS: GenerationConfig[] = [
+	{ provider: 'openai', model: 'openai/gpt-5.4-mini' },
 	{ provider: 'anthropic', model: 'anthropic/claude-opus-4-8' },
-	{ provider: 'google', model: 'googleai/gemini-3.5-flash' },
 ];
 
-// Using GPT-OSS 120B via Groq for fast judging with structured outputs
-export const getJudgeModel = () => createGroqProvider()('openai/gpt-oss-120b');
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
+}
 
-export function getModel(config: GenerationConfig) {
-	return getGatewayModel(config.model);
+function getTotalTokens(completion: unknown): number {
+	if (!isRecord(completion) || !isRecord(completion.usage)) {
+		return 0;
+	}
+
+	const totalTokens = completion.usage.total_tokens ?? completion.usage.totalTokens;
+	return typeof totalTokens === 'number' ? totalTokens : 0;
 }
 
 export async function generateStory(
@@ -45,20 +117,24 @@ export async function generateStory(
 	abortSignal?: AbortSignal
 ): Promise<ModelResult> {
 	const start = Date.now();
+	if (abortSignal?.aborted) {
+		throw new Error('Request aborted');
+	}
 
-	const { text, usage } = await generateText({
-		model: getModel(config),
-		system: getStorySystemPrompt(tone),
-		prompt,
-		abortSignal,
+	const result = await gateway.completeText({
+		model: config.model,
+		messages: [
+			{ role: 'system', content: getStorySystemPrompt(tone) },
+			{ role: 'user', content: prompt },
+		],
 	});
 
 	return {
 		provider: config.provider,
 		model: config.model,
-		story: text,
+		story: result.text,
 		generationMs: Date.now() - start,
-		tokens: usage?.totalTokens ?? 0,
+		tokens: getTotalTokens(result.completion),
 	};
 }
 
@@ -68,17 +144,26 @@ export async function judgeStories(
 	prompt: string,
 	abortSignal?: AbortSignal
 ): Promise<Judgment> {
-	const { object } = await generateObject({
-		model: getJudgeModel(),
-		schema: JudgmentSchema,
-		schemaName: 'ModelArenaJudgment',
-		schemaDescription:
-			'Structured judgment comparing the Anthropic and Google stories with scores, checks, and a winner.',
+	if (abortSignal?.aborted) {
+		throw new Error('Request aborted');
+	}
+
+	const result = await gateway.completeStructured({
+		model: JUDGE_MODEL,
+		response_schema: {
+			name: 'ModelArenaJudgment',
+			description:
+				'Structured judgment comparing the OpenAI and Anthropic stories with scores, checks, and a winner.',
+			schema: JUDGMENT_RESPONSE_SCHEMA,
+		},
 		temperature: 0,
-		experimental_repairText: repairJudgmentText,
-		prompt: getJudgePrompt([...results], tone, prompt),
-		abortSignal,
+		messages: [{ role: 'user', content: getJudgePrompt([...results], tone, prompt) }],
 	});
 
-	return object;
+	const parsed = JudgmentSchema.safeParse(result.data);
+	if (!parsed.success) {
+		throw new Error('Judge returned invalid structured output.');
+	}
+
+	return parsed.data;
 }

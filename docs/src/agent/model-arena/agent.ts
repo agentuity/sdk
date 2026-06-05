@@ -1,17 +1,16 @@
 /**
- * Model Arena Agent
+ * Model Arena Explorer demo
  *
  * Compares AI model outputs using LLM-as-judge evaluation. This demonstrates
- * using multiple AI providers through the gateway and structured output with
- * generateObject() for the judge's scoring.
+ * using multiple AI providers through Agentuity AI Gateway and structured
+ * output for the judge's scoring.
  *
  * Pattern shown:
- * 1. Generate content from multiple providers in parallel (Anthropic, Google)
- * 2. Use a fast model (Groq) as judge with strict JSON schema output
+ * 1. Generate content from multiple providers in parallel (OpenAI, Anthropic)
+ * 2. Use an Agentuity Gateway model as judge with strict JSON schema output
  * 3. Score on multiple dimensions (creativity, engagement, tone, word count)
  *
- * The judge uses generateObject() with a Zod schema for type-safe structured
- * output - the model is forced to return valid JSON matching your schema.
+ * The judge validates the Gateway structured output before returning it.
  *
  * Docs: https://agentuity.dev/cookbook/patterns/llm-as-a-judge
  */
@@ -30,26 +29,26 @@ const agent = defineDemoAgent('model-arena', {
 			id: s.string(),
 			results: s.array(
 				s.object({
-					provider: s.enum(['anthropic', 'google']),
+					provider: s.enum(['openai', 'anthropic']),
 					model: s.string(),
 					story: s.string(),
 					generationMs: s.number(),
 				})
 			),
 			judgment: s.object({
-				winner: s.enum(['anthropic', 'google']),
+				winner: s.enum(['openai', 'anthropic']),
 				reasoning: s.string(),
 				scores: s.object({
 					creativity: s.array(
 						s.object({
-							provider: s.enum(['anthropic', 'google']),
+							provider: s.enum(['openai', 'anthropic']),
 							score: s.number(),
 							reason: s.string(),
 						})
 					),
 					engagement: s.array(
 						s.object({
-							provider: s.enum(['anthropic', 'google']),
+							provider: s.enum(['openai', 'anthropic']),
 							score: s.number(),
 							reason: s.string(),
 						})
@@ -58,14 +57,14 @@ const agent = defineDemoAgent('model-arena', {
 				checks: s.object({
 					toneMatch: s.array(
 						s.object({
-							provider: s.enum(['anthropic', 'google']),
+							provider: s.enum(['openai', 'anthropic']),
 							passed: s.boolean(),
 							reason: s.string(),
 						})
 					),
 					wordCount: s.array(
 						s.object({
-							provider: s.enum(['anthropic', 'google']),
+							provider: s.enum(['openai', 'anthropic']),
 							passed: s.boolean(),
 							reason: s.string(),
 						})

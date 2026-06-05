@@ -1,5 +1,5 @@
 /**
- * Database Agent
+ * Database Explorer demo
  *
  * Queries a PostgreSQL database using Drizzle ORM with type-safe queries.
  * Uses the same 6 chair products from the vector demo, stored in a relational table.

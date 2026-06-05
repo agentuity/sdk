@@ -6,8 +6,7 @@
  */
 import { stream } from '../http';
 import type { ApiEnv } from '../context';
-import { streamText } from 'ai';
-import { getModel } from '../../lib/models';
+import { streamAIGatewayText } from '../../lib/ai-gateway-stream';
 import { Hono } from 'hono';
 import { modelFromRequestBody } from '../request-body';
 
@@ -37,9 +36,9 @@ const router = new Hono<ApiEnv>()
 					model,
 				});
 
-				const { textStream } = streamText({
-					model: getModel(model),
-					prompt: FIXED_PROMPT,
+				const { textStream } = await streamAIGatewayText({
+					model,
+					messages: [{ role: 'user', content: FIXED_PROMPT }],
 				});
 
 				return textStream;

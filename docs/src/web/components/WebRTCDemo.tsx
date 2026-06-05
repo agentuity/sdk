@@ -1,4 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ReactElement, RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+	ExternalLink,
+	LinkIcon,
+	Mic,
+	MicOff,
+	Phone,
+	PhoneOff,
+	Video,
+	VideoOff,
+	Volume2,
+} from 'lucide-react';
 import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Button, Input } from './ui';
 
@@ -79,6 +91,45 @@ const DEFAULT_ROOM_ID = 'agentuity-demo';
 const ICE_SERVERS: RTCConfiguration = {
 	iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
 };
+
+interface ParticipantTileProps {
+	readonly audioMuted: boolean;
+	readonly emptyDescription: string;
+	readonly emptyTitle: string;
+	readonly isLocal: boolean;
+	readonly muted: boolean;
+	readonly stream: MediaStream | null;
+	readonly title: string;
+	readonly videoHidden: boolean;
+	readonly videoRef: RefObject<HTMLVideoElement | null>;
+}
+
+function normalizedRoomId(value: string): string {
+	return value.trim() || DEFAULT_ROOM_ID;
+}
+
+function getRoomIdFromUrl(): string | null {
+	if (typeof window === 'undefined') {
+		return null;
+	}
+
+	const roomId = new URL(window.location.href).searchParams.get('room')?.trim();
+	return roomId ? roomId : null;
+}
+
+function getRoomShareUrl(roomId: string): string {
+	if (typeof window === 'undefined') {
+		return '';
+	}
+
+	const url = new URL(window.location.href);
+	url.searchParams.set('room', normalizedRoomId(roomId));
+	return url.toString();
+}
+
+function shortPeerId(value: string): string {
+	return value.slice(0, 8);
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null;
@@ -285,6 +336,212 @@ function statusDotClass(status: ConnectionStatus): string {
 	}
 }
 
+function StableButtonLabel({
+	current,
+	reserve,
+}: {
+	readonly current: string;
+	readonly reserve: ReadonlyArray<string>;
+}): ReactElement {
+	const longest = useMemo(
+		() => reserve.reduce((widest, label) => (label.length > widest.length ? label : widest)),
+		[reserve]
+	);
+
+	return (
+		<span className="grid place-items-center">
+			<span className="invisible col-start-1 row-start-1">{longest}</span>
+			<span className="col-start-1 row-start-1">{current}</span>
+		</span>
+	);
+}
+
+function AudioLevelIndicator({
+	audioMuted,
+	stream,
+}: {
+	readonly audioMuted: boolean;
+	readonly stream: MediaStream | null;
+}): ReactElement {
+	const [level, setLevel] = useState(0);
+
+	useEffect(() => {
+		const audioTrack = stream?.getAudioTracks()[0];
+		if (!stream || !audioTrack || audioMuted) {
+			setLevel(0);
+			return;
+		}
+
+		let active = true;
+		let frame = 0;
+		let audioContext: AudioContext | null = null;
+		let source: MediaStreamAudioSourceNode | null = null;
+
+		try {
+			audioContext = new AudioContext();
+			const analyser = audioContext.createAnalyser();
+			analyser.fftSize = 256;
+			source = audioContext.createMediaStreamSource(stream);
+			source.connect(analyser);
+
+			const data = new Uint8Array(analyser.frequencyBinCount);
+			const tick = () => {
+				if (!active) {
+					return;
+				}
+
+				analyser.getByteFrequencyData(data);
+				const peak = data.reduce((max, value) => Math.max(max, value), 0);
+				setLevel(Math.min(1, peak / 128));
+				frame = requestAnimationFrame(tick);
+			};
+			tick();
+		} catch {
+			setLevel(0);
+		}
+
+		return () => {
+			active = false;
+			cancelAnimationFrame(frame);
+			source?.disconnect();
+			void audioContext?.close();
+		};
+	}, [audioMuted, stream]);
+
+	return (
+		<div className="flex items-center gap-1 text-zinc-400">
+			<span className="sr-only">Voice level</span>
+			<Volume2 className="size-3" aria-hidden="true" />
+			<div className="flex h-4 items-end gap-0.5">
+				{[0.18, 0.38, 0.58, 0.78].map((threshold, index) => (
+					<span
+						key={threshold}
+						className={`w-1 rounded-full transition-colors ${
+							level >= threshold && !audioMuted ? 'bg-cyan-400' : 'bg-zinc-700'
+						}`}
+						style={{ height: `${6 + index * 3}px` }}
+					/>
+				))}
+			</div>
+		</div>
+	);
+}
+
+function ParticipantTile({
+	audioMuted,
+	emptyDescription,
+	emptyTitle,
+	isLocal,
+	muted,
+	stream,
+	title,
+	videoHidden,
+	videoRef,
+}: ParticipantTileProps): ReactElement {
+	const showPlaceholder = !stream || videoHidden;
+	const avatarLetter = isLocal ? 'Y' : 'P';
+
+	return (
+		<div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-950 shadow-sm dark:border-zinc-800">
+			<div className="flex items-center justify-between gap-3 border-b border-zinc-800 px-3 py-2 text-xs text-zinc-400">
+				<div className="min-w-0">
+					<div className="truncate font-medium text-zinc-200">{title}</div>
+					<div>
+						{isLocal ? 'Local participant' : stream ? 'Remote participant' : 'Waiting'}
+					</div>
+				</div>
+				<AudioLevelIndicator audioMuted={audioMuted} stream={stream} />
+			</div>
+			<div className="relative aspect-video bg-zinc-950">
+				<video
+					ref={videoRef}
+					autoPlay
+					muted={muted}
+					playsInline
+					className={`h-full w-full object-cover ${showPlaceholder ? 'invisible' : 'visible'}`}
+				/>
+				{showPlaceholder && (
+					<div className="absolute inset-0 flex flex-col items-center justify-center px-6 pt-6 pb-12 text-center">
+						<div className="mb-4 grid size-16 place-items-center rounded-full border border-cyan-400/40 bg-cyan-400/10 text-2xl font-semibold text-cyan-200">
+							{avatarLetter}
+						</div>
+						<div className="text-sm font-medium text-zinc-200">{emptyTitle}</div>
+						<div className="mt-1 max-w-72 text-xs leading-5 text-zinc-500">
+							{emptyDescription}
+						</div>
+					</div>
+				)}
+				<div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/75 to-transparent px-3 py-2 text-xs text-zinc-300">
+					<span className="truncate">{showPlaceholder ? emptyTitle : 'Media active'}</span>
+					<div className="flex items-center gap-2">
+						{audioMuted ? <MicOff className="size-3.5" /> : <Mic className="size-3.5" />}
+						{videoHidden ? <VideoOff className="size-3.5" /> : <Video className="size-3.5" />}
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function ShareControls({ roomId }: { readonly roomId: string }): ReactElement | null {
+	const [copied, setCopied] = useState(false);
+	const shareUrl = useMemo(() => getRoomShareUrl(roomId), [roomId]);
+
+	const copyUrl = useCallback(async () => {
+		if (!shareUrl) {
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(shareUrl);
+			setCopied(true);
+			window.setTimeout(() => setCopied(false), 1500);
+		} catch {
+			setCopied(false);
+		}
+	}, [shareUrl]);
+
+	const openPeer = useCallback(() => {
+		if (!shareUrl) {
+			return;
+		}
+		window.open(shareUrl, '_blank', 'noopener,noreferrer');
+	}, [shareUrl]);
+
+	if (!shareUrl) {
+		return null;
+	}
+
+	return (
+		<div className="flex flex-wrap items-center gap-2">
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				onClick={copyUrl}
+				className="min-h-11 md:min-h-9"
+				aria-label="Copy room link"
+			>
+				<LinkIcon className="size-4" aria-hidden="true" />
+				<StableButtonLabel
+					current={copied ? 'Copied' : 'Copy room'}
+					reserve={['Copy room', 'Copied']}
+				/>
+			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				onClick={openPeer}
+				className="min-h-11 md:min-h-9"
+				aria-label="Open this room in another tab"
+			>
+				<ExternalLink className="size-4" aria-hidden="true" />
+				Open peer
+			</Button>
+		</div>
+	);
+}
+
 export function WebRTCDemo() {
 	const [roomId, setRoomId] = usePersistentDemoState<string>('webrtc', 'room-id', {
 		defaultValue: DEFAULT_ROOM_ID,
@@ -307,6 +564,22 @@ export function WebRTCDemo() {
 	const dataChannelRef = useRef<RTCDataChannel | null>(null);
 	const localStreamRef = useRef<MediaStream | null>(null);
 	const messageIdRef = useRef(0);
+	const hydratedRoomFromUrlRef = useRef(false);
+
+	useEffect(() => {
+		if (!hydratedRoomFromUrlRef.current) {
+			hydratedRoomFromUrlRef.current = true;
+			const roomIdFromUrl = getRoomIdFromUrl();
+			if (roomIdFromUrl && roomIdFromUrl !== roomId) {
+				setRoomId(roomIdFromUrl);
+				return;
+			}
+		}
+
+		const url = new URL(window.location.href);
+		url.searchParams.set('room', normalizedRoomId(roomId));
+		window.history.replaceState(null, '', url);
+	}, [roomId, setRoomId]);
 
 	useEffect(() => {
 		localStreamRef.current = localStream;
@@ -635,13 +908,13 @@ export function WebRTCDemo() {
 
 	const canConnect = status === 'idle' || status === 'closed' || status === 'error';
 	const connected = status === 'connected';
-	const localPeerLabel = peerId ? `Peer ${peerId}` : 'Local peer';
-	const remotePeerLabel = remotePeerId ? `Peer ${remotePeerId}` : 'Remote peer';
+	const localPeerLabel = peerId ? `You (${shortPeerId(peerId)})` : 'You';
+	const remotePeerLabel = remotePeerId ? `Peer ${shortPeerId(remotePeerId)}` : 'Peer';
 
 	return (
 		<div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-900 dark:bg-black">
 			<div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-900">
-				<div className="flex flex-col gap-3 md:flex-row md:items-end">
+				<div className="grid gap-3">
 					<div className="min-w-0 flex-1">
 						<label
 							htmlFor="webrtc-room"
@@ -658,13 +931,22 @@ export function WebRTCDemo() {
 						/>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">
+						<ShareControls roomId={roomId} />
 						<Button
 							variant={canConnect ? 'default' : 'destructive'}
 							size="sm"
 							onClick={canConnect ? connect : closeConnections}
 							className="min-h-11 min-w-28 justify-center md:min-h-9"
 						>
-							{canConnect ? 'Connect' : 'Disconnect'}
+							{canConnect ? (
+								<Phone className="size-4" aria-hidden="true" />
+							) : (
+								<PhoneOff className="size-4" aria-hidden="true" />
+							)}
+							<StableButtonLabel
+								current={canConnect ? 'Connect' : 'Disconnect'}
+								reserve={['Connect', 'Disconnect']}
+							/>
 						</Button>
 						<Button
 							variant="outline"
@@ -673,7 +955,15 @@ export function WebRTCDemo() {
 							disabled={!localStream}
 							className="min-h-11 md:min-h-9"
 						>
-							{audioEnabled ? 'Mute' : 'Unmute'}
+							{audioEnabled ? (
+								<Mic className="size-4" aria-hidden="true" />
+							) : (
+								<MicOff className="size-4" aria-hidden="true" />
+							)}
+							<StableButtonLabel
+								current={audioEnabled ? 'Mute' : 'Unmute'}
+								reserve={['Mute', 'Unmute']}
+							/>
 						</Button>
 						<Button
 							variant="outline"
@@ -682,7 +972,15 @@ export function WebRTCDemo() {
 							disabled={!localStream}
 							className="min-h-11 md:min-h-9"
 						>
-							{videoEnabled ? 'Camera off' : 'Camera on'}
+							{videoEnabled ? (
+								<VideoOff className="size-4" aria-hidden="true" />
+							) : (
+								<Video className="size-4" aria-hidden="true" />
+							)}
+							<StableButtonLabel
+								current={videoEnabled ? 'Camera off' : 'Camera on'}
+								reserve={['Camera off', 'Camera on']}
+							/>
 						</Button>
 					</div>
 				</div>
@@ -697,50 +995,33 @@ export function WebRTCDemo() {
 			</div>
 
 			<div className="grid gap-4 p-4 lg:grid-cols-2">
-				<div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-950 dark:border-zinc-800">
-					<div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2 text-xs text-zinc-400">
-						<span>{localPeerLabel}</span>
-						<span>
-							{audioEnabled ? 'Mic on' : 'Muted'} /{' '}
-							{videoEnabled ? 'Camera on' : 'Camera off'}
-						</span>
-					</div>
-					<div className="relative aspect-video bg-zinc-950">
-						<video
-							ref={localVideoRef}
-							autoPlay
-							muted
-							playsInline
-							className="h-full w-full object-cover"
-						/>
-						{!localStream && (
-							<div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-zinc-500">
-								Connect to start local media.
-							</div>
-						)}
-					</div>
-				</div>
+				<ParticipantTile
+					audioMuted={!audioEnabled}
+					emptyDescription={
+						!localStream
+							? 'Connect to start your camera and microphone preview.'
+							: 'Turn video back on to resume your camera feed.'
+					}
+					emptyTitle={!localStream ? 'Local preview' : 'Camera off'}
+					isLocal
+					muted
+					stream={localStream}
+					title={localPeerLabel}
+					videoHidden={!localStream || !videoEnabled}
+					videoRef={localVideoRef}
+				/>
 
-				<div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-950 dark:border-zinc-800">
-					<div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2 text-xs text-zinc-400">
-						<span>{remotePeerLabel}</span>
-						<span>{remoteStream ? 'Media active' : 'Waiting'}</span>
-					</div>
-					<div className="relative aspect-video bg-zinc-950">
-						{/* biome-ignore lint/a11y/useMediaCaption: live peer media has no captions source */}
-						<video
-							ref={remoteVideoRef}
-							autoPlay
-							playsInline
-							className="h-full w-full object-cover"
-						/>
-						{!remoteStream && (
-							<div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-zinc-500">
-								Remote media appears after the peer connection finishes negotiation.
-							</div>
-						)}
-					</div>
-				</div>
+				<ParticipantTile
+					audioMuted={false}
+					emptyDescription="Open this room in another tab, then connect from both tabs."
+					emptyTitle={remoteStream ? 'Camera off' : 'Waiting for peer'}
+					isLocal={false}
+					muted={false}
+					stream={remoteStream}
+					title={remotePeerLabel}
+					videoHidden={!remoteStream}
+					videoRef={remoteVideoRef}
+				/>
 			</div>
 
 			<div className="border-t border-zinc-200 p-4 dark:border-zinc-900">
@@ -765,7 +1046,11 @@ export function WebRTCDemo() {
 					</Button>
 				</div>
 
-				<div className="max-h-52 space-y-2 overflow-auto rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-900 dark:bg-zinc-950">
+				<div
+					className="max-h-52 space-y-2 overflow-auto rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-900 dark:bg-zinc-950"
+					role="log"
+					aria-live="polite"
+				>
 					{messages.length === 0 ? (
 						<p className="text-sm text-zinc-500">
 							Connection events and data-channel messages appear here.

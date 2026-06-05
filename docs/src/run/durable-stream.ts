@@ -8,11 +8,12 @@
  */
 import { getDemoContext } from '../api/context';
 import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
-import { streamText } from 'ai';
-import { getModel } from '../lib/models';
+import { AIGatewayClient } from '@agentuity/aigateway';
 
 const ctx = getDemoContext();
-const DEFAULT_MODEL = 'groq/openai/gpt-oss-120b';
+const MODEL = 'openai/gpt-5.4-mini';
+const PROMPT =
+	'Write two short sentences that explain why durable streams are useful for generated reports.';
 
 try {
 	ctx.logger.info('Creating durable stream with LLM content');
@@ -21,23 +22,16 @@ try {
 	const streamName = `demo-${Date.now()}`;
 	const stream = await ctx.stream.create(streamName, {
 		contentType: 'text/plain',
-		metadata: { created: new Date().toISOString() },
+		metadata: { created: new Date().toISOString(), model: MODEL },
 	});
 
-	// The route version would stream chunks as they arrive; the sandbox buffers stdout.
-	const { textStream } = streamText({
-		model: getModel(DEFAULT_MODEL),
-		prompt: 'Write a 3-paragraph summary of what Agentuity is.',
+	const gateway = new AIGatewayClient();
+	const result = await gateway.completeText({
+		model: MODEL,
+		messages: [{ role: 'user', content: PROMPT }],
 	});
 
-	let fullText = '';
-	let chunkCount = 0;
-	for await (const chunk of textStream) {
-		await stream.write(chunk);
-		fullText += chunk;
-		chunkCount++;
-	}
-
+	await stream.write(result.text);
 	await stream.close();
 
 	writeSandboxOutput(
@@ -46,9 +40,9 @@ try {
 			`Stream ID: ${stream.id}`,
 			'',
 			'Content written:',
-			fullText,
+			result.text,
 			'',
-			`[Wrote ${chunkCount} text chunks]`,
+			`Bytes written: ${stream.bytesWritten}`,
 			'',
 			'Stream closed',
 			'',

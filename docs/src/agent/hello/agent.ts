@@ -1,31 +1,30 @@
 /**
- * Hello Agent
+ * Hello Explorer demo
  *
- * The simplest possible agent - receives input, returns output. This demonstrates
- * the minimal structure every agent follows: define a schema for input/output,
- * then write a handler function. The schema provides TypeScript types automatically.
+ * The simplest possible model-backed function: receive input, return output.
+ * The local defineDemoAgent wrapper gives the SDK Explorer a schema contract
+ * and run() method, but v3 app code should use plain functions or routes.
  *
  * Key concepts:
- * - defineDemoAgent() registers the agent with auto-discovery
- * - schema.input/output define the contract (uses @agentuity/schema, Zod, etc.)
+ * - schema.input/output define the demo contract
  * - handler receives typed input and returns typed output
+ * - routes, queues, schedules, or scripts can call the same plain function shape
  *
- * Docs: https://agentuity.dev/agents/creating-agents
+ * Docs: https://agentuity.dev/build/agents
  */
 import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 const agent = defineDemoAgent('hello', {
-	// Description shown in Workbench and agent registry
+	// Description shown in the Explorer's local demo registry
 	description: 'Simple greeting agent',
 
-	// Schema defines input/output types - TypeScript infers handler types from this
+	// Schema defines input/output types for the demo runner
 	schema: {
 		input: s.object({ name: s.string() }),
 		output: s.string(),
 	},
 
-	// Handler receives typed input based on schema
-	// _ctx is unused here but provides logging, storage, thread state, etc.
+	// _ctx is unused here but exposes the same service surface as route demos
 	handler: async (_ctx, { name }) => {
 		return `Hello, ${name}! 🤖 Welcome to Agentuity.`;
 	},

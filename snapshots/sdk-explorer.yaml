@@ -6,7 +6,8 @@ version: 1
 runtime: agentuity:latest
 name: sdk-explorer-v3
 description: SDK Explorer (v3) with pre-bundled standalone run scripts
-public: true
+# The docs API creates sandboxes with an org-scoped key and explicit orgId.
+public: false
 dir: docs
 
 files:

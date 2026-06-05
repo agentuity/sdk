@@ -3,7 +3,9 @@ set -euo pipefail
 
 # build-payload.sh <repo_name> [mode]
 # Reads file paths from stdin, builds JSON payload with base64-encoded content.
-# mode: "incremental" (default) or "full"
+# mode: "incremental" (default) or "full"; full resets the remote namespace
+# before ingesting the first batch.
+# DOCS_SYNC_COMMIT is optional commit metadata.
 # Must be run from the repo root.
 
 CONTENT_DIR="docs/src/web/content"
@@ -21,6 +23,11 @@ fi
 
 REPO_NAME="$1"
 MODE="${2:-incremental}"
+
+if [ "$MODE" != "incremental" ] && [ "$MODE" != "full" ]; then
+    echo "Error: mode must be incremental or full, got '$MODE'" >&2
+    usage
+fi
 
 echo "Building $MODE sync payload for $REPO_NAME" >&2
 
@@ -46,15 +53,13 @@ done
 
 echo "Processing ${#changed_files[@]} changed files and ${#removed_files[@]} removed files" >&2
 
-# For full mode, all files should be removed first (delete-then-reinsert)
-if [ "$MODE" = "full" ]; then
-    removed_files=("${changed_files[@]}")
-    echo "Full mode: treating all files as removed for refresh" >&2
-fi
-
 # Start building JSON
 echo "{"
 echo "  \"repo\": \"$REPO_NAME\","
+echo "  \"mode\": \"$MODE\","
+if [ -n "${DOCS_SYNC_COMMIT:-}" ]; then
+    echo "  \"commit\": \"$DOCS_SYNC_COMMIT\","
+fi
 
 # Build changed files array
 echo "  \"changed\": ["

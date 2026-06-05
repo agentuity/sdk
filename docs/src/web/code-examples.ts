@@ -152,20 +152,30 @@ export const report = {
 
 	'sse-stream': `import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { anthropic } from "@ai-sdk/anthropic";
-import { streamText } from "ai";
+import { AIGatewayClient } from "@agentuity/aigateway";
 
 const app = new Hono();
+const gateway = new AIGatewayClient();
+const MODEL = "googleai/gemini-3.5-flash";
 
 app.get("/api/sse-stream", (c) => {
-  const result = streamText({
-    model: anthropic("claude-opus-4-8"),
-    prompt: "What are AI agents and how do they work?",
-  });
-
   return streamSSE(c, async (stream) => {
+    const result = await gateway.streamRequest({
+      path: "/",
+      body: {
+        model: MODEL,
+        stream: true,
+        messages: [
+          {
+            role: "user",
+            content: "What are AI agents and how do they work?",
+          },
+        ],
+      },
+    });
+
     let id = 0;
-    for await (const chunk of result.textStream) {
+    for await (const chunk of readGatewayText(result.stream)) {
       await stream.writeSSE({
         event: "chunk",
         data: chunk,
@@ -173,22 +183,125 @@ app.get("/api/sse-stream", (c) => {
       });
     }
 
-    const usage = await result.usage;
+    const metadata = await result.metadata;
+    const totalTokens =
+      (metadata.cost?.promptTokens ?? 0) +
+      (metadata.cost?.completionTokens ?? 0);
+
     await stream.writeSSE({
       event: "done",
-      data: JSON.stringify({ totalTokens: usage.totalTokens }),
+      data: JSON.stringify({ totalTokens }),
       id: String(id),
     });
   });
 });
 
+async function* readGatewayText(stream: ReadableStream<Uint8Array>) {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split(/\\r?\\n\\r?\\n/);
+      buffer = frames.pop() ?? "";
+
+      for (const frame of frames) {
+        const text = readFrameText(frame);
+        if (text) yield text;
+      }
+    }
+
+    buffer += decoder.decode();
+    const text = readFrameText(buffer);
+    if (text) yield text;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+function readFrameText(frame: string): string {
+  const data = frame
+    .split(/\\r?\\n/)
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trimStart())
+    .join("\\n")
+    .trim();
+
+  if (!data || data === "[DONE]") return "";
+
+  try {
+    return readDeltaText(JSON.parse(data));
+  } catch {
+    return "";
+  }
+}
+
+function readDeltaText(event: unknown): string {
+  if (!isRecord(event)) return "";
+
+  const choices = event.choices;
+  if (Array.isArray(choices)) {
+    return choices
+      .map((choice) => {
+        if (!isRecord(choice)) return "";
+
+        const delta = choice.delta;
+        if (isRecord(delta) && typeof delta.content === "string") {
+          return delta.content;
+        }
+
+        return typeof choice.text === "string" ? choice.text : "";
+      })
+      .join("");
+  }
+
+  const delta = event.delta;
+  if (typeof delta === "string") return delta;
+  if (isRecord(delta)) {
+    if (typeof delta.text === "string") return delta.text;
+    if (typeof delta.content === "string") return delta.content;
+  }
+
+  const candidates = event.candidates;
+  if (!Array.isArray(candidates)) return "";
+
+  return candidates
+    .map((candidate) => {
+      if (!isRecord(candidate) || !isRecord(candidate.content)) return "";
+      return textFromParts(candidate.content.parts);
+    })
+    .join("");
+}
+
+function textFromParts(parts: unknown): string {
+  if (!Array.isArray(parts)) return "";
+
+  return parts
+    .map((part) => {
+      if (!isRecord(part)) return "";
+      return typeof part.text === "string" ? part.text : "";
+    })
+    .join("");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 export default app;`,
 
 	streaming: `import { Hono } from "hono";
-import { anthropic } from "@ai-sdk/anthropic";
-import { streamText } from "ai";
+import { AIGatewayClient } from "@agentuity/aigateway";
 
 const app = new Hono();
+const gateway = new AIGatewayClient();
+const encoder = new TextEncoder();
+const MODEL = "googleai/gemini-3.5-flash";
 
 app.post("/api/stream", async (c) => {
   const body: unknown = await c.req.json();
@@ -197,13 +310,125 @@ app.post("/api/stream", async (c) => {
       ? String(body.prompt)
       : "Write a short note about AI agents.";
 
-  const result = streamText({
-    model: anthropic("claude-opus-4-8"),
-    prompt,
+  const result = await gateway.streamRequest({
+    path: "/",
+    body: {
+      model: MODEL,
+      stream: true,
+      messages: [{ role: "user", content: prompt }],
+    },
   });
 
-  return result.toTextStreamResponse();
+  const textStream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      for await (const chunk of readGatewayText(result.stream)) {
+        controller.enqueue(encoder.encode(chunk));
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(textStream, {
+    headers: { "content-type": "text/plain; charset=utf-8" },
+  });
 });
+
+async function* readGatewayText(stream: ReadableStream<Uint8Array>) {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split(/\\r?\\n\\r?\\n/);
+      buffer = frames.pop() ?? "";
+
+      for (const frame of frames) {
+        const text = readFrameText(frame);
+        if (text) yield text;
+      }
+    }
+
+    buffer += decoder.decode();
+    const text = readFrameText(buffer);
+    if (text) yield text;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+function readFrameText(frame: string): string {
+  const data = frame
+    .split(/\\r?\\n/)
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trimStart())
+    .join("\\n")
+    .trim();
+
+  if (!data || data === "[DONE]") return "";
+
+  try {
+    return readDeltaText(JSON.parse(data));
+  } catch {
+    return "";
+  }
+}
+
+function readDeltaText(event: unknown): string {
+  if (!isRecord(event)) return "";
+
+  const choices = event.choices;
+  if (Array.isArray(choices)) {
+    return choices
+      .map((choice) => {
+        if (!isRecord(choice)) return "";
+
+        const delta = choice.delta;
+        if (isRecord(delta) && typeof delta.content === "string") {
+          return delta.content;
+        }
+
+        return typeof choice.text === "string" ? choice.text : "";
+      })
+      .join("");
+  }
+
+  const delta = event.delta;
+  if (typeof delta === "string") return delta;
+  if (isRecord(delta)) {
+    if (typeof delta.text === "string") return delta.text;
+    if (typeof delta.content === "string") return delta.content;
+  }
+
+  const candidates = event.candidates;
+  if (!Array.isArray(candidates)) return "";
+
+  return candidates
+    .map((candidate) => {
+      if (!isRecord(candidate) || !isRecord(candidate.content)) return "";
+      return textFromParts(candidate.content.parts);
+    })
+    .join("");
+}
+
+function textFromParts(parts: unknown): string {
+  if (!Array.isArray(parts)) return "";
+
+  return parts
+    .map((part) => {
+      if (!isRecord(part)) return "";
+      return typeof part.text === "string" ? part.text : "";
+    })
+    .join("");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
 export default app;`,
 
@@ -281,14 +506,10 @@ export const summary = {
 };`,
 
 	'durable-stream': `import { StreamClient } from "@agentuity/stream";
-import { createGroq } from "@ai-sdk/groq";
-import { streamText } from "ai";
+import { AIGatewayClient } from "@agentuity/aigateway";
 
 const streams = new StreamClient();
-const groq = createGroq({
-  apiKey: process.env.AGENTUITY_SDK_KEY,
-  baseURL: process.env.GROQ_BASE_URL,
-});
+const gateway = new AIGatewayClient();
 
 const durable = await streams.create("ai-summaries", {
   contentType: "text/plain",
@@ -296,15 +517,17 @@ const durable = await streams.create("ai-summaries", {
   ttl: 60 * 60 * 24 * 30,
 });
 
-const result = streamText({
-  model: groq("openai/gpt-oss-120b"),
-  prompt: "Write a short summary of today's customer feedback.",
+const result = await gateway.completeText({
+  model: "openai/gpt-5.4-mini",
+  messages: [
+    {
+      role: "user",
+      content: "Write a short summary of today's customer feedback.",
+    },
+  ],
 });
 
-for await (const chunk of result.textStream) {
-  await durable.write(chunk);
-}
-
+await durable.write(result.text);
 await durable.close();
 
 export const published = {
@@ -364,35 +587,25 @@ export const preview = await chat(
 );`,
 
 	'model-arena': `import { AIGatewayClient } from "@agentuity/aigateway";
-import { z } from "zod";
 
 const gateway = new AIGatewayClient();
 const prompt = "Write a haiku about coding.";
+const OPENAI_MODEL = "openai/gpt-5.4-mini";
 const ANTHROPIC_MODEL = "anthropic/claude-opus-4-8";
-const GOOGLE_MODEL = "googleai/gemini-3.5-flash";
-const JUDGE_MODEL = "groq/openai/gpt-oss-120b";
+const JUDGE_MODEL = "openai/gpt-5.4-mini";
 
-const [anthropicResult, googleResult] = await Promise.all([
+const [openaiResult, anthropicResult] = await Promise.all([
+  gateway.completeText({
+    model: OPENAI_MODEL,
+    messages: [{ role: "user", content: prompt }],
+  }),
   gateway.completeText({
     model: ANTHROPIC_MODEL,
     messages: [{ role: "user", content: prompt }],
   }),
-  gateway.completeText({
-    model: GOOGLE_MODEL,
-    messages: [{ role: "user", content: prompt }],
-  }),
 ]);
 
-const Judgment = z.object({
-  winner: z.enum(["anthropic", "google"]),
-  reasoning: z.string(),
-  scores: z.object({
-    clarity: z.number().min(0).max(1),
-    originality: z.number().min(0).max(1),
-  }),
-});
-
-if (!anthropicResult.hasText || !googleResult.hasText) {
+if (!openaiResult.hasText || !anthropicResult.hasText) {
   throw new Error("One of the candidate models returned no text.");
 }
 
@@ -404,16 +617,34 @@ const { data } = await gateway.completeStructured({
       content:
         "Pick the better answer.\\n\\nAnthropic:\\n" +
         anthropicResult.text +
-        "\\n\\nGoogle:\\n" +
-        googleResult.text,
+        "\\n\\nOpenAI:\\n" +
+        openaiResult.text,
     },
   ],
-  response_schema: { name: "model_judgment", schema: Judgment },
+  response_schema: {
+    name: "model_judgment",
+    schema: {
+      type: "object",
+      properties: {
+        winner: { type: "string", enum: ["openai", "anthropic"] },
+        reasoning: { type: "string" },
+        scores: {
+          type: "object",
+          properties: {
+            clarity: { type: "number" },
+            originality: { type: "number" },
+          },
+          required: ["clarity", "originality"],
+          additionalProperties: false,
+        },
+      },
+      required: ["winner", "reasoning", "scores"],
+      additionalProperties: false,
+    },
+  },
 });
 
-const judgment = Judgment.parse(data);
-
-export { judgment };`,
+export { data as judgment };`,
 
 	'ai-gateway': `import { AIGatewayClient } from "@agentuity/aigateway";
 

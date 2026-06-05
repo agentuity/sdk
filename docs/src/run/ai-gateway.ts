@@ -2,15 +2,12 @@
  * Standalone run script for AI Gateway demo
  *
  * Compares supported provider models through Agentuity's AI Gateway.
- * The sandbox receives provider base URLs that point at the gateway, so
- * AI SDK calls use the project credential instead of per-provider keys.
  *
  * Usage: bun run src/run/ai-gateway.ts '{"prompt":"Tell me a joke"}'
  */
 import { getDemoContext } from '../api/context';
 import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
-import { generateText } from 'ai';
-import { getModel } from '../lib/models';
+import { AIGatewayClient } from '@agentuity/aigateway';
 
 interface Input {
 	prompt?: string;
@@ -26,23 +23,24 @@ function parseJSON<T>(text: string, fallback: T): T {
 
 const input: Input = parseJSON<Input>(process.argv[2] ?? '{}', {});
 const prompt = input.prompt ?? 'Explain AI agents in 1 sentence.';
+const OPENAI_MODEL = 'openai/gpt-5.4-mini';
 const ANTHROPIC_MODEL = 'anthropic/claude-opus-4-8';
-const GOOGLE_MODEL = 'googleai/gemini-3.5-flash';
 
 const ctx = getDemoContext();
 
 try {
 	// Parallel calls make provider differences visible without stacking latency.
-	ctx.logger.info('Calling Anthropic and Google through AI Gateway in parallel...');
+	ctx.logger.info('Calling OpenAI and Anthropic through AI Gateway in parallel...');
+	const gateway = new AIGatewayClient();
 
-	const [anthropicResult, googleResult] = await Promise.all([
-		generateText({
-			model: getModel(ANTHROPIC_MODEL),
-			prompt,
+	const [openaiResult, anthropicResult] = await Promise.all([
+		gateway.completeText({
+			model: OPENAI_MODEL,
+			messages: [{ role: 'user', content: prompt }],
 		}),
-		generateText({
-			model: getModel(GOOGLE_MODEL),
-			prompt,
+		gateway.completeText({
+			model: ANTHROPIC_MODEL,
+			messages: [{ role: 'user', content: prompt }],
 		}),
 	]);
 
@@ -52,11 +50,11 @@ try {
 		[
 			`Prompt: "${prompt}"`,
 			'',
+			`OpenAI (${OPENAI_MODEL}):`,
+			openaiResult.text,
+			'',
 			`Anthropic (${ANTHROPIC_MODEL}):`,
 			anthropicResult.text,
-			'',
-			`Google (${GOOGLE_MODEL}):`,
-			googleResult.text,
 		].join('\n')
 	);
 } catch (error) {

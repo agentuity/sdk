@@ -1,7 +1,6 @@
 import type { VectorUpsertParams } from '@agentuity/core';
 import type { Chunk } from './chunk-mdx';
 import { chunkAndEnrichDoc } from './chunk-mdx';
-import { embedChunks } from './embed-chunks';
 import type { ChunkMetadata } from './types';
 
 /**
@@ -10,16 +9,11 @@ import type { ChunkMetadata } from './types';
  */
 export async function processDoc(docContent: string): Promise<VectorUpsertParams[]> {
 	const chunks = await chunkAndEnrichDoc(docContent);
-	const vectors = await createVectorEmbedding(chunks);
-	return vectors;
+	return createVectorDocuments(chunks);
 }
 
-async function createVectorEmbedding(chunks: Chunk[]): Promise<VectorUpsertParams[]> {
-	const embeddings = await embedChunks(chunks.map((chunk) => chunk.text));
-	return chunks.map((chunk, index) => {
-		if (!embeddings[index]) {
-			throw new Error(`No embedding found for chunk ${chunk.id}`);
-		}
+function createVectorDocuments(chunks: Chunk[]): VectorUpsertParams[] {
+	return chunks.map((chunk) => {
 		const metadata: ChunkMetadata = {
 			chunkIndex: chunk.chunkIndex,
 			totalChunks: chunk.totalChunks,
@@ -33,7 +27,7 @@ async function createVectorEmbedding(chunks: Chunk[]): Promise<VectorUpsertParam
 
 		return {
 			key: chunk.id,
-			embeddings: embeddings[index],
+			document: chunk.text,
 			metadata,
 		};
 	});

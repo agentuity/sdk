@@ -9,9 +9,8 @@
  */
 import { getDemoContext, runWithDemoContext } from '../api/context';
 import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
-import { generateText } from 'ai';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import agentuityDocs from '../agent/chat/agentuity-context.txt';
-import { getModel } from '../lib/models';
 
 interface Message {
 	role: 'user' | 'assistant';
@@ -23,7 +22,7 @@ interface Input {
 }
 
 const standaloneCtx = getDemoContext();
-const DEFAULT_MODEL = 'anthropic/claude-opus-4-8';
+const DEFAULT_MODEL = 'openai/gpt-5.4-mini';
 
 try {
 	const input: Input = JSON.parse(process.argv[2] ?? '{}');
@@ -44,13 +43,20 @@ try {
 		});
 
 		ctx.logger.info('Generating response');
-		const { text } = await generateText({
-			model: getModel(DEFAULT_MODEL),
-			system: `You are an Agentuity expert assistant. Keep responses concise (2-3 sentences).
+		const gateway = new AIGatewayClient();
+		const { text } = await gateway.completeText({
+			model: DEFAULT_MODEL,
+			messages: [
+				{
+					role: 'system',
+					content: `You are an Agentuity expert assistant. Keep responses concise (2-3 sentences).
 
 ## Agentuity Documentation
 ${agentuityDocs}`,
-			messages: [...messages, { role: 'user', content: message }],
+				},
+				...messages,
+				{ role: 'user', content: message },
+			],
 		});
 
 		// Keep only recent turns so prompt size stays bounded.

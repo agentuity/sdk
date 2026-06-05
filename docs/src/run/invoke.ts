@@ -1,8 +1,8 @@
 /**
  * Generic demo module invoker
  *
- * Loads one legacy Explorer demo module and runs it with the local docs
- * context. This helper is excluded from generated sandbox scripts.
+ * Loads one SDK Explorer demo module and runs it with the local docs context.
+ * This helper is excluded from generated sandbox scripts.
  *
  * Usage: bun run src/run/invoke.ts <module-name> '<json-input>'
  *

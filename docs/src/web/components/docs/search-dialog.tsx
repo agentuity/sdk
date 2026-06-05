@@ -10,6 +10,7 @@ import {
 	MonitorIcon,
 	RocketIcon,
 	RouteIcon,
+	SearchIcon,
 	SparklesIcon,
 	UsersIcon,
 	type LucideIcon,
@@ -150,6 +151,47 @@ function getInitialMode(): SearchMode {
 	return 'search';
 }
 
+function AISearchFallback({
+	onSwitchMode,
+}: {
+	readonly onSwitchMode: () => void;
+}): React.ReactElement {
+	return (
+		<>
+			<div className="flex items-center gap-3 border-b py-3 pr-2 pl-4">
+				<div className="shrink-0 rounded-lg bg-muted p-2">
+					<SparklesIcon className="size-4 text-muted-foreground" />
+				</div>
+				<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+					<h2 className="text-sm font-semibold">Ask AI</h2>
+					<p className="text-xs text-muted-foreground">Search documentation with AI</p>
+				</div>
+				<button
+					type="button"
+					onClick={onSwitchMode}
+					className="mr-2 flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md bg-muted py-2 pr-2 pl-3 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+					title="Switch to keyword search"
+				>
+					<SearchIcon className="size-3.5" />
+					<span>Search</span>
+					<SearchKeyboardShortcut />
+				</button>
+			</div>
+			<div className="flex-1 px-4 py-5">
+				<div className="space-y-3" aria-hidden="true">
+					<div className="h-4 w-36 animate-pulse rounded bg-muted" />
+					<div className="h-16 animate-pulse rounded-md bg-muted/60" />
+					<div className="h-16 w-4/5 animate-pulse rounded-md bg-muted/40" />
+				</div>
+				<p className="sr-only">Loading Ask AI</p>
+			</div>
+			<div className="border-t px-4 pt-3 pb-3">
+				<div className="h-10 animate-pulse rounded-md bg-muted/60" aria-hidden="true" />
+			</div>
+		</>
+	);
+}
+
 export function SearchDialog({ open, onOpenChange, onSelect, initialMode }: SearchDialogProps) {
 	const [mode, setMode] = React.useState<SearchMode>(getInitialMode);
 
@@ -173,21 +215,23 @@ export function SearchDialog({ open, onOpenChange, onSelect, initialMode }: Sear
 	React.useEffect(() => {
 		if (!open) return;
 		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+			if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)) {
 				e.preventDefault();
+				e.stopPropagation();
 				handleModeChange(mode === 'search' ? 'ai' : 'search');
 			}
 		};
-		window.addEventListener('keydown', handleKeyDown);
-		return () => window.removeEventListener('keydown', handleKeyDown);
+		window.addEventListener('keydown', handleKeyDown, { capture: true });
+		return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
 	}, [open, mode, handleModeChange]);
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
+				data-agentuity-search-dialog={mode}
 				className={cn(
-					'overflow-hidden p-0',
-					mode === 'ai' && 'flex flex-col h-[75vh] sm:max-w-3xl'
+					'overflow-hidden p-0 sm:max-w-3xl',
+					mode === 'ai' && 'flex flex-col h-[75vh]'
 				)}
 				showCloseButton={false}
 			>
@@ -205,7 +249,9 @@ export function SearchDialog({ open, onOpenChange, onSelect, initialMode }: Sear
 						onSwitchMode={() => handleModeChange('ai')}
 					/>
 				) : (
-					<React.Suspense fallback={null}>
+					<React.Suspense
+						fallback={<AISearchFallback onSwitchMode={() => handleModeChange('search')} />}
+					>
 						<LazyAISearchContent
 							open={open}
 							onOpenChange={onOpenChange}

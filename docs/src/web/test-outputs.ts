@@ -130,11 +130,11 @@ Thread ID: thrd_xyz789abc
 User: What is Agentuity?
 Assistant: Agentuity is a platform for building and deploying AI agents. It provides an SDK with built-in storage (KV, Vector, Object), AI gateway for multiple providers, streaming support, and evaluation tools.`,
 
-	'model-arena': `[INFO] Model A (Anthropic anthropic/claude-opus-4-8): "Code is poetry written in logic, where semicolons are the punctuation of dreams."
+	'model-arena': `[INFO] OpenAI (openai/gpt-5.4-mini): "Code is poetry written in logic, where semicolons are the punctuation of dreams."
 
-[INFO] Model B (Google googleai/gemini-3.5-flash): "Programming is the art of teaching rocks to think, one boolean at a time."
+[INFO] Anthropic (anthropic/claude-opus-4-8): "Programming is the art of teaching rocks to think, one boolean at a time."
 
-[INFO] Judge (Groq groq/openai/gpt-oss-120b) {"winner":"model-b"}
+[INFO] Judge (openai/gpt-5.4-mini) {"winner":"anthropic"}
 [INFO] Scores {"creativity":0.85,"clarity":0.9}
-[INFO] Reasoning: Model B offers a more vivid and humorous metaphor with unexpected imagery, while Model A relies on a more conventional poetry comparison.`,
+[INFO] Reasoning: Anthropic offers a more vivid and humorous metaphor with unexpected imagery, while OpenAI relies on a more conventional poetry comparison.`,
 };

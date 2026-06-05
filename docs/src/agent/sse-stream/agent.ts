@@ -1,5 +1,5 @@
 /**
- * SSE Stream Agent
+ * SSE Stream Explorer demo
  *
  * Server-Sent Events for real-time streaming. SSE is a one-way protocol where
  * the server pushes data to the client - perfect for LLM token streaming, live
@@ -9,9 +9,9 @@
  * - vs Raw streaming: SSE adds structure (event types, IDs) and auto-reconnect
  * - vs WebSocket: SSE is simpler but one-way only (server→client)
  *
- * The actual streaming happens in the route (router.sse) using streamText() from
- * the AI SDK. This agent exists for Workbench discovery but returns a fallback
- * message for direct calls since streaming requires the SSE transport.
+ * The actual streaming happens in the route using Agentuity's AI Gateway client.
+ * This Explorer demo module returns a fallback message for direct calls because
+ * streaming requires the SSE transport.
  *
  * Docs: https://agentuity.dev/routes/sse
  */
@@ -24,8 +24,8 @@ const agent = defineDemoAgent('sse-stream', {
 		output: s.string(),
 	},
 	handler: async (_ctx, { prompt }) => {
-		// Non-streaming fallback for direct agent calls
-		return `This agent is designed for SSE streaming. Use the /stream endpoint with prompt: "${prompt}"`;
+		// Non-streaming fallback for direct demo calls
+		return `This demo is designed for SSE streaming. Use the /stream endpoint with prompt: "${prompt}"`;
 	},
 });
 

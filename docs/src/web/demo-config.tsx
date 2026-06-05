@@ -192,7 +192,7 @@ export const DEMOS: DemoConfig[] = [
 	{
 		id: 'object-storage',
 		title: 'Object Storage',
-		subtitle: 'File Storage (Bun S3)',
+		subtitle: 'Agentuity Storage',
 		description: 'Store files with presigned URLs for sharing.',
 		explanation: (
 			<>

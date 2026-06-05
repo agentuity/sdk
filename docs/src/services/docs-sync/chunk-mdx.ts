@@ -90,14 +90,14 @@ export function createContentAwareSplitter(contentType: string) {
 	});
 }
 
-export async function hybridChunkDocument(doc: Document) {
+export async function hybridChunkDocument(doc: Document): Promise<Document[]> {
 	const initialSplitter = new RecursiveCharacterTextSplitter({
 		chunkSize: 2000,
 		chunkOverlap: 100,
 		separators: ['\n## ', '\n### ', '\n\n', '\n'],
 	});
 	const initialChunks = await initialSplitter.splitDocuments([doc]);
-	const finalChunks: any[] = [];
+	const finalChunks: Document[] = [];
 	for (const chunk of initialChunks) {
 		const contentType = detectContentType(chunk.pageContent);
 		const contentSplitter = createContentAwareSplitter(contentType);
@@ -130,10 +130,8 @@ export async function chunkAndEnrichDoc(fileContent: string): Promise<Chunk[]> {
 			chunk.metadata.contentType === 'header' ||
 			chunk.metadata.contentType === 'header_section'
 		) {
-			currentHeading = chunk.pageContent
-				.split('\n')[0]
-				.replace(/^#+\s*/, '')
-				.trim();
+			const firstLine = chunk.pageContent.split('\n')[0] ?? '';
+			currentHeading = firstLine.replace(/^#+\s*/, '').trim();
 		}
 		return {
 			id: crypto.randomUUID(),

@@ -171,7 +171,7 @@ Use the explicit `/node` import for Node.js framework routes. In Bun-native rout
 
 ## Presigned URLs
 
-Generate presigned URLs from Bun server code when clients should upload or download directly. Bun's S3 API reads `S3_*` env vars and falls back to `AWS_*`, so a linked Agentuity bucket works without extra mapping.
+Generate presigned URLs from Bun server code when clients should upload or download directly. Bun's S3 API can read the `AWS_*` values written by `agentuity project add storage`, so a linked Agentuity bucket works without extra mapping.
 
 ```typescript
 import { S3Client } from 'bun';

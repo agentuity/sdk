@@ -39,6 +39,12 @@ export function getDemoAgents(): ReadonlyMap<string, DemoAgent<Schema, Schema>> 
 	return agents;
 }
 
+/**
+ * Local SDK Explorer wrapper for demo modules.
+ *
+ * This is not a v3 app authoring API. User-facing docs should show plain
+ * functions, route handlers, server functions, queues, or schedules instead.
+ */
 export function defineDemoAgent<TInput extends Schema, TOutput extends Schema>(
 	name: string,
 	config: DemoAgentConfig<TInput, TOutput>

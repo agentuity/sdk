@@ -9,8 +9,7 @@
  */
 import { getDemoContext } from '../api/context';
 import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
-import { streamText } from 'ai';
-import { getModel } from '../lib/models';
+import { streamAIGatewayText } from '../lib/ai-gateway-stream';
 
 interface Input {
 	prompt?: string;
@@ -23,9 +22,9 @@ try {
 	const input: Input = JSON.parse(process.argv[2] ?? '{}');
 	const prompt = input.prompt ?? 'Explain what Server-Sent Events are in 2-3 sentences.';
 	ctx.logger.info('SSE stream started', { prompt });
-	const { textStream } = streamText({
-		model: getModel(DEFAULT_MODEL),
-		prompt,
+	const { textStream } = await streamAIGatewayText({
+		model: DEFAULT_MODEL,
+		messages: [{ role: 'user', content: prompt }],
 	});
 
 	// Emit each chunk as it arrives so the route streams it to the browser live.

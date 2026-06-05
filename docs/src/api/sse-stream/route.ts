@@ -6,8 +6,7 @@
  */
 import { sse } from '../http';
 import type { ApiEnv } from '../context';
-import { streamText } from 'ai';
-import { getModel } from '../../lib/models';
+import { streamAIGatewayText, totalTokensFromAIGatewayMetadata } from '../../lib/ai-gateway-stream';
 import { Hono } from 'hono';
 
 // Fixed prompt for the demo - users choose the model
@@ -37,9 +36,9 @@ const router = new Hono<ApiEnv>()
 			try {
 				let chunkCount = 0;
 
-				const { textStream, usage } = streamText({
-					model: getModel(model),
-					prompt: FIXED_PROMPT,
+				const { textStream, metadata } = await streamAIGatewayText({
+					model,
+					messages: [{ role: 'user', content: FIXED_PROMPT }],
 				});
 
 				for await (const chunk of textStream) {
@@ -50,8 +49,7 @@ const router = new Hono<ApiEnv>()
 					});
 				}
 
-				const usageData = await usage;
-				const totalTokens = usageData?.totalTokens ?? 0;
+				const totalTokens = totalTokensFromAIGatewayMetadata(await metadata);
 
 				await stream.writeSSE({
 					event: 'done',

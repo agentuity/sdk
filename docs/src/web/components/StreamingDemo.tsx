@@ -28,6 +28,7 @@ function estimateTokens(text: string): number {
 
 const MODELS = [
 	{ value: 'anthropic/claude-opus-4-8', label: 'Claude Opus 4.8', provider: 'Anthropic' },
+	{ value: 'googleai/gemini-3.5-flash', label: 'Gemini 3.5 Flash', provider: 'Google' },
 	{ value: 'openai/gpt-5.5', label: 'GPT-5.5', provider: 'OpenAI' },
 	{ value: 'groq/openai/gpt-oss-120b', label: 'GPT OSS 120B', provider: 'Groq' },
 ];

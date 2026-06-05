@@ -1,8 +1,8 @@
 /**
- * Message Queue Agent
+ * Message queue Explorer demo
  *
  * Demonstrates queue operations for the publish side of message queues.
- * Agents use ctx.queue for creating queues and publishing messages.
+ * This local demo uses its injected context to create queues and publish messages.
  * Consume-side operations (receive, ack, nack, DLQ) use the server API
  * client directly — see src/api/queue/route.ts.
  *

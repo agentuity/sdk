@@ -5,6 +5,27 @@ import type { FilePayload, SyncPayload, SyncStats } from './types';
 
 const CONCURRENCY = 5;
 
+type ProcessedDocChunk = Awaited<ReturnType<typeof processDoc>>[number];
+type PathVector = { key: string };
+
+export interface DocsSyncContext {
+	logger: {
+		info(message: string, ...args: unknown[]): void;
+		warn(message: string, ...args: unknown[]): void;
+		error(message: string, ...args: unknown[]): void;
+	};
+	vector: {
+		delete(namespace: string, key: string): Promise<number>;
+		search(
+			namespace: string,
+			params: { query: string; limit: number; metadata: { path: string } }
+		): Promise<PathVector[]>;
+		upsert(namespace: string, ...chunks: ProcessedDocChunk[]): Promise<unknown>;
+		getStats(namespace: string): Promise<{ count?: number }>;
+		deleteNamespace(namespace: string): Promise<unknown>;
+	};
+}
+
 const Base64DecodeError = StructuredError('Base64DecodeError')<{
 	path: string;
 }>();
@@ -14,7 +35,11 @@ const Base64DecodeError = StructuredError('Base64DecodeError')<{
  * Uses single-key DELETE /vector/:name/:key to avoid the batch delete bug
  * where DELETE /vector/:name with multiple keys deletes the entire namespace.
  */
-async function deleteKeys(ctx: any, namespace: string, keys: string[]): Promise<number> {
+async function deleteKeys(
+	ctx: DocsSyncContext,
+	namespace: string,
+	keys: string[]
+): Promise<number> {
 	let deleted = 0;
 	for (let i = 0; i < keys.length; i += CONCURRENCY) {
 		const batch = keys.slice(i, i + CONCURRENCY);
@@ -39,7 +64,11 @@ async function deleteKeys(ctx: any, namespace: string, keys: string[]): Promise<
  *      thresholds, this listing pattern could silently return fewer results.
  * A dedicated vector.list({ metadata }) API would eliminate this risk.
  */
-async function removeVectorsByPath(ctx: any, logicalPath: string, vectorStoreName: string) {
+async function removeVectorsByPath(
+	ctx: DocsSyncContext,
+	logicalPath: string,
+	vectorStoreName: string
+): Promise<void> {
 	let totalDeleted = 0;
 
 	while (true) {
@@ -53,7 +82,7 @@ async function removeVectorsByPath(ctx: any, logicalPath: string, vectorStoreNam
 			break;
 		}
 
-		const keys = vectors.map((v: { key: string }) => v.key);
+		const keys = vectors.map((v) => v.key);
 		const deletedCount = await deleteKeys(ctx, vectorStoreName, keys);
 		totalDeleted += deletedCount;
 
@@ -81,7 +110,7 @@ async function removeVectorsByPath(ctx: any, logicalPath: string, vectorStoreNam
 /**
  * Process a single changed file: decode, remove old vectors, chunk, embed, upsert.
  */
-async function processChangedFile(ctx: any, file: FilePayload): Promise<number> {
+async function processChangedFile(ctx: DocsSyncContext, file: FilePayload): Promise<number> {
 	const { path: logicalPath, content: base64Content } = file;
 
 	let content: string;
@@ -123,13 +152,20 @@ async function processChangedFile(ctx: any, file: FilePayload): Promise<number> 
  * Process documentation sync from embedded payload.
  * Files are processed in parallel batches for throughput.
  */
-export async function syncDocsFromPayload(ctx: any, payload: SyncPayload): Promise<SyncStats> {
-	const { changed = [], removed = [] } = payload;
+export async function syncDocsFromPayload(
+	ctx: DocsSyncContext,
+	payload: SyncPayload
+): Promise<SyncStats> {
+	const { changed = [], removed = [], mode = 'incremental' } = payload;
 	const syncStart = Date.now();
 	let processed = 0;
 	let deleted = 0;
 	let errors = 0;
 	const errorFiles: string[] = [];
+
+	if (mode === 'full') {
+		deleted += await clearVectorDb(ctx);
+	}
 
 	// Process removed files in parallel batches
 	if (removed.length > 0) {
@@ -233,23 +269,16 @@ export async function syncDocsFromPayload(ctx: any, payload: SyncPayload): Promi
 }
 
 /**
- * Remove all vectors from the store. Uses the same search-as-listing workaround
- * as removeVectorsByPath; see the CONTRACT RISK note above.
+ * Remove all vectors from the docs namespace before a full reindex.
  */
-export async function clearVectorDb(ctx: any) {
-	ctx.logger.info('Clearing all vectors from store: %s', VECTOR_STORE_NAME);
-	while (true) {
-		const batch = await ctx.vector.search(VECTOR_STORE_NAME, {
-			query: 'anything',
-			limit: 1000,
-		});
-		if (batch.length === 0) break;
+export async function clearVectorDb(ctx: DocsSyncContext): Promise<number> {
+	ctx.logger.info('Clearing vector namespace: %s', VECTOR_STORE_NAME);
 
-		const keys = batch.map((v: { key: string }) => v.key);
-		const deletedCount = await deleteKeys(ctx, VECTOR_STORE_NAME, keys);
-		if (deletedCount === 0) {
-			ctx.logger.warn('Vector delete returned 0 during clearVectorDb, aborting loop');
-			break;
-		}
-	}
+	const stats = await ctx.vector.getStats(VECTOR_STORE_NAME);
+	const deleted = typeof stats.count === 'number' ? stats.count : 0;
+
+	await ctx.vector.deleteNamespace(VECTOR_STORE_NAME);
+
+	ctx.logger.info('Cleared vector namespace: %s (%d vectors)', VECTOR_STORE_NAME, deleted);
+	return deleted;
 }

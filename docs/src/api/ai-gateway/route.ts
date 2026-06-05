@@ -2,12 +2,11 @@
  * Gateway Route - Compares responses from multiple LLM providers using AI Gateway.
  *
  * GET /         - Returns gateway configuration and fixed prompt
- * STREAM /compare - Streams LLM response for selected model
+ * POST /compare - Returns an LLM response for the selected model
  */
 import { stream } from '../http';
 import type { ApiEnv } from '../context';
-import { generateText, streamText } from 'ai';
-import { getModel } from '../../lib/models';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { Hono } from 'hono';
 import { modelFromRequestBody } from '../request-body';
 
@@ -38,28 +37,18 @@ const router = new Hono<ApiEnv>()
 					model,
 				});
 
-				if (model.startsWith('googleai/') || model.startsWith('gemini-')) {
-					// Gemini gateway streaming currently returns no chunks. Use one-shot
-					// generation here so the demo stays usable until that path is fixed.
-					const { text } = await generateText({
-						model: getModel(model),
-						prompt: FIXED_PROMPT,
-					});
-
-					return new ReadableStream({
-						start(controller) {
-							controller.enqueue(new TextEncoder().encode(text));
-							controller.close();
-						},
-					});
-				}
-
-				const { textStream } = streamText({
-					model: getModel(model),
-					prompt: FIXED_PROMPT,
+				const gateway = new AIGatewayClient();
+				const result = await gateway.completeText({
+					model,
+					messages: [{ role: 'user', content: FIXED_PROMPT }],
 				});
 
-				return textStream;
+				return new ReadableStream({
+					start(controller) {
+						controller.enqueue(new TextEncoder().encode(result.text));
+						controller.close();
+					},
+				});
 			} catch (error) {
 				const message = error instanceof Error ? error.message : 'Unknown error';
 				c.var.logger?.error('Gateway comparison error', { error: message });

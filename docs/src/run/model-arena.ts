@@ -6,10 +6,9 @@
  *
  * Usage: bun run src/run/model-arena.ts '{"prompt":"Write a haiku about coding"}'
  */
-import { generateText, generateObject } from 'ai';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { z } from 'zod';
 import { writeSandboxOutput } from '../lib/sandbox-output-writer';
-import { getModel } from '../lib/models';
 
 interface Input {
 	prompt?: string;
@@ -24,7 +23,7 @@ function parseJSON<T>(text: string, fallback: T): T {
 }
 
 const JudgmentSchema = z.object({
-	winner: z.enum(['model-a', 'model-b']),
+	winner: z.enum(['openai', 'anthropic']),
 	reasoning: z.string(),
 	scores: z.object({
 		creativity: z.number(),
@@ -32,43 +31,69 @@ const JudgmentSchema = z.object({
 	}),
 });
 
+const JudgmentResponseSchema = {
+	type: 'object',
+	properties: {
+		winner: { type: 'string', enum: ['openai', 'anthropic'] },
+		reasoning: { type: 'string' },
+		scores: {
+			type: 'object',
+			properties: {
+				creativity: { type: 'number' },
+				clarity: { type: 'number' },
+			},
+			required: ['creativity', 'clarity'],
+			additionalProperties: false,
+		},
+	},
+	required: ['winner', 'reasoning', 'scores'],
+	additionalProperties: false,
+};
+
 const input: Input = parseJSON<Input>(process.argv[2] ?? '{}', {});
 const userPrompt = input.prompt ?? 'Write a creative one-liner about programming.';
+const OPENAI_MODEL = 'openai/gpt-5.4-mini';
 const ANTHROPIC_MODEL = 'anthropic/claude-opus-4-8';
-const GOOGLE_MODEL = 'googleai/gemini-3.5-flash';
-const JUDGE_MODEL = 'groq/openai/gpt-oss-120b';
+const JUDGE_MODEL = 'openai/gpt-5.4-mini';
 
 // Buffer output so the Explorer terminal receives one clean result block.
 const output: string[] = [];
 
 try {
 	// Compare model quality without making the user wait for sequential calls.
-	const [responseA, responseB] = await Promise.all([
-		generateText({
-			model: getModel(ANTHROPIC_MODEL),
-			prompt: userPrompt,
+	const gateway = new AIGatewayClient();
+	const [openaiResult, anthropicResult] = await Promise.all([
+		gateway.completeText({
+			model: OPENAI_MODEL,
+			messages: [{ role: 'user', content: userPrompt }],
 		}),
-		generateText({
-			model: getModel(GOOGLE_MODEL),
-			prompt: userPrompt,
+		gateway.completeText({
+			model: ANTHROPIC_MODEL,
+			messages: [{ role: 'user', content: userPrompt }],
 		}),
 	]);
 
-	const { object: judgment } = await generateObject({
-		model: getModel(JUDGE_MODEL),
-		schema: JudgmentSchema,
-		prompt: `Compare these responses and pick a winner.
+	const { data } = await gateway.completeStructured({
+		model: JUDGE_MODEL,
+		response_schema: { name: 'ModelArenaJudgment', schema: JudgmentResponseSchema },
+		messages: [
+			{
+				role: 'user',
+				content: `Compare these responses and pick a winner.
 Score each on creativity and clarity (0-1).
 
-Model A (${ANTHROPIC_MODEL}): ${responseA.text.slice(0, 200)}
-Model B (${GOOGLE_MODEL}): ${responseB.text.slice(0, 200)}`,
+OpenAI (${OPENAI_MODEL}): ${openaiResult.text.slice(0, 200)}
+Anthropic (${ANTHROPIC_MODEL}): ${anthropicResult.text.slice(0, 200)}`,
+			},
+		],
 	});
+	const judgment = JudgmentSchema.parse(data);
 
-	output.push(`[INFO] Model A (Anthropic ${ANTHROPIC_MODEL}): "${responseA.text}"`);
+	output.push(`[INFO] OpenAI (${OPENAI_MODEL}): "${openaiResult.text}"`);
 	output.push('');
-	output.push(`[INFO] Model B (Google ${GOOGLE_MODEL}): "${responseB.text}"`);
+	output.push(`[INFO] Anthropic (${ANTHROPIC_MODEL}): "${anthropicResult.text}"`);
 	output.push('');
-	output.push(`[INFO] Judge (Groq ${JUDGE_MODEL}) {"winner":"${judgment.winner}"}`);
+	output.push(`[INFO] Judge (${JUDGE_MODEL}) {"winner":"${judgment.winner}"}`);
 	output.push(
 		`[INFO] Scores {"creativity":${judgment.scores.creativity},"clarity":${judgment.scores.clarity}}`
 	);

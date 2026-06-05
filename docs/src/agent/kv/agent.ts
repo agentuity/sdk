@@ -1,5 +1,5 @@
 /**
- * Key-Value Storage Agent
+ * Key-Value Storage Explorer demo
  *
  * Demonstrates KV storage for simple key-based data access. KV is ideal when
  * you know the exact key you're looking for - like user sessions, config values,
