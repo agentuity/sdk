@@ -1,5 +1,9 @@
-import handler, { createServerEntry } from '@tanstack/react-start/server-entry';
+import { defaultRenderHandler } from '@tanstack/react-router/ssr/server';
+import { createStartHandler } from '@tanstack/react-start/server';
+import { createServerEntry } from '@tanstack/react-start/server-entry';
 import { docRedirectRules, getDemoRedirectTarget } from './lib/docs-redirects';
+
+const startHandler = createStartHandler(defaultRenderHandler);
 
 const legacyRedirects = new Map<string, string>(
 	docRedirectRules.flatMap((rule) => rule.paths.map((path) => [path, rule.target] as const))
@@ -44,7 +48,7 @@ const startEntry = createServerEntry({
 			return redirect(target);
 		}
 
-		return handler.fetch(request, opts);
+		return startHandler(request, opts);
 	},
 });
 
