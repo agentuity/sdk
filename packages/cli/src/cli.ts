@@ -1218,7 +1218,16 @@ async function registerSubcommand(
 						cmd.addOption(negativeOption);
 					}
 				} else {
+					// Optional boolean (no default) — register both forms so
+					// --no-<flag> works even though the positive form is primary.
+					const baseDesc = desc.replace(/\s*\(use\s+--no-\S+\s+to\s+skip\)/i, '').trim();
+					const negatedDesc = baseDesc.toLowerCase().startsWith('run ')
+						? `Skip ${baseDesc.slice(4)}`
+						: `Do not ${baseDesc.charAt(0).toLowerCase()}${baseDesc.slice(1)}`;
 					cmd.option(flagSpec, desc);
+					const negativeOption = cmd.createOption(`--no-${flag}`, negatedDesc);
+					negativeOption.hideHelp();
+					cmd.addOption(negativeOption);
 				}
 			} else if (opt.type === 'number') {
 				const numDefault = opt.hasDefault
