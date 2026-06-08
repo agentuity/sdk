@@ -9,7 +9,7 @@ Start with a normal [Astro](https://docs.astro.build) app. Agentuity adds servic
 ## Create a Starter
 
 ```bash
-npm create agentuity@next -- --name my-astro-app --framework astro
+npm create agentuity -- --name my-astro-app --framework astro
 cd my-astro-app
 ```
 
@@ -29,7 +29,7 @@ Key files in the AI example:
 For an existing Astro app, add the CLI and register the project:
 
 ```bash
-npm install -D @agentuity/cli@next
+npm install -D @agentuity/cli
 npx agentuity project import --validate-only   # dry run: checks config only
 npx agentuity project import                   # registers the project and writes agentuity.json
 ```
@@ -58,7 +58,7 @@ Astro [endpoint files](https://docs.astro.build/en/guides/endpoints/) in `src/pa
 The route below uses `AIGatewayClient` for the model call. The project SDK key authenticates the request, and the model ID is app configuration or request input.
 
 ```bash
-npm install @agentuity/aigateway@next @agentuity/keyvalue@next arktype
+npm install @agentuity/aigateway @agentuity/keyvalue arktype
 ```
 
 ```typescript title="src/pages/api/translate.ts"

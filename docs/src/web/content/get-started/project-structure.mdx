@@ -7,11 +7,11 @@ The create flow runs the framework's official scaffolding tool, then layers on A
 
 ## What the scaffold adds
 
-After `npm create agentuity@next`, expect the framework's normal files plus:
+After `npm create agentuity`, expect the framework's normal files plus:
 
 | Addition | Where | When |
 |----------|-------|------|
-| `@agentuity/cli@next` | `package.json` devDependencies | Always |
+| `@agentuity/cli` | `package.json` devDependencies | Always |
 | `@agentuity/aigateway` | `package.json` dependencies | When the AI example is included |
 | `swr` | `package.json` dependencies | Next.js AI example |
 | Selected service packages, for example `@agentuity/keyvalue` | `package.json` dependencies | When selected with `--services` or the service prompt |

@@ -7,7 +7,7 @@ description: Run a headless browser inside a sandbox so an agent can navigate, s
 Agents that interact with live websites belong in a sandbox. Each session gets isolated network egress, ephemeral disk, and a clean process tree, so the agent can run untrusted page interactions without touching the host. This pattern uses [`SandboxClient`](/services/sandbox/sdk-usage), an AI SDK tool loop, and key-value memory.
 
 ```bash
-npm install hono ai @ai-sdk/anthropic @agentuity/sandbox@next @agentuity/keyvalue@next @agentuity/telemetry@next arktype zod
+npm install hono ai @ai-sdk/anthropic @agentuity/sandbox @agentuity/keyvalue @agentuity/telemetry arktype zod
 ```
 
 ## Prerequisite: A Browser-Ready Snapshot

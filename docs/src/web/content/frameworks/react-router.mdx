@@ -16,7 +16,7 @@ cd my-react-router-app
 Then add Agentuity:
 
 ```bash
-npm install -D @agentuity/cli@next
+npm install -D @agentuity/cli
 npx agentuity project import --validate-only
 npx agentuity project import
 ```
@@ -25,10 +25,10 @@ Use the package manager that `create-react-router` configured. The CLI install i
 
 | Package manager | Add local CLI | Run local CLI | Undo local install |
 | --- | --- | --- | --- |
-| npm | `npm install -D @agentuity/cli@next` | `npx agentuity ...` | `npm uninstall @agentuity/cli` |
-| Bun | `bun add -d @agentuity/cli@next` | `bunx agentuity ...` | `bun remove @agentuity/cli` |
-| pnpm | `pnpm add -D @agentuity/cli@next` | `pnpm exec agentuity ...` | `pnpm remove @agentuity/cli` |
-| Yarn | `yarn add -D @agentuity/cli@next` | `yarn exec agentuity ...` | `yarn remove @agentuity/cli` |
+| npm | `npm install -D @agentuity/cli` | `npx agentuity ...` | `npm uninstall @agentuity/cli` |
+| Bun | `bun add -d @agentuity/cli` | `bunx agentuity ...` | `bun remove @agentuity/cli` |
+| pnpm | `pnpm add -D @agentuity/cli` | `pnpm exec agentuity ...` | `pnpm remove @agentuity/cli` |
+| Yarn | `yarn add -D @agentuity/cli` | `yarn exec agentuity ...` | `yarn remove @agentuity/cli` |
 
 A global install is optional. It only makes bare `agentuity ...` work outside a project; it does not import or register the app. You can switch back by adding the dev dependency again and using the package-manager exec wrapper. The global install can stay installed, or you can remove it with the package manager that created it. See [Local versus global CLI](/get-started/installation#local-versus-global-cli) for the trade-offs.
 
@@ -49,7 +49,7 @@ The examples below use these files:
 Use the same Agentuity commands in an app that already exists:
 
 ```bash
-npm install -D @agentuity/cli@next
+npm install -D @agentuity/cli
 npx agentuity project import --validate-only  # review what the CLI finds
 npx agentuity project import                  # write local project metadata
 ```
@@ -78,7 +78,7 @@ The route below uses `AIGatewayClient` for the model call. The project SDK key a
 Install the packages used in this example:
 
 ```bash
-npm install @agentuity/aigateway@next @agentuity/keyvalue@next zod
+npm install @agentuity/aigateway @agentuity/keyvalue zod
 ```
 
 Create the route file:

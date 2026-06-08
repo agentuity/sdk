@@ -7,7 +7,7 @@ description: Store documents and embeddings for semantic search and retrieval
 Use vector storage when exact keys or SQL filters are not enough, for example knowledge search, RAG retrieval, recommendations, or long-lived memory. Start with `VectorClient`; Hono apps can use `c.var.vector` after installing the Agentuity middleware.
 
 ```bash
-npm install @agentuity/vector@next
+npm install @agentuity/vector
 ```
 
 ```typescript
@@ -171,7 +171,7 @@ Local vector storage is useful for development and API-shape checks. Validate em
 In Hono apps, `@agentuity/hono` initializes `VectorClient` once and exposes it on `c.var.vector`.
 
 ```bash
-npm install @agentuity/hono@next hono
+npm install @agentuity/hono hono
 ```
 
 ```typescript

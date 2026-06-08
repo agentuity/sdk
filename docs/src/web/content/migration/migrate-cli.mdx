@@ -7,7 +7,7 @@ description: Run the Agentuity migration tool for v2 to v3 projects.
 Use the v3 migration command so the command includes both `--v2-to-v3` and `--v1-to-v2`.
 
 ```bash
-npx @agentuity/migrate@next --v2-to-v3 --dry-run
+npx @agentuity/migrate --v2-to-v3 --dry-run
 ```
 
 When you switch to the v3 CLI after migration, the examples below use `agentuity ...` for readability. If the CLI is only installed locally, run the same command through your package manager's exec wrapper, for example `npx agentuity ...` or `bunx agentuity ...`.
@@ -17,7 +17,7 @@ When you switch to the v3 CLI after migration, the examples below use `agentuity
 Run from the project root, or pass the project directory as the first argument:
 
 ```bash
-npx @agentuity/migrate@next [project-dir] --v2-to-v3
+npx @agentuity/migrate [project-dir] --v2-to-v3
 ```
 
 Useful flags:
@@ -44,13 +44,13 @@ Pass `--v2-to-v3` when you are following the v3 migration docs. Pass `--v1-to-v2
 Preview first:
 
 ```bash
-npx @agentuity/migrate@next --v2-to-v3 --dry-run
+npx @agentuity/migrate --v2-to-v3 --dry-run
 ```
 
 Apply after the report looks right:
 
 ```bash
-npx @agentuity/migrate@next --v2-to-v3
+npx @agentuity/migrate --v2-to-v3
 ```
 
 The tool refuses to write changes when it detects a dirty git worktree. Commit, stash, or otherwise clear unrelated local changes before applying the migration.

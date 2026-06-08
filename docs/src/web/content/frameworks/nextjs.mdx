@@ -11,7 +11,7 @@ Call Agentuity services (key-value, AI Gateway, queues) from Next.js App Router 
 The quickest way to start is with the Agentuity CLI:
 
 ```bash
-npm create agentuity@next -- --name my-next-app --framework nextjs --services keyvalue
+npm create agentuity -- --name my-next-app --framework nextjs --services keyvalue
 cd my-next-app
 ```
 
@@ -28,7 +28,7 @@ The starter includes a working translation demo: a React page that calls an API 
 Install the CLI as a dev dependency, then import the project:
 
 ```bash
-npm install -D @agentuity/cli@next
+npm install -D @agentuity/cli
 npx agentuity project import --validate-only   # dry run: checks config only
 npx agentuity project import                   # registers the project and writes agentuity.json
 ```
@@ -55,7 +55,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for the
 Route handlers use standalone service clients. They do not need an Agentuity-owned router or `createApp()`.
 
 ```bash
-npm install @agentuity/keyvalue@next
+npm install @agentuity/keyvalue
 ```
 
 ```typescript title="src/app/api/notes/route.ts"
@@ -120,7 +120,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 Use `AIGatewayClient` for generic model calls. The project SDK key authenticates the request, and the model ID is app configuration or request input.
 
 ```bash
-npm install @agentuity/aigateway@next zod
+npm install @agentuity/aigateway zod
 ```
 
 ```typescript title="src/app/api/chat/route.ts"

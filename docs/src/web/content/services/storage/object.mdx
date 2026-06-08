@@ -60,7 +60,7 @@ Do not expose bucket credentials to browser code. Create presigned URLs from a s
 Use `@agentuity/storage` when you want the same object-storage code to run under Bun or Node.js.
 
 ```bash
-npm install @agentuity/storage@next
+npm install @agentuity/storage
 ```
 
 The bare import picks the backend from package export conditions. Use the explicit subpaths when you need to pin the runtime:
@@ -145,7 +145,7 @@ await storage.write('exports/large-report.csv', stream, {
 In framework apps, keep the storage client in a server-only route or server module. This example writes text content from a Next.js route handler without exposing bucket credentials to the browser.
 
 ```bash
-npm install @agentuity/storage@next zod
+npm install @agentuity/storage zod
 ```
 
 ```typescript title="app/api/reports/route.ts"

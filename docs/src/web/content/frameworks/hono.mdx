@@ -9,7 +9,7 @@ Write normal [Hono](https://hono.dev/docs/) route handlers. Use direct Agentuity
 ## Create a Starter
 
 ```bash
-npm create agentuity@next -- --name my-hono-api --framework hono --services keyvalue
+npm create agentuity -- --name my-hono-api --framework hono --services keyvalue
 cd my-hono-api
 ```
 
@@ -26,7 +26,7 @@ Key files:
 For an existing Hono app, add the CLI and link the project:
 
 ```bash
-npm install -D @agentuity/cli@next
+npm install -D @agentuity/cli
 npx agentuity project import --validate-only
 npx agentuity project import
 ```
@@ -53,7 +53,7 @@ Direct service clients work in any Hono handler. They read `AGENTUITY_SDK_KEY` (
 Install what the example uses:
 
 ```bash
-npm install hono @agentuity/aigateway@next @agentuity/keyvalue@next valibot
+npm install hono @agentuity/aigateway @agentuity/keyvalue valibot
 ```
 
 This route translates input text, persists the last five translations under a session cookie, and calls AI Gateway with the project SDK key. Use a provider SDK directly only when the provider-specific API is the point of the route.
@@ -163,7 +163,7 @@ Use the model `id` exactly as it appears in the [AI Gateway model catalog](/serv
 When most routes need the same Agentuity clients, `@agentuity/hono` can initialize them once and expose them on `c.var.*`. Keep direct clients for a single route, one-off script, or code you want to move across frameworks. Use middleware when the app benefits from shared clients, telemetry defaults, and route-local access through `c.var`. If your unbundled dev runner has trouble resolving the telemetry package, keep direct clients in dev or bundle the server entry before using the middleware path.
 
 ```bash
-npm install @agentuity/hono@next
+npm install @agentuity/hono
 ```
 
 ```typescript title="src/index.ts"

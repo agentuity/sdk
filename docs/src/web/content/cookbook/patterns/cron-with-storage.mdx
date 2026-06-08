@@ -7,7 +7,7 @@ description: Refresh data on a schedule, cache it in key-value storage, and serv
 Read-heavy routes can serve a cached payload while a scheduled task refreshes it in the background. The schedule fires a worker route, the worker writes to key-value storage, and a regular GET route returns whatever is current.
 
 ```bash
-npm install hono @agentuity/schedule@next @agentuity/keyvalue@next valibot
+npm install hono @agentuity/schedule @agentuity/keyvalue valibot
 ```
 
 ## Define the Worker and Reader Routes

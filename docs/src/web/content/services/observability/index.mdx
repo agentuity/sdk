@@ -61,7 +61,7 @@ For Agentuity projects, observability starts with the app's existing logging, tr
 | CLI and Console inspection | session and deployment log commands | session timeline views | session and deployment views |
 
 ```bash
-npm install @agentuity/telemetry@next
+npm install @agentuity/telemetry
 ```
 
 ```typescript
@@ -98,7 +98,7 @@ OpenTelemetry is useful for timing and cross-service context, but it does not ne
 Hono apps can install one middleware when `c.var.*` is the cleanest injection point for shared Agentuity clients and telemetry defaults.
 
 ```bash
-npm install @agentuity/hono@next @opentelemetry/api hono
+npm install @agentuity/hono @opentelemetry/api hono
 ```
 
 ```typescript

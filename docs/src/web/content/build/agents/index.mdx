@@ -12,7 +12,7 @@ Because agents are app code, they use the same dependencies as the rest of the a
 Start with a plain typed function. It accepts validated input, returns typed output, and does not call `createAgent()`.
 
 ```bash
-npm install @agentuity/aigateway@next @agentuity/keyvalue@next zod
+npm install @agentuity/aigateway @agentuity/keyvalue zod
 ```
 
 ```typescript
@@ -91,7 +91,7 @@ export async function POST(request: Request): Promise<Response> {
 This is the full file version: one module, schemas, agent function, and route handler together. Use this shape for smaller features before splitting.
 
 ```bash
-npm install @agentuity/aigateway@next @agentuity/keyvalue@next zod
+npm install @agentuity/aigateway @agentuity/keyvalue zod
 ```
 
 ```typescript title="app/api/triage/route.ts"
@@ -213,7 +213,7 @@ See [Migrating Runtime Apps to Frameworks](/migration/runtime-to-frameworks) whe
 In a Hono app, `@agentuity/hono` initializes all service clients once and injects them via `c.var`. Use this when most routes in the app need the same clients or logger.
 
 ```bash
-npm install hono @agentuity/hono@next zod
+npm install hono @agentuity/hono zod
 ```
 
 ```typescript title="src/index.ts"

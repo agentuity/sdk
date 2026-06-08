@@ -32,7 +32,7 @@ Start with AI Gateway when the model call is normal app code and the model choic
 Use AI SDK when you want the library to own the tool loop. `generateText` calls your `execute` function, injects the result into the next turn, and continues until the model stops or `stopWhen` fires. All tools are validated with `inputSchema` before `execute` runs.
 
 ```bash
-npm install ai@latest @ai-sdk/anthropic@latest @agentuity/keyvalue@next zod
+npm install ai@latest @ai-sdk/anthropic@latest @agentuity/keyvalue zod
 ```
 
 ```typescript title="app/api/orders/answer/route.ts"
@@ -137,7 +137,7 @@ Pending tool calls appear in the model result's content. Store the pending actio
 Use this pattern when your app is already on the Responses API and you want to chain turns using `previous_response_id`. The Responses API accumulates conversation state server-side so you only need to send new input items in follow-up requests.
 
 ```bash
-npm install openai @agentuity/keyvalue@next zod
+npm install openai @agentuity/keyvalue zod
 ```
 
 The Responses API returns `function_call` items in `response.output`. Run your tool, then send a `function_call_output` item with the matching `call_id` in a follow-up request. Pass `previous_response_id` to reuse the model's prior turn state.
@@ -240,7 +240,7 @@ export async function answerWithOpenAI(question: string): Promise<string> {
 Use this pattern when your app uses the Anthropic SDK directly and needs `tool_use` block fidelity, such as when you log tool calls for auditing or need `strict: true` schema enforcement on every invocation.
 
 ```bash
-npm install @anthropic-ai/sdk @agentuity/keyvalue@next zod
+npm install @anthropic-ai/sdk @agentuity/keyvalue zod
 ```
 
 The Messages API returns `tool_use` blocks when the model wants to call a tool (`stop_reason: 'tool_use'`). Continue the conversation by appending the prior assistant message and a new user message whose content is the `tool_result` block.

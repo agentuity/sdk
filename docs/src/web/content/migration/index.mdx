@@ -8,7 +8,7 @@ import { ArrowRightLeft, Route, Terminal } from 'lucide-react';
 Use these pages when an existing Agentuity app needs a controlled move between SDK generations. v3 is the default path for new work. Existing v2 apps can stay on v2 until the framework-first app shape is worth the migration work.
 
 ```bash
-npx @agentuity/migrate@next --v2-to-v3 --dry-run
+npx @agentuity/migrate --v2-to-v3 --dry-run
 ```
 
 When the follow-up steps call the Agentuity CLI, use your package manager's exec wrapper if the CLI is only installed locally, for example `npx agentuity ...` or `bunx agentuity ...`.
@@ -18,7 +18,7 @@ When the follow-up steps call the Agentuity CLI, use your package manager's exec
     The v2 to v3 migration is an eject from the Agentuity runtime container into a framework-owned app. The tool can move simple runtime code into a Hono starting point, remove v2-only packages, and leave review markers where app state, lifecycle, auth, or frontend behavior needs a human decision.
 
     ```bash
-    npx @agentuity/migrate@next --v2-to-v3 --dry-run
+    npx @agentuity/migrate --v2-to-v3 --dry-run
     ```
 
     Start here when your app imports `@agentuity/runtime`, calls `createApp()`, uses `createAgent()`, or depends on runtime `ctx.*` service access.
@@ -27,7 +27,7 @@ When the follow-up steps call the Agentuity CLI, use your package manager's exec
     The v1 to v2 migration keeps the runtime model and updates older route structure into the v2 runtime shape. Use it only for apps that must stop at v2 before later moving to v3.
 
     ```bash
-    npx @agentuity/migrate@next --v1-to-v2 --dry-run
+    npx @agentuity/migrate --v1-to-v2 --dry-run
     ```
 
     <Callout type="info" title="v3 is the default target for new migration work">
@@ -66,7 +66,7 @@ When the follow-up steps call the Agentuity CLI, use your package manager's exec
 | v2 app using `@agentuity/runtime`, `createApp()`, or `createAgent()` | [Migrating from v2](/migration/from-v2): run the migration in order and review the manual work |
 | v1 app using older route files and generated SDK folders | [Migration CLI](/migration/migrate-cli): run `--v1-to-v2`, verify v2, then decide whether to continue to v3 |
 | You want to understand the app model change before editing code | [Runtime to Frameworks](/migration/runtime-to-frameworks): map runtime APIs to framework routes, functions, and service clients |
-| You want the exact command, flags, and generated changes | [Migration CLI](/migration/migrate-cli): inspect `npx @agentuity/migrate@next` before applying it |
+| You want the exact command, flags, and generated changes | [Migration CLI](/migration/migrate-cli): inspect `npx @agentuity/migrate` before applying it |
 
 <Callout type="info" title="Using a v2 runtime app?">
 Existing v2 apps pinned to the v2 runtime model can keep running while you plan the move. The v3 `@agentuity/runtime` package is a deprecation shim that throws on `createApp()` and `createAgent()`. See [Runtime to Frameworks](/migration/runtime-to-frameworks) for the exact mapping.
@@ -90,7 +90,7 @@ The migration CLI gives you a reviewable starting point. It does not decide your
 | the v2 app is stable and only needs small maintenance | stay on v2 for now |
 | you are adding framework routes, server functions, or new service clients | plan the v3 migration |
 | you rely heavily on `ctx.thread`, `ctx.session`, lifecycle hooks, or Workbench | budget manual design time before applying changes |
-| you are starting a new app | create a v3 app with `npm create agentuity@next` |
+| you are starting a new app | create a v3 app with `npm create agentuity` |
 
 ## Recommended Order
 

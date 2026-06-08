@@ -7,17 +7,17 @@ description: Add Agentuity services and local validation to an app you already h
 Choose this path when the app already exists and you want to add one server-side Agentuity endpoint without changing the router, scripts, or build setup.
 
 ```bash
-npm install -D @agentuity/cli@next
-npm install @agentuity/keyvalue@next
+npm install -D @agentuity/cli
+npm install @agentuity/keyvalue
 ```
 
 ## Pick the Right Path
 
 | Starting point | Good fit | First command |
 | --- | --- | --- |
-| Create-supported Agentuity starter | You want Agentuity to scaffold one of the five built-in starters and example route. | `npm create agentuity@next -- --framework nextjs --services keyvalue` |
-| New framework app | You already ran the framework's create command and want to add Agentuity next. | `npm install -D @agentuity/cli@next` |
-| Existing app | The app already has routes, scripts, env conventions, and a working build. | `npm install -D @agentuity/cli@next` |
+| Create-supported Agentuity starter | You want Agentuity to scaffold one of the five built-in starters and example route. | `npm create agentuity -- --framework nextjs --services keyvalue` |
+| New framework app | You already ran the framework's create command and want to add Agentuity next. | `npm install -D @agentuity/cli` |
+| Existing app | The app already has routes, scripts, env conventions, and a working build. | `npm install -D @agentuity/cli` |
 
 For an existing app, keep the app shape you have. Add service clients only inside server-only routes, handlers, server actions, or background jobs.
 

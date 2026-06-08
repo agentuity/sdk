@@ -9,7 +9,7 @@ Start with a normal [SvelteKit](https://svelte.dev/docs/kit/introduction) app. A
 ## Create a Starter
 
 ```bash
-npm create agentuity@next -- --name my-sveltekit-app --framework sveltekit
+npm create agentuity -- --name my-sveltekit-app --framework sveltekit
 cd my-sveltekit-app
 ```
 
@@ -31,7 +31,7 @@ The starter sets `kit.paths.relative` to `false`, so SvelteKit emits root-relati
 For an existing SvelteKit app, add the CLI and register the project:
 
 ```bash
-npm install -D @agentuity/cli@next
+npm install -D @agentuity/cli
 npx agentuity project import --validate-only
 npx agentuity project import
 ```
@@ -60,7 +60,7 @@ SvelteKit [+server.ts files](https://svelte.dev/docs/kit/routing#server) define 
 The route below uses `AIGatewayClient` for the model call. The project SDK key authenticates the request, and the model ID is app configuration or request input.
 
 ```bash
-npm install @agentuity/aigateway@next @agentuity/keyvalue@next valibot
+npm install @agentuity/aigateway @agentuity/keyvalue valibot
 ```
 
 ```typescript title="src/routes/api/translate/+server.ts"

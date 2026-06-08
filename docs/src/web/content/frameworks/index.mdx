@@ -64,8 +64,8 @@ Start with the framework that owns your routes and build command. Each guide kee
 
 | Path | Use when | Start with |
 | --- | --- | --- |
-| Create a new Agentuity starter | You want Agentuity to scaffold one of the five built-in starters and example routes. | `npm create agentuity@next -- --framework nextjs --services keyvalue` |
-| Add Agentuity to a new framework app | You just created the app with the framework's own CLI. | `npm install -D @agentuity/cli@next` and `npm install @agentuity/keyvalue@next` |
+| Create a new Agentuity starter | You want Agentuity to scaffold one of the five built-in starters and example routes. | `npm create agentuity -- --framework nextjs --services keyvalue` |
+| Add Agentuity to a new framework app | You just created the app with the framework's own CLI. | `npm install -D @agentuity/cli` and `npm install @agentuity/keyvalue` |
 | Add Agentuity to an existing app | The app already has routes, scripts, env files, and a working build. | [Add Agentuity to an existing app](/get-started/import-existing-app) |
 
 ## How the Framework Shape Works
@@ -87,7 +87,7 @@ Keep the framework's normal file conventions. Agentuity overlays service clients
 
 ## Framework Starters
 
-`npm create agentuity@next -- --framework <slug>` scaffolds these starters:
+`npm create agentuity -- --framework <slug>` scaffolds these starters:
 
 | Slug | Framework |
 | --- | --- |
@@ -97,7 +97,7 @@ Keep the framework's normal file conventions. Agentuity overlays service clients
 | `astro` | Astro |
 | `hono` | Hono |
 
-React Router, Vite + React, and TanStack Start are existing-framework adoption paths. Start with each framework's own CLI, then add `@agentuity/cli@next`, import the project, and verify `agentuity build` output before deploying.
+React Router, Vite + React, and TanStack Start are existing-framework adoption paths. Start with each framework's own CLI, then add `@agentuity/cli`, import the project, and verify `agentuity build` output before deploying.
 
 <Callout type="tip" title="Validate packaging before deploy">
 Run the framework build when you want framework-only feedback, then run `agentuity build`, inspect `.agentuity/launch.json`, and start the packaged command locally before your first deploy. Use `--skip-type-check` only when iterating on packaging, not before a real deploy.
@@ -119,7 +119,7 @@ If a framework page calls out a detector fallback or packaging caveat, treat it 
 Direct service clients are the portable default across supported frameworks. Use them in route handlers, server functions, workers, scripts, or CLIs that own the work:
 
 ```bash
-npm install @agentuity/keyvalue@next
+npm install @agentuity/keyvalue
 ```
 
 ```typescript

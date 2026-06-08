@@ -45,7 +45,7 @@ See [Using LogTape with an OpenTelemetry Sink](/cookbook/patterns/logtape-struct
 Use the Agentuity logger when you want child loggers and the same telemetry configuration as your traces:
 
 ```bash
-npm install @agentuity/telemetry@next
+npm install @agentuity/telemetry
 ```
 
 ```typescript
@@ -136,7 +136,7 @@ Nested children inherit parent fields and add their own fields.
 `@agentuity/hono` initializes telemetry once and exposes the logger on `c.var.logger`.
 
 ```bash
-npm install @agentuity/hono@next hono
+npm install @agentuity/hono hono
 ```
 
 ```typescript

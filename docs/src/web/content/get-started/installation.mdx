@@ -3,7 +3,7 @@ title: Installation
 description: Install the Agentuity CLI, sign in, and create a framework starter
 ---
 
-The fastest path is to scaffold a project with `npm create agentuity@next`, which runs the current framework-first create flow without a global install.
+The fastest path is to scaffold a project with `npm create agentuity`, which runs the current framework-first create flow without a global install.
 
 ## Prerequisites
 
@@ -24,7 +24,7 @@ bun --version
 Run the create flow with no flags when you want to choose the project shape interactively:
 
 ```bash
-npm create agentuity@next
+npm create agentuity
 ```
 
 In an interactive terminal, the CLI walks through the setup:
@@ -43,19 +43,19 @@ If you run create inside an existing supported-framework directory, the CLI dete
 Pass flags when you want to skip prompts. `--name` sets the output directory and project name:
 
 ```bash
-npm create agentuity@next -- --name my-app
+npm create agentuity -- --name my-app
 ```
 
 Use `--framework` for a non-interactive framework choice:
 
 ```bash
-npm create agentuity@next -- --name my-app --framework nextjs
+npm create agentuity -- --name my-app --framework nextjs
 ```
 
 Pass `--package-manager` when you care which lockfile the new framework app uses:
 
 ```bash
-npm create agentuity@next -- \
+npm create agentuity -- \
   --name my-app \
   --framework nextjs \
   --package-manager npm
@@ -88,7 +88,7 @@ React Router, Vite + React, and TanStack Start are build/deploy detection target
 | `--no-build` | Skip the post-install build step |
 | `--dir <path>` | Place the project under a different directory |
 
-Run `npm create agentuity@next -- --help` for the full list.
+Run `npm create agentuity -- --help` for the full list.
 
 ## Run Locally
 
@@ -121,10 +121,10 @@ When a global v3 CLI runs inside a project with a different local `@agentuity/cl
 
 | Package manager | Add local CLI | Run local CLI | Undo local install |
 |------|------|------|------|
-| npm | `npm install -D @agentuity/cli@next` | `npx agentuity ...` | `npm uninstall @agentuity/cli` |
-| Bun | `bun add -d @agentuity/cli@next` | `bunx agentuity ...` | `bun remove @agentuity/cli` |
-| pnpm | `pnpm add -D @agentuity/cli@next` | `pnpm exec agentuity ...` | `pnpm remove @agentuity/cli` |
-| Yarn | `yarn add -D @agentuity/cli@next` | `yarn exec agentuity ...` | `yarn remove @agentuity/cli` |
+| npm | `npm install -D @agentuity/cli` | `npx agentuity ...` | `npm uninstall @agentuity/cli` |
+| Bun | `bun add -d @agentuity/cli` | `bunx agentuity ...` | `bun remove @agentuity/cli` |
+| pnpm | `pnpm add -D @agentuity/cli` | `pnpm exec agentuity ...` | `pnpm remove @agentuity/cli` |
+| Yarn | `yarn add -D @agentuity/cli` | `yarn exec agentuity ...` | `yarn remove @agentuity/cli` |
 
 A global install is optional. It only changes your shell so bare `agentuity ...` works outside a project; it does not import or register an app by itself.
 
@@ -147,15 +147,15 @@ See [Deploy & Operate](/deploy-operate) for the full lifecycle.
 Install the CLI globally if you want to type `agentuity ...` outside a project, or to run `agentuity project import` against an existing directory before scaffolding:
 
 ```bash
-npm install -g @agentuity/cli@next
+npm install -g @agentuity/cli
 # or
-bun add -g @agentuity/cli@next
+bun add -g @agentuity/cli
 ```
 
-The shell installer also accepts a version:
+Or install with the shell installer:
 
 ```bash
-curl -fsSL https://agentuity.sh | sh -s -- --version next
+curl -fsSL https://agentuity.sh | sh
 ```
 
 After install, sign in once:
@@ -164,12 +164,8 @@ After install, sign in once:
 agentuity auth login
 ```
 
-<Callout type="warning" title="Check the CLI channel">
-`@agentuity/cli@latest` and the shell installer default may still point at the previous stable channel. Pass `--version next` (or install `@agentuity/cli@next` with your package manager) until the framework-first CLI is the default release channel.
-
-Inside a scaffolded project, `npx agentuity` uses the local `@agentuity/cli@next` devDependency. Outside a project, use `npx @agentuity/cli@next` when you want this CLI without installing it globally.
-
-During next-channel testing, you can return a global Bun install to the stable channel with `bun add -g @agentuity/cli` while `latest` still points at the stable release.
+<Callout type="tip" title="Use npx when you don't want a global install">
+Outside a project, run `npx @agentuity/cli ...` to use the current CLI from npm without adding a global binary.
 </Callout>
 
 ## Verify the Install

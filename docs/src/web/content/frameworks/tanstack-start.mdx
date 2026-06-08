@@ -18,8 +18,8 @@ Choose React and Nitro if the CLI prompts instead of accepting flags. The exampl
 Then add Agentuity:
 
 ```bash
-npm install @agentuity/keyvalue@next
-npm install -D @agentuity/cli@next @agentuity/vite@next
+npm install @agentuity/keyvalue
+npm install -D @agentuity/cli @agentuity/vite
 npx agentuity project import --validate-only   # dry run: checks config only
 npx agentuity project import                   # registers the project and writes agentuity.json
 ```
@@ -28,10 +28,10 @@ Use the package manager that the TanStack CLI configured. Install service packag
 
 | Package manager | Add local tooling | Run local CLI | Undo local install |
 | --- | --- | --- | --- |
-| npm | `npm install -D @agentuity/cli@next @agentuity/vite@next` | `npx agentuity ...` | `npm uninstall @agentuity/cli @agentuity/vite` |
-| Bun | `bun add -d @agentuity/cli@next @agentuity/vite@next` | `bunx agentuity ...` | `bun remove @agentuity/cli @agentuity/vite` |
-| pnpm | `pnpm add -D @agentuity/cli@next @agentuity/vite@next` | `pnpm exec agentuity ...` | `pnpm remove @agentuity/cli @agentuity/vite` |
-| Yarn | `yarn add -D @agentuity/cli@next @agentuity/vite@next` | `yarn exec agentuity ...` | `yarn remove @agentuity/cli @agentuity/vite` |
+| npm | `npm install -D @agentuity/cli @agentuity/vite` | `npx agentuity ...` | `npm uninstall @agentuity/cli @agentuity/vite` |
+| Bun | `bun add -d @agentuity/cli @agentuity/vite` | `bunx agentuity ...` | `bun remove @agentuity/cli @agentuity/vite` |
+| pnpm | `pnpm add -D @agentuity/cli @agentuity/vite` | `pnpm exec agentuity ...` | `pnpm remove @agentuity/cli @agentuity/vite` |
+| Yarn | `yarn add -D @agentuity/cli @agentuity/vite` | `yarn exec agentuity ...` | `yarn remove @agentuity/cli @agentuity/vite` |
 
 A global install is optional. It only makes bare `agentuity ...` work outside a project; it does not import or register the app. You can switch back by adding the dev dependency again and using the package-manager exec wrapper. The global install can stay installed, or you can remove it with the package manager that created it. See [Local versus global CLI](/get-started/installation#local-versus-global-cli) for the trade-offs.
 

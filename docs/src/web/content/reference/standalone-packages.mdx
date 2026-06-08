@@ -6,12 +6,8 @@ description: Use Agentuity service clients from Node.js, Bun, and server framewo
 
 Use standalone packages when Agentuity services belong inside your framework routes, server functions, workers, scripts, or CLIs. Construct the client where your server code initializes shared dependencies, then call it from the handler that owns the request.
 
-<Callout type="info" title="Use the current v3 package tag">
-Install the v3 `next` tag shown in these examples until the npm `latest` tag points at the framework-first SDK. Omitting the tag can install older v2 packages.
-</Callout>
-
 ```bash
-npm install @agentuity/keyvalue@next
+npm install @agentuity/keyvalue
 ```
 
 ```typescript
@@ -41,21 +37,21 @@ export async function getPreference(userId: string): Promise<Preference | undefi
 
 | Package | Install | Use |
 |---------|---------|-----|
-| [`@agentuity/keyvalue`](#key-value-storage) | `npm install @agentuity/keyvalue@next` | exact-key data, TTL-backed cache, preferences, counters |
-| [`@agentuity/vector`](#vector-search) | `npm install @agentuity/vector@next` | documents, embeddings, semantic search, retrieval |
-| [`@agentuity/storage`](#object-storage) | `npm install @agentuity/storage@next` | S3-compatible file storage under Bun or Node.js |
-| [`@agentuity/stream`](#durable-streams) | `npm install @agentuity/stream@next` | durable, resumable streams and generated files |
-| [`@agentuity/aigateway`](#ai-gateway) | `npm install @agentuity/aigateway@next` | model catalog lookup and routed model requests |
-| [`@agentuity/queue`](#message-queues) | `npm install @agentuity/queue@next` | async handoff to worker or pub/sub queues |
-| [`@agentuity/email`](#email) | `npm install @agentuity/email@next` | managed email addresses, outbound email, inbound records |
-| [`@agentuity/schedule`](#schedules) | `npm install @agentuity/schedule@next` | cron schedules and delivery tracking |
-| [`@agentuity/task`](#tasks) | `npm install @agentuity/task@next` | work items, comments, tags, attachments, activity |
-| [`@agentuity/sandbox`](#sandbox) | `npm install @agentuity/sandbox@next` | isolated command execution and long-lived sandboxes |
-| [`@agentuity/webhook`](#webhooks) | `npm install @agentuity/webhook@next` | managed webhook ingest URLs, destinations, receipts |
-| [`@agentuity/coder`](#coder) | `npm install @agentuity/coder@next` | Coder sessions, workspaces, custom agents, replay data |
-| [`@agentuity/db`](#database) | `npm install @agentuity/db@next` | trusted admin scripts against the database service API |
-| [`@agentuity/hono`](#hono) | `npm install @agentuity/hono@next hono` | Hono middleware that injects common clients on `c.var.*` |
-| [`@agentuity/telemetry`](#telemetry) | `npm install @agentuity/telemetry@next` | logger, tracer, and meter setup outside Hono |
+| [`@agentuity/keyvalue`](#key-value-storage) | `npm install @agentuity/keyvalue` | exact-key data, TTL-backed cache, preferences, counters |
+| [`@agentuity/vector`](#vector-search) | `npm install @agentuity/vector` | documents, embeddings, semantic search, retrieval |
+| [`@agentuity/storage`](#object-storage) | `npm install @agentuity/storage` | S3-compatible file storage under Bun or Node.js |
+| [`@agentuity/stream`](#durable-streams) | `npm install @agentuity/stream` | durable, resumable streams and generated files |
+| [`@agentuity/aigateway`](#ai-gateway) | `npm install @agentuity/aigateway` | model catalog lookup and routed model requests |
+| [`@agentuity/queue`](#message-queues) | `npm install @agentuity/queue` | async handoff to worker or pub/sub queues |
+| [`@agentuity/email`](#email) | `npm install @agentuity/email` | managed email addresses, outbound email, inbound records |
+| [`@agentuity/schedule`](#schedules) | `npm install @agentuity/schedule` | cron schedules and delivery tracking |
+| [`@agentuity/task`](#tasks) | `npm install @agentuity/task` | work items, comments, tags, attachments, activity |
+| [`@agentuity/sandbox`](#sandbox) | `npm install @agentuity/sandbox` | isolated command execution and long-lived sandboxes |
+| [`@agentuity/webhook`](#webhooks) | `npm install @agentuity/webhook` | managed webhook ingest URLs, destinations, receipts |
+| [`@agentuity/coder`](#coder) | `npm install @agentuity/coder` | Coder sessions, workspaces, custom agents, replay data |
+| [`@agentuity/db`](#database) | `npm install @agentuity/db` | trusted admin scripts against the database service API |
+| [`@agentuity/hono`](#hono) | `npm install @agentuity/hono hono` | Hono middleware that injects common clients on `c.var.*` |
+| [`@agentuity/telemetry`](#telemetry) | `npm install @agentuity/telemetry` | logger, tracer, and meter setup outside Hono |
 
 ## Direct Clients vs Middleware
 
@@ -74,7 +70,7 @@ export async function getPreference(userId: string): Promise<Preference | undefi
 In Hono apps, `@agentuity/hono` initializes common service clients once and exposes them through `c.var.*`. Use this when Hono context reads better than importing direct clients into each route.
 
 ```bash
-npm install @agentuity/hono@next hono
+npm install @agentuity/hono hono
 ```
 
 ```typescript
@@ -156,7 +152,7 @@ endpoint shapes.
 Use `KeyValueClient` for exact-key data with optional TTL.
 
 ```bash
-npm install @agentuity/keyvalue@next
+npm install @agentuity/keyvalue
 ```
 
 ```typescript
@@ -176,7 +172,7 @@ See [Key-Value Storage](/services/storage/key-value) for namespace management, s
 Use `VectorClient` when you need semantic search or retrieval.
 
 ```bash
-npm install @agentuity/vector@next
+npm install @agentuity/vector
 ```
 
 ```typescript
@@ -203,7 +199,7 @@ See [Vector Storage](/services/storage/vector) for batch retrieval, metadata fil
 Use `@agentuity/storage` for S3-compatible object storage in Bun or Node.js server code.
 
 ```bash
-npm install @agentuity/storage@next
+npm install @agentuity/storage
 ```
 
 ```typescript
@@ -226,7 +222,7 @@ Link a bucket with `agentuity project add storage <bucket-name>` so the CLI writ
 Use `StreamClient` for generated data that should be written incrementally and downloaded later.
 
 ```bash
-npm install @agentuity/stream@next
+npm install @agentuity/stream
 ```
 
 ```typescript
@@ -251,7 +247,7 @@ See [Durable Streams](/services/storage/durable-streams) for stream lifecycle an
 Use `AIGatewayClient` when you want the Agentuity client directly instead of a provider SDK.
 
 ```bash
-npm install @agentuity/aigateway@next
+npm install @agentuity/aigateway
 ```
 
 ```typescript
@@ -279,7 +275,7 @@ const summary = result.text;
 Use `QueueClient` to publish work for later processing.
 
 ```bash
-npm install @agentuity/queue@next
+npm install @agentuity/queue
 ```
 
 ```typescript
@@ -304,7 +300,7 @@ Use `SandboxClient` for one-shot command execution or multi-step sandboxes.
 Install the standalone client with:
 
 ```bash
-npm install @agentuity/sandbox@next
+npm install @agentuity/sandbox
 ```
 
 ```typescript
@@ -332,7 +328,7 @@ Use the Postgres client or ORM your app already owns for normal app queries. Poi
 ```bash
 npm install pg
 npm install -D @types/pg
-npm install @agentuity/db@next
+npm install @agentuity/db
 ```
 
 ```typescript
@@ -371,7 +367,7 @@ const tables = await db.tables();
 Use `EmailClient` for managed addresses, outbound messages, inbound records, and activity.
 
 ```bash
-npm install @agentuity/email@next
+npm install @agentuity/email
 ```
 
 ```typescript
@@ -396,7 +392,7 @@ See [Email](/services/email) for destinations, inbound email, outbound records, 
 Use `WebhookClient` for managed ingest URLs and delivery tracking. This client is not injected by `@agentuity/hono`.
 
 ```bash
-npm install @agentuity/webhook@next
+npm install @agentuity/webhook
 ```
 
 ```typescript
@@ -422,7 +418,7 @@ See [Webhooks](/services/webhooks) for destinations, receipts, deliveries, retri
 Use `ScheduleClient` to create cron schedules that deliver payloads to configured destinations.
 
 ```bash
-npm install @agentuity/schedule@next
+npm install @agentuity/schedule
 ```
 
 ```typescript
@@ -445,7 +441,7 @@ See [Schedules](/services/schedules) for destinations, deliveries, and Hono usag
 Use `TaskClient` for work items with comments, tags, attachments, users, projects, and activity.
 
 ```bash
-npm install @agentuity/task@next
+npm install @agentuity/task
 ```
 
 ```typescript
@@ -470,7 +466,7 @@ See [Tasks](/services/tasks) for comments, tags, attachments, activity, and Hono
 Use `CoderClient` for Coder sessions, workspaces, custom agents, saved skills, participants, and replay data.
 
 ```bash
-npm install @agentuity/coder@next
+npm install @agentuity/coder
 ```
 
 ```typescript
@@ -495,7 +491,7 @@ When `url` and `AGENTUITY_CODER_URL` are unset, `CoderClient` discovers the Code
 Use `@agentuity/telemetry` when server code needs logger, tracer, or meter setup without Hono middleware.
 
 ```bash
-npm install @agentuity/telemetry@next
+npm install @agentuity/telemetry
 ```
 
 ```typescript

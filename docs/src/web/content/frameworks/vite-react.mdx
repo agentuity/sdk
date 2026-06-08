@@ -16,7 +16,7 @@ cd my-vite-app
 Then add Agentuity and create a small server boundary:
 
 ```bash
-npm install -D @agentuity/cli@next
+npm install -D @agentuity/cli
 npx agentuity project import --validate-only
 npx agentuity project import
 ```
@@ -25,10 +25,10 @@ Use the package manager your Vite app uses. The CLI install is project-local: `-
 
 | Package manager | Add local CLI | Run local CLI | Undo local install |
 | --- | --- | --- | --- |
-| npm | `npm install -D @agentuity/cli@next` | `npx agentuity ...` | `npm uninstall @agentuity/cli` |
-| Bun | `bun add -d @agentuity/cli@next` | `bunx agentuity ...` | `bun remove @agentuity/cli` |
-| pnpm | `pnpm add -D @agentuity/cli@next` | `pnpm exec agentuity ...` | `pnpm remove @agentuity/cli` |
-| Yarn | `yarn add -D @agentuity/cli@next` | `yarn exec agentuity ...` | `yarn remove @agentuity/cli` |
+| npm | `npm install -D @agentuity/cli` | `npx agentuity ...` | `npm uninstall @agentuity/cli` |
+| Bun | `bun add -d @agentuity/cli` | `bunx agentuity ...` | `bun remove @agentuity/cli` |
+| pnpm | `pnpm add -D @agentuity/cli` | `pnpm exec agentuity ...` | `pnpm remove @agentuity/cli` |
+| Yarn | `yarn add -D @agentuity/cli` | `yarn exec agentuity ...` | `yarn remove @agentuity/cli` |
 
 A global install is optional. It only makes bare `agentuity ...` work outside a project; it does not import or register the app. You can switch back by adding the dev dependency again and using the package-manager exec wrapper. The global install can stay installed, or you can remove it with the package manager that created it. See [Local versus global CLI](/get-started/installation#local-versus-global-cli) for the trade-offs.
 
@@ -45,7 +45,7 @@ Agentuity does not scaffold Vite + React from the create flow today.
 Install the CLI as a dev dependency, then import the project:
 
 ```bash
-npm install -D @agentuity/cli@next
+npm install -D @agentuity/cli
 npx agentuity project import --validate-only   # dry run: checks config only
 npx agentuity project import                   # registers the project and writes agentuity.json
 ```
@@ -72,7 +72,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 Browser code cannot use `AGENTUITY_SDK_KEY` or provider secrets safely. Move those calls into `server.ts` and call them from React over `fetch`.
 
 ```bash
-npm install @agentuity/aigateway@next @agentuity/keyvalue@next zod
+npm install @agentuity/aigateway @agentuity/keyvalue zod
 npm install -D @types/bun
 ```
 

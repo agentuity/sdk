@@ -9,7 +9,7 @@ Start with a normal [Nuxt](https://nuxt.com/docs) app. Agentuity adds service cl
 ## Create a Starter
 
 ```bash
-npm create agentuity@next -- --name my-nuxt-app --framework nuxt
+npm create agentuity -- --name my-nuxt-app --framework nuxt
 cd my-nuxt-app
 ```
 
@@ -28,7 +28,7 @@ If you choose the AI example, the key files are:
 For an existing Nuxt app, add the CLI and import the project:
 
 ```bash
-npm install -D @agentuity/cli@next
+npm install -D @agentuity/cli
 npx agentuity project import --validate-only
 npx agentuity project import
 ```
@@ -57,7 +57,7 @@ Use standalone service clients directly from Nitro routes. Files under `server/a
 The route below uses `AIGatewayClient` for the model call. The project SDK key authenticates the request, and the model ID is app configuration or request input.
 
 ```bash
-npm install @agentuity/aigateway@next @agentuity/keyvalue@next arktype
+npm install @agentuity/aigateway @agentuity/keyvalue arktype
 ```
 
 ```typescript title="server/api/translate.post.ts"
