@@ -4,7 +4,7 @@ short_title: Manage Sessions
 description: Create a Coder session, read its state, and manage its lifecycle with CoderClient
 ---
 
-Drive Coder from your own code with `CoderClient`. Coder sessions run on a shared Hub, the real-time broadcast bus that apps, agents, and humans all subscribe to. This page covers the core client-side flow: create a session, read it back, and manage its lifecycle over time.
+Drive Coder from your own code with `CoderClient`. Coder sessions run on a shared Hub, the real-time broadcast bus that apps, agents, and humans all subscribe to. The flow below creates a session, reads it back, and manages its lifecycle over time.
 
 <Callout type="tip" title="Run this locally first">
 This flow works without deploying your app. If you already created an Agentuity project, its local `.env` usually includes `AGENTUITY_SDK_KEY`, which is enough for `CoderClient` discovery mode.
@@ -21,7 +21,7 @@ The examples below are standalone `@agentuity/coder` TypeScript snippets. Bun is
 Install the package:
 
 ```bash
-bun add @agentuity/coder
+npm install @agentuity/coder @agentuity/telemetry
 ```
 
 If your app creates sessions from more than one place (an HTTP route, a background job, a webhook handler), construct a `CoderClient` once and share it:
@@ -40,6 +40,7 @@ Start with a minimal script that covers discovery, session creation, and the fir
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 const DEFAULT_TASK = 'Inspect this repo and explain the current architecture.';
 function getTask(): string {
@@ -54,18 +55,18 @@ async function main(): Promise<void> {
 
   try {
     const resolvedUrl = await client.getUrl(); // [!code highlight]
-    console.log('Connected to Coder Hub:', resolvedUrl);
+    logger.info('Connected to Coder Hub:', resolvedUrl);
 
     const created = await client.createSession({ // [!code highlight]
       task,
       workflowMode: 'standard',
       tags: ['architecture', 'docs-example'],
     });
-    console.log('Created session:', created.sessionId);
+    logger.info('Created session:', created.sessionId);
 
     // Read the session back to inspect the first lifecycle state
     const session = await client.getSession(created.sessionId); // [!code highlight]
-    console.log(
+    logger.info(
       JSON.stringify(
         {
           sessionId: session.sessionId,
@@ -85,8 +86,8 @@ async function main(): Promise<void> {
     );
   } catch (error) {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
-    console.error('Failed to create or inspect the session');
-    console.error(message);
+    logger.error('Failed to create or inspect the session');
+    logger.error(message);
     process.exitCode = 1;
   }
 }
@@ -99,7 +100,7 @@ This gives you two things you need right away:
 - a `sessionId` you can reuse in later calls or other apps
 - the first session detail from `getSession()`
 
-## What You Should See
+## What you should see
 
 The exact values will vary, but a brand-new session usually looks like this:
 
@@ -107,7 +108,6 @@ The exact values will vary, but a brand-new session usually looks like this:
 {
   "sessionId": "codesess_f64101b6ad47",
   "label": "Inspect this repo and explain the current architecture.",
-  "status": "creating",
   "bucket": "provisioning",
   "workflowMode": "standard",
   "runtimeAvailable": false,
@@ -120,13 +120,13 @@ The exact values will vary, but a brand-new session usually looks like this:
 
 The Hub auto-derives `label` from the `task` prompt when the caller doesn't set one, so a fresh session always has a label to show in list views.
 
-The exact `status` string varies. What matters is:
+The exact `status` string varies and is not the field to branch on in this example. What matters is:
 
 - creation succeeded and you have a real `sessionId`
 - `getSession()` returns usable session detail immediately
-- the session may still be provisioning even though it already exists
+- `bucket` and the availability/history booleans tell your app whether the session is still provisioning, attachable, wakeable, or replay-only
 
-## Creating Sessions From Your App
+## Creating Sessions from Your App
 
 In app code, the shape you usually reach for adds three fields on top of `task`: `label`, `metadata`, and `env`. These cover the pieces apps actually need: a short label for list UIs, correlation ids that tie the session back to your own records, and any credentials the sandbox-side agent reads at runtime.
 
@@ -167,12 +167,229 @@ export async function startSession(input: StartSessionInput) {
 
 When your app already resolved user or account context, the common split is: put resolved context into `task`, correlation ids into `metadata`, and integration credentials into `env`. `env` is fixed once the session is created, so prefer credentials the agent can refresh itself over short-lived access tokens.
 
+## Add an Output Contract
+
+Coder sessions are long-running work, so make the expected result explicit before the session starts. A good task names the goal, inputs, files or reports, verification command, stopping rule, and missing-evidence behavior.
+
+```typescript title="src/lib/start-release-review.ts"
+import { coder } from './coder';
+
+type StartReleaseReviewInput = {
+  runId: string;
+  repoUrl: string;
+  branch: string;
+  files: readonly string[];
+};
+
+export async function startReleaseReview(input: StartReleaseReviewInput) {
+  const resultPath = `agent-output/${input.runId}/release-review.json`;
+  const reportPath = `agent-output/${input.runId}/release-review.md`;
+
+  return coder.createSession({
+    label: `Release review ${input.runId}`,
+    workflowMode: 'standard',
+    repo: {
+      url: input.repoUrl,
+      branch: input.branch,
+    },
+    metadata: {
+      runId: input.runId,
+      resultPath,
+      reportPath,
+    },
+    tags: ['release-review', input.runId],
+    task: [
+      'Goal: review the selected files for release blockers and risky assumptions.',
+      '',
+      'Files:',
+      ...input.files.map((file) => `- ${file}`),
+      '',
+      'Write these artifacts:',
+      `- ${resultPath}`,
+      `- ${reportPath}`,
+      '',
+      'Contract shape:',
+      '{',
+      '  "status": "completed" | "blocked",',
+      '  "filesInspected": string[],',
+      '  "findings": [{',
+      '    "path": string,',
+      '    "risk": string,',
+      '    "sourceOfTruth": string,',
+      '    "severity": "low" | "medium" | "high"',
+      '  }],',
+      '  "commandsRun": string[],',
+      '  "missingEvidence": string[]',
+      '}',
+      '',
+      'Success criteria:',
+      '- Every finding cites a file path and source of truth.',
+      '- Missing evidence is listed instead of turned into a claim.',
+      '- The markdown report summarizes decisions, tradeoffs, and verification.',
+      '',
+      'Stop when:',
+      '- Both outputs are written, or a blocker is proven with the exact command, file, or API response.',
+      '',
+      'Do not include hidden reasoning. Summarize findings, decisions, evidence, and tradeoffs.',
+    ].join('\n'),
+  });
+}
+```
+
+`createSession()` returns session state, not completed files. Keep the `sessionId`, store the expected output paths in your own app state, then check event history, replay, or artifacts until the output contract is satisfied. Use the retrieval path approved for your product surface; do not assume a file read helper exists unless your SDK version exposes one.
+
+## Start from Files
+
+Use `files` when your app wants to hand Coder a small repro, generated fixture, or one-off workspace. Keep the task prompt focused on the output contract. The session can stay live after the task finishes, so the contract is how your app decides whether the work is done.
+
+<Callout type="tip" title="Start with the default Coder runtime">
+Do not set `runtime` for the normal managed-session path. Coder chooses a runtime that includes the Hub driver. Reach for `runtime` only when you are intentionally validating an advanced Coder runtime configuration.
+</Callout>
+
+```typescript title="scripts/start-coder-fix.ts"
+import { Buffer } from 'node:buffer';
+import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
+
+async function main(): Promise<void> {
+  const client = new CoderClient();
+  const runId = `calc-fix-${Date.now()}`;
+  const resultPath = `agent-output/${runId}/result.json`;
+  const reportPath = `agent-output/${runId}/report.md`;
+
+  const created = await client.createSession({
+    label: `Fix total() ${runId}`,
+    workflowMode: 'standard',
+    defaultAgent: 'builder',
+    enabledAgents: ['builder', 'reviewer'],
+    tags: ['docs-example', runId],
+    metadata: {
+      runId,
+      resultPath,
+      reportPath,
+    },
+    files: [
+      {
+        path: 'package.json',
+        content: Buffer.from(
+          JSON.stringify(
+            {
+              type: 'module',
+              scripts: { test: 'bun test' },
+              devDependencies: { '@types/bun': 'latest' },
+            },
+            null,
+            2
+          )
+        ),
+      },
+      {
+        path: 'src/calc.ts',
+        content: Buffer.from(
+          [
+            'export function total(values: readonly number[]): number {',
+            '  return values.reduce((sum, value) => sum - value, 0);',
+            '}',
+            '',
+          ].join('\n')
+        ),
+      },
+      {
+        path: 'src/calc.test.ts',
+        content: Buffer.from(
+          [
+            "import { expect, test } from 'bun:test';",
+            "import { total } from './calc.ts';",
+            '',
+            "test('totals positive values', () => {",
+            '  expect(total([2, 3, 5])).toBe(10);',
+            '});',
+            '',
+          ].join('\n')
+        ),
+      },
+    ],
+    task: [
+      'Goal: fix the TypeScript utility in this session workspace.',
+      '',
+      'Inputs:',
+      '- src/calc.ts currently implements total incorrectly.',
+      '- src/calc.test.ts is the verification command target.',
+      '',
+      'Do:',
+      '- inspect the provided files',
+      '- fix src/calc.ts',
+      '- run bun test',
+      `- write ${resultPath}`,
+      `- write ${reportPath}`,
+      '',
+      'Result JSON shape:',
+      '{',
+      '  "status": "completed" | "blocked",',
+      '  "changedFiles": string[],',
+      '  "commandsRun": string[],',
+      '  "verification": { "command": string, "passed": boolean, "outputExcerpt": string },',
+      '  "blockers": string[]',
+      '}',
+      '',
+      'Stop when bun test passes and the two output files are written, or when a blocker is proven with exact command output.',
+    ].join('\n'),
+  });
+
+  logger.info('coder session started', {
+    sessionId: created.sessionId,
+    resultPath,
+    reportPath,
+  });
+}
+
+void main();
+```
+
+Example log shape:
+
+```json
+{
+  "sessionId": "codesess_23bc720766d7",
+  "resultPath": "agent-output/calc-fix-123/result.json",
+  "reportPath": "agent-output/calc-fix-123/report.md"
+}
+```
+
+The two agent-selection fields do different jobs:
+
+- `enabledAgents` chooses the specialist roster for this session.
+- `defaultAgent` chooses the default route target when work is not explicitly routed elsewhere.
+- Omit both fields when you want the Hub's normal Coder team behavior.
+
+After creation, store `sessionId`, `resultPath`, and `reportPath` with your app record. Then use the read APIs below from a UI refresh, background job, webhook flow, or scheduler.
+
+```typescript
+const [session, history] = await Promise.all([
+  client.getSession(sessionId),
+  client.listEventHistory(sessionId, { limit: 50 }),
+]);
+
+const taskCompleted = history.events.some((event) => event.event === 'task_complete');
+
+logger.info('coder session progress', {
+  sessionId: session.sessionId,
+  status: session.status,
+  bucket: session.bucket,
+  runtimeAvailable: session.runtimeAvailable,
+  taskCompleted,
+});
+```
+
+In that shape, `status: "active"` does not mean the task is unfinished. A session can remain live for attach or follow-up work after the task completion event and output contract are satisfied.
+
 ## Reading Session State
 
-Once you have a session ID, use the read APIs to build dashboards, internal tools, or a simple status view in another app.
+Once you have a session ID, use the read APIs to build dashboards, admin tools, or a simple status view in another app.
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 const sessionId = process.argv[2];
 
@@ -194,7 +411,7 @@ async function main(): Promise<void> {
       client.getReplay(sessionId, { limit: 50 }), // [!code highlight]
     ]);
 
-    console.log(
+    logger.info(
       JSON.stringify(
         {
           session: {
@@ -217,8 +434,8 @@ async function main(): Promise<void> {
     );
   } catch (error) {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
-    console.error('Failed to read session state');
-    console.error(message);
+    logger.error('Failed to read session state');
+    logger.error(message);
     process.exitCode = 1;
   }
 }
@@ -238,6 +455,7 @@ If your app needs a broader session list before it drills into one session, star
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 async function main(): Promise<void> {
   const client = new CoderClient();
@@ -248,7 +466,7 @@ async function main(): Promise<void> {
       includeArchived: true,
     });
 
-    console.log(
+    logger.info(
       JSON.stringify(
         {
           total,
@@ -267,8 +485,8 @@ async function main(): Promise<void> {
     );
   } catch (error) {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
-    console.error('Failed to list sessions');
-    console.error(message);
+    logger.error('Failed to list sessions');
+    logger.error(message);
     process.exitCode = 1;
   }
 }
@@ -282,23 +500,24 @@ Use `listSessions()` when you are building a dashboard or history view. Once the
 
 When your app needs Coder to operate on a specific repository, use `listGitHubAccounts()` to retrieve the GitHub accounts connected via the GitHub App installation, then `listGitHubRepos(accountId)` to list repositories under that account. Pass the chosen repository to `createSession()` via the `repo` field.
 
-<Callout type="warning" title="Sign in to Agentuity before calling the GitHub APIs">
-`listGitHubAccounts()` and `listGitHubRepos()` require an Agentuity OAuth login, not just the GitHub App installation. Without the login, the Hub returns `HTTP 409` and the client throws before any account data is returned. Sign in from the [Agentuity Console](https://app.agentuity.com) (or via `agentuity auth login`) before running this flow.
+<Callout type="warning" title="Check your org's GitHub setup before calling the GitHub APIs">
+`listGitHubAccounts()` reads the GitHub App installations visible to the API key's org. If the call fails or returns no accounts, check the [Agentuity Console](https://app.agentuity.com), confirm the GitHub App is installed for the right org, and then retry.
 </Callout>
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 async function main(): Promise<void> {
   const client = new CoderClient();
 
   let github;
   try {
-    // Sign in to Agentuity first; without that OAuth login, the Hub returns HTTP 409
+    // This depends on the GitHub App installations visible to the current org
     github = await client.listGitHubAccounts();
   } catch {
     throw new Error(
-      'Sign in to Agentuity first. Then run this again to list the GitHub accounts available to your org.'
+      'Check your Agentuity org and GitHub App installation, then run this again to list the GitHub accounts available to your org.'
     );
   }
 
@@ -341,7 +560,7 @@ async function main(): Promise<void> {
     },
   });
 
-  console.log('Session:', created.sessionId, 'pinned to repo:', repo.fullName);
+  logger.info('Session:', created.sessionId, 'pinned to repo:', repo.fullName);
 }
 
 void main();
@@ -355,6 +574,7 @@ Use `updateSession()` to relabel a session, retag it, adjust its visibility, or 
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 const sessionId = process.argv[2];
 const action = process.argv[3] ?? 'archive';
@@ -382,17 +602,17 @@ async function main(): Promise<void> {
     if (action === 'delete') {
       // Delete temporary sessions when you don't need replay later
       await client.deleteSession(sessionId); // [!code highlight]
-      console.log(`Deleted ${sessionId}`);
+      logger.info(`Deleted ${sessionId}`);
       return;
     }
 
     // Archive by default so session history remains available for replay
     const archived = await client.archiveSession(sessionId); // [!code highlight]
-    console.log(JSON.stringify({ sessionId, status: archived.status }, null, 2));
+    logger.info(JSON.stringify({ sessionId, status: archived.status }, null, 2));
   } catch (error) {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
-    console.error('Failed to manage the session');
-    console.error(message);
+    logger.error('Failed to manage the session');
+    logger.error(message);
     process.exitCode = 1;
   }
 }
@@ -416,6 +636,8 @@ await client.archiveSession(sessionId);
 
 - Keep the `sessionId` from `createSession()`. Most follow-on APIs start there.
 - In app code, pair `task` with `label` for list UIs, `metadata` for correlation ids, and `env` for credentials the sandbox-side agent reads.
+- Put output paths, run ids, and expected artifacts in the task and metadata before the session starts.
+- Treat `createSession()` as the beginning of long-running work, not a synchronous result.
 - Use `listSessions()` for dashboards and history views, then `getSession()` for the chosen entry.
 - Use `archiveSession()` for sessions you may want to inspect later, and `deleteSession()` for temporary tests and cleanup.
 - To reconnect to an older session, switch to the reconnect flow instead of starting from `listSessions()`.

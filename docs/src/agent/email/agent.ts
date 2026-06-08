@@ -1,8 +1,9 @@
 /**
- * Email Agent
+ * Email Explorer demo
  *
- * Sends templated emails using ctx.email.send(). Generates HTML email content
- * based on the selected template, then dispatches via the Agentuity email service.
+ * Sends templated emails through the injected email client. Generates HTML
+ * content based on the selected template, then dispatches via the Agentuity
+ * email service.
  *
  * Key concepts:
  * - ctx.email.send() handles delivery, bounce tracking, and DNS config
@@ -12,7 +13,7 @@
  *
  * Docs: https://agentuity.dev/services/email
  */
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 import {
 	EMAIL_ADDRESS_SCHEMA,
@@ -21,7 +22,7 @@ import {
 	generateEmailContent,
 } from '../../lib/email-templates';
 
-const agent = createAgent('email-sender', {
+const agent = defineDemoAgent('email-sender', {
 	description: 'Send templated emails via the Agentuity email service',
 
 	schema: {

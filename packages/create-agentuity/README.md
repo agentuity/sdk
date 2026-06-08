@@ -23,11 +23,10 @@ bun create agentuity my-project
 ## What you get
 
 `agentuity project create` scaffolds a project using the official CLI for the
-framework you pick (Next.js, Nuxt, Remix, SvelteKit, Astro, Hono, or
-Vite + React) and overlays:
+framework you pick (Next.js, Nuxt, SvelteKit, Astro, or Hono) and overlays:
 
 - **AI translation demo** — a working `/translate` endpoint plus landing page
-  using the [AI SDK](https://sdk.vercel.ai) and `@ai-sdk/openai`.
+  using `@agentuity/aigateway`.
 - **Agentuity wiring** — `@agentuity/cli` as a devDependency, a `deploy`
   script, the Agentuity badge on the landing page, and `.gitignore` entries.
 - **Optional service augments** — a multi-select prompts you to add any of
@@ -46,7 +45,7 @@ The exact scripts depend on the framework you pick (the official CLI's own
 defaults are preserved). Every project gets at least:
 
 ```bash
-npm run dev          # Run the framework's dev server with AI Gateway env
+npm run dev          # Run the framework's dev server with Agentuity env wiring
 npm run build        # Framework build
 agentuity deploy     # Deploy to Agentuity Cloud
 ```

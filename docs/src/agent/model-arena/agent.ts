@@ -1,25 +1,24 @@
 /**
- * Model Arena Agent
+ * Model Arena Explorer demo
  *
  * Compares AI model outputs using LLM-as-judge evaluation. This demonstrates
- * using multiple AI providers through the gateway and structured output with
- * generateObject() for the judge's scoring.
+ * using multiple AI providers through Agentuity AI Gateway and structured
+ * output for the judge's scoring.
  *
  * Pattern shown:
  * 1. Generate content from multiple providers in parallel (OpenAI, Anthropic)
- * 2. Use a fast model (Groq) as judge with strict JSON schema output
+ * 2. Use an Agentuity Gateway model as judge with strict JSON schema output
  * 3. Score on multiple dimensions (creativity, engagement, tone, word count)
  *
- * The judge uses generateObject() with a Zod schema for type-safe structured
- * output - the model is forced to return valid JSON matching your schema.
+ * The judge validates the Gateway structured output before returning it.
  *
  * Docs: https://agentuity.dev/cookbook/patterns/llm-as-a-judge
  */
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 import { generateStory, judgeStories, MODELS } from './lib';
 
-const agent = createAgent('model-arena', {
+const agent = defineDemoAgent('model-arena', {
 	description: 'Compare short stories from multiple AI models with LLM-as-judge evaluation',
 	schema: {
 		input: s.object({

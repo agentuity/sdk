@@ -1,46 +1,45 @@
 import { StructuredError } from '@agentuity/core';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createGroq } from '@ai-sdk/groq';
 
 const AIGatewayConfigError = StructuredError('AIGatewayConfigError');
 
-// AI SDK convenience exports can miss DevMode gateway routing, so create
-// these providers with the Agentuity Gateway URL explicitly.
-function requireGatewayConfig(): { apiKey: string; baseUrl: string } {
-	const apiKey = process.env.AGENTUITY_SDK_KEY;
-	const rawBaseUrl = process.env.AGENTUITY_TRANSPORT_URL || process.env.AGENTUITY_CATALYST_URL;
+interface ProviderConfig {
+	apiKeyEnv: string;
+	baseUrlEnv: string;
+	name: string;
+}
+
+// Factory-style AI SDK providers do not all read base URL env vars by default,
+// so pass the provider env that Agentuity dev/sandbox wiring supplies.
+function requireProviderConfig(config: ProviderConfig): { apiKey: string; baseUrl: string } {
+	const apiKey = process.env[config.apiKeyEnv];
+	const rawBaseUrl = process.env[config.baseUrlEnv];
 	const baseUrl = rawBaseUrl?.replace(/\/+$/u, '');
 
 	if (!apiKey) {
 		throw new AIGatewayConfigError({
-			message: 'AGENTUITY_SDK_KEY is required for Agentuity AI Gateway access',
+			message: `${config.apiKeyEnv} is required for ${config.name} AI Gateway access`,
 		});
 	}
 
 	if (!baseUrl) {
 		throw new AIGatewayConfigError({
-			message:
-				'AI Gateway is not configured in this environment. Run via agentuity dev or deploy on Agentuity',
+			message: `${config.baseUrlEnv} is required for ${config.name} AI Gateway access`,
 		});
 	}
 
 	return { apiKey, baseUrl };
 }
 
-export function createGoogleProvider() {
-	const { apiKey, baseUrl } = requireGatewayConfig();
-
-	return createGoogleGenerativeAI({
-		apiKey,
-		baseURL: `${baseUrl}/gateway/google-ai-studio`,
-	});
-}
-
 export function createGroqProvider() {
-	const { apiKey, baseUrl } = requireGatewayConfig();
+	const { apiKey, baseUrl } = requireProviderConfig({
+		apiKeyEnv: 'GROQ_API_KEY',
+		baseUrlEnv: 'GROQ_BASE_URL',
+		name: 'Groq',
+	});
 
 	return createGroq({
 		apiKey,
-		baseURL: `${baseUrl}/gateway/groq`,
+		baseURL: baseUrl,
 	});
 }

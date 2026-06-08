@@ -1,9 +1,6 @@
 import agentPulse from './agent_pulse/agent';
 import chat from './chat/agent';
-import context from './context/agent';
 import database from './database/agent';
-import docProcessing from './doc_processing/agent';
-import docQa from './doc_qa/agent';
 import email from './email/agent';
 import hello from './hello/agent';
 import kv from './kv/agent';
@@ -18,10 +15,7 @@ import websocket from './websocket/agent';
 export default [
 	agentPulse,
 	chat,
-	context,
 	database,
-	docProcessing,
-	docQa,
 	email,
 	hello,
 	kv,

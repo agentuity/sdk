@@ -5,26 +5,25 @@ description: The layered infrastructure powering Agentuity's services
 
 import { Database, DatabaseZap, BookText, ListTodo, Container, Radio } from 'lucide-react';
 
-The Gravity Network is Agentuity's infrastructure layer that powers all platform services. Rather than building monolithic, tightly-coupled systems, we've architected everything as composable primitives that stack on top of each other.
+The Gravity Network is Agentuity's infrastructure layer for storage, data, compute, messaging, and service coordination. The useful mental model is a stack: low-level primitives provide durable capabilities, and higher-level services compose them for app workflows.
 
 ## Layered Architecture
 
-Agentuity is built on a layered primitive model. Each layer provides building blocks for the layers above it, creating a flexible foundation.
+Agentuity services build on a layered primitive model. Each layer provides building blocks for the layer above it.
 
 <GravityNetworkDiagram />
 
 ### Core Primitives
 
-At the foundation, we have core primitives that nearly everything else is built upon:
+At the foundation, core primitives provide the durable systems that most services use:
 
 | Primitive | Purpose | Examples |
 | --------- | ------- | -------- |
 | **Storage** | S3-compatible object storage | File uploads, snapshots, assets |
 | **Postgres** | Transactional database | Metadata, state, configuration |
-| **Compute** | Agent runtime and sandboxes | Agent execution, isolated code runs |
-| **OLAP Warehouse** <span className="text-xs text-zinc-500 ml-1">(coming soon)</span> | Analytical database | Logs, metrics, analytics |
+| **Compute** | App deployments and sandboxes | Framework apps, isolated code runs |
 
-These core primitives are intentionally generic and protocol-based. Storage speaks S3. Databases speak standard wire protocols. This design enables portability and flexibility at the infrastructure level.
+These primitives use standard protocols where possible. Storage speaks S3-compatible APIs, and relational data uses Postgres.
 
 ### Platform Primitives
 
@@ -38,10 +37,10 @@ On top of the core primitives, we build higher-level platform primitives:
 | <ListTodo className="inline w-4 h-4 mr-1" /> [**Queue**](https://app.agentuity.com/services/queue) | Postgres | Reliable message delivery |
 | <Container className="inline w-4 h-4 mr-1" /> [**Sandbox**](https://app.agentuity.com/services/sandbox) | Compute + Storage | Isolated code execution |
 | <Radio className="inline w-4 h-4 mr-1" /> [**Durable Stream**](https://app.agentuity.com/services/stream) | Storage | Persistent message streams |
-| **Agent Runtime** | Compute | Agent execution environment |
-| **Observability** | OLAP Warehouse | Logging, tracing, metrics |
+| **Deployments** | Compute | Framework app execution |
+| **Observability** | Telemetry storage | Logging, tracing, metrics |
 
-These primitives use the Core Primitives but don't depend on each other horizontally. They only reach down the stack, never up.
+These primitives use the core layer but do not require sibling services to function.
 
 ### Application Services
 
@@ -50,26 +49,26 @@ The highest layer provides application-level services that combine multiple Plat
 | Service | Built On | Purpose |
 | ------- | -------- | ------- |
 | **Auth** | Database | User authentication and sessions |
-| **Webhooks** <span className="text-xs text-zinc-500 ml-1">(coming soon)</span> | Queues + Compute | Receive external events |
-| **Scheduling** <span className="text-xs text-zinc-500 ml-1">(coming soon)</span> | Queues + Compute | Cron and delayed execution |
-| **Email** <span className="text-xs text-zinc-500 ml-1">(coming soon)</span> | Webhooks + Queues | Inbound/outbound email handling |
+| **Webhooks** | Queues + Compute | Receive external events |
+| **Scheduling** | Queues + Compute | Cron and delayed execution |
+| **Email** | Webhooks + Queues | Inbound/outbound email handling |
 | **App Analytics** | OLAP Warehouse | Metrics, dashboards, insights |
 
 For example, an inbound email service works like this:
 1. Email arrives at the Agentuity email service
 2. The email is processed by a preconfigured webhook
 3. An event is placed on the queue
-4. This triggers the Agent Runtime where you can process the email
-5. Store the email in Storage for long-term retention
+4. Your deployed app or worker processes the email
+5. Store the email in Storage when you need long-term retention
 
-Each service is composed from lower-level primitives rather than built from scratch.
+Each service composes lower-level primitives instead of requiring a separate runtime model.
 
-## Why This Matters
+## Why this matters
 
-<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Composability</span>: Higher-level services are built from lower-level primitives. Need a new capability? Combine existing primitives rather than building from scratch.
+<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Composability</span>: Higher-level services share lower-level primitives, so new workflows can combine storage, compute, queues, streams, and service clients.
 
-<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Portability</span>: Because Core Primitives use standard protocols, the underlying infrastructure can be swapped. Your workloads aren't locked into proprietary systems.
+<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Standard protocols</span>: Core systems use common interfaces where possible, such as S3-compatible object storage and Postgres-compatible relational data.
 
-<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Reliability</span>: Built on battle-tested primitives like Postgres and S3, not experimental infrastructure. Your agents run on foundations that have proven themselves at scale.
+<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Operational clarity</span>: When a workflow fails, the service stack gives you concrete places to inspect: queue delivery, sandbox events, deployment logs, traces, storage records, or database state.
 
-<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Agentic</span>: Since you can peek behind the curtain and see what's happening across these abstractions, your agents can too. This creates better context and feedback loops, allowing your agents to build software quickly and effectively.
+<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Agent-readable state</span>: Coding agents work better when the platform exposes resources, events, logs, and outputs as inspectable records instead of hidden side effects.

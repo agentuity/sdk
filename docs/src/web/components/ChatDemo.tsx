@@ -12,8 +12,8 @@ interface Message {
 export function ChatDemo() {
 	const [messages, setMessages] = useState<Message[]>([]);
 	const [input, setInput] = useState('');
-	const [threadInfo, setThreadInfo] = useState<{
-		threadId: string;
+	const [conversationInfo, setConversationInfo] = useState<{
+		conversationId: string;
 		turnCount: number;
 	} | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -48,8 +48,8 @@ export function ChatDemo() {
 			try {
 				const result = await invoke({ message: '', command: 'history' });
 				if (result) {
-					setThreadInfo({
-						threadId: result.threadId,
+					setConversationInfo({
+						conversationId: result.conversationId,
 						turnCount: result.turnCount,
 					});
 
@@ -121,7 +121,10 @@ export function ChatDemo() {
 						content: result.response,
 					},
 				]);
-				setThreadInfo({ threadId: result.threadId, turnCount: result.turnCount });
+				setConversationInfo({
+					conversationId: result.conversationId,
+					turnCount: result.turnCount,
+				});
 			}
 		} catch (err) {
 			setError(err instanceof Error ? err : new Error('Unknown error'));
@@ -140,7 +143,7 @@ export function ChatDemo() {
 		try {
 			await invoke({ message: '', command: 'reset' });
 			setMessages([]);
-			setThreadInfo(null);
+			setConversationInfo(null);
 		} catch (err) {
 			setError(err instanceof Error ? err : new Error('Unknown error'));
 		}
@@ -271,9 +274,10 @@ export function ChatDemo() {
 					</Button>
 				</div>
 			</div>
-			{threadInfo && (
+			{conversationInfo && (
 				<div className="text-zinc-500 dark:text-zinc-600 text-xs">
-					Thread: {threadInfo.threadId.slice(0, 20)}... | Turns: {threadInfo.turnCount}
+					Conversation: {conversationInfo.conversationId.slice(0, 20)}... | Turns:{' '}
+					{conversationInfo.turnCount}
 				</div>
 			)}
 

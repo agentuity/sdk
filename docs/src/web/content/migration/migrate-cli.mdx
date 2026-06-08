@@ -1,0 +1,148 @@
+---
+title: Using the Migration CLI
+short_title: Migration CLI
+description: Run the Agentuity migration tool for v2 to v3 projects.
+---
+
+Use the v3 migration command so the command includes both `--v2-to-v3` and `--v1-to-v2`.
+
+```bash
+npx @agentuity/migrate --v2-to-v3 --dry-run
+```
+
+When you switch to the v3 CLI after migration, the examples below use `agentuity ...` for readability. If the CLI is only installed locally, run the same command through your package manager's exec wrapper, for example `npx agentuity ...` or `bunx agentuity ...`.
+
+## Command
+
+Run from the project root, or pass the project directory as the first argument:
+
+```bash
+npx @agentuity/migrate [project-dir] --v2-to-v3
+```
+
+Useful flags:
+
+| Flag | Use |
+| --- | --- |
+| `--v2-to-v3` | force the v2 to v3 migration mode |
+| `--v1-to-v2` | force the v1 to v2 migration mode |
+| `--dry-run` | print the migration report without changing files |
+| `--yes`, `-y` | skip confirmation prompts |
+| `--help`, `-h` | print available modes and flags |
+
+The tool can also auto-detect migration mode from `@agentuity/runtime` in `package.json`:
+
+| Runtime version | Detected mode |
+| --- | --- |
+| `^1.x` or `1.x` | v1 to v2 |
+| `^2.x`, `2.x`, `latest`, `*`, or `workspace:*` | v2 to v3 |
+
+Pass `--v2-to-v3` when you are following the v3 migration docs. Pass `--v1-to-v2` only when an older app must land on v2 first.
+
+## Safe Workflow
+
+Preview first:
+
+```bash
+npx @agentuity/migrate --v2-to-v3 --dry-run
+```
+
+Apply after the report looks right:
+
+```bash
+npx @agentuity/migrate --v2-to-v3
+```
+
+The tool refuses to write changes when it detects a dirty git worktree. Commit, stash, or otherwise clear unrelated local changes before applying the migration.
+
+The v2 to v3 path is an eject from the v2 runtime container. Keep the dry run report and the diff together while you decide what owns state, lifecycle, auth, frontend code, and long-running work.
+
+Dry-run output looks like this:
+
+```text
+━━━ Agentuity v2 → v3 Migration Report ━━━
+Project: /path/to/app
+
+Summary: 4 auto-fixable, 1 guided, 2 manual
+
+Auto-fixable (will be applied automatically)
+  [  auto  ] app.ts uses createApp() from @agentuity/runtime
+
+Manual (requires human action)
+  [ manual ] Agent "support" is complex
+
+  (dry-run mode, no files modified)
+```
+
+## What the Tool Changes
+
+The v2 to v3 migrator looks for runtime-era patterns and applies the changes it can make mechanically. It creates a Hono starting point because that is the closest replacement for the old runtime container. Use that output as a cleanup baseline, not as a requirement to choose Hono for the final app.
+
+| Area | Change |
+| --- | --- |
+| entry point | generates `src/index.ts` with `new Hono()` and `agentuity()` when `createApp()` is detected |
+| packages | removes `@agentuity/runtime`, adds `hono`, `@agentuity/hono`, and detected service packages |
+| services | generates `src/services.ts` with singleton service clients |
+| simple agents | converts simple `createAgent()` handlers to plain exported functions |
+| routes | rewrites detected `ctx.*` and some `c.var.*` service access to direct imports |
+| thread and session APIs | leaves review markers where runtime thread/session state needs an app-owned replacement |
+| removed files | deletes `app.ts`, `agentuity.config.ts`, and the top-level `src/agent/index.ts` barrel when they match the v2 runtime shape |
+| removed packages | removes v2-only packages such as `@agentuity/evals`, `@agentuity/frontend`, and `@agentuity/workbench` |
+| schema usage | ports detected `@agentuity/schema` usage to Zod when that transform applies |
+| dev workflow | adds a Vite proxy and dev scripts when it detects a Hono plus Vite SPA shape |
+
+The v1 to v2 migrator keeps the runtime model. It rewrites older route files to chained Hono route style, generates v2 barrels, removes `src/generated/`, and updates Agentuity packages to the v2 line.
+
+After writing changes, the tool runs `bun install` and a TypeScript check. If TypeScript reports errors, keep the diff and fix the remaining migration work manually.
+
+## What Still Needs Review
+
+Manual work is normal for apps that used runtime container features:
+
+- lifecycle hooks such as `setup()` or `shutdown()`
+- agent event listeners
+- thread or session state used for chat memory, request grouping, or browser sessions
+- shared app state through `ctx.app`
+- setup output read through `ctx.config`
+- Hono route validation previously handled by Agentuity validator middleware
+- files importing `@agentuity/evals` and custom Workbench/frontend flows
+- moving the generated Hono starting point into a different final framework, such as Next.js or SvelteKit
+
+<Callout type="warning" title="Review generated service and entry files">
+The migrator gives you a starting point, not a deploy guarantee. Review `src/index.ts`, `src/services.ts`, package scripts, and the TypeScript output before deploying.
+</Callout>
+
+## After Migration
+
+Review the diff first:
+
+```bash
+git diff
+```
+
+Then run your app's checks. For a TypeScript app with a build script, that usually means:
+
+```bash
+npm run typecheck
+npm run build
+agentuity build
+```
+
+Link the project to Agentuity Cloud before the first v3 deploy:
+
+```bash
+agentuity project import --validate-only
+agentuity project import
+```
+
+`agentuity project import` registers the project, writes `agentuity.json`, and creates or updates `.env` with `AGENTUITY_SDK_KEY`.
+
+Deploy only after the framework build and `agentuity build` both succeed for your app shape.
+
+Inspect `.agentuity/launch.json` before deploying. For normal framework apps, prefer fixing the framework build or `start` script so `agentuity build` can infer the process. If the app uses a custom runtime or start command, add a root `launch.json`; see [Custom Launchers](/reference/cli/build-configuration#custom-launchers).
+
+## Next Steps
+
+- [Migrating from v2](/migration/from-v2): put the CLI into the full migration flow
+- [Runtime to Frameworks](/migration/runtime-to-frameworks): map runtime APIs to framework code
+- [Deploying Framework Apps](/deploy-operate/deploy-framework-apps): register, build, and deploy after migration

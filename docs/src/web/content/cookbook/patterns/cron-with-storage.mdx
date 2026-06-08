@@ -1,73 +1,78 @@
 ---
-title: Cron with Storage
-description: Cache scheduled task results in KV for later retrieval
+title: Cron with Cached Storage
+short_title: Cron with Storage
+description: Refresh data on a schedule, cache it in key-value storage, and serve fast reads from a normal route
 ---
 
-Refresh data on a schedule, cache it in KV, then serve the last result from a regular GET route. This keeps reads fast and avoids refetching external APIs for every request.
+Read-heavy routes can serve a cached payload while a scheduled task refreshes it in the background. The schedule fires a worker route, the worker writes to key-value storage, and a regular GET route returns whatever is current.
 
-## The Pattern
+```bash
+npm install hono @agentuity/schedule @agentuity/keyvalue valibot
+```
 
-Fetch external data on a schedule and store it in KV. A separate GET endpoint retrieves the cached results.
+## Define the Worker and Reader Routes
 
-```typescript title="src/api/hn/route.ts"
+The worker route is what the schedule calls. It fetches external data, validates it, and writes a single key. The reader route serves whatever is in key-value storage.
+
+```typescript title="src/index.ts"
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import { cron } from '@agentuity/runtime'; // [!code highlight]
-import { s } from '@agentuity/schema';
+import { KeyValueClient } from '@agentuity/keyvalue';
+import * as v from 'valibot';
 
-const router = new Hono<Env>();
+const TopStoryIdsSchema = v.array(v.number());
 
-const TopStoryIdsSchema = s.array(s.number());
-
-const StorySchema = s.object({
-  id: s.number(),
-  title: s.string(),
-  score: s.number(),
-  by: s.string(),
-  url: s.optional(s.string()),
+const StorySchema = v.object({
+  id: v.number(),
+  title: v.string(),
+  score: v.number(),
+  by: v.string(),
+  url: v.optional(v.string()),
 });
 
-type Story = s.infer<typeof StorySchema>;
-
-const CachedStoriesSchema = s.object({
-  stories: s.array(StorySchema),
-  fetchedAt: s.string(),
+const CachedStoriesSchema = v.object({
+  stories: v.array(StorySchema),
+  fetchedAt: v.string(),
 });
 
-type CachedStories = s.infer<typeof CachedStoriesSchema>;
+type CachedStories = v.InferOutput<typeof CachedStoriesSchema>;
 
-// Runs every hour and caches top HN stories
-router.post('/digest', cron('0 * * * *', { auth: true }, async (c) => { // [!code highlight]
-  c.var.logger.info('Fetching HN stories');
+const CACHE_NAMESPACE = 'cache';
+const CACHE_KEY = 'hn-stories';
+const CACHE_TTL_SECONDS = 60 * 60 * 24;
 
+const kv = new KeyValueClient();
+const app = new Hono();
+
+app.post('/api/workers/refresh-hn', async (c) => {
   const idsRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
-  const ids = TopStoryIdsSchema.parse(await idsRes.json());
+  const ids = v.parse(TopStoryIdsSchema, await idsRes.json());
 
   const stories = await Promise.all(
     ids.slice(0, 5).map(async (id) => {
       const res = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
-      const story = StorySchema.parse(await res.json());
+      const story = v.parse(StorySchema, await res.json());
       return {
         id: story.id,
         title: story.title,
         score: story.score,
         by: story.by,
-        url: story.url || `https://news.ycombinator.com/item?id=${story.id}`,
+        url: story.url ?? `https://news.ycombinator.com/item?id=${story.id}`,
       };
     })
   );
 
-  await c.var.kv.set('cache', 'hn-stories', { // [!code highlight]
+  const cached: CachedStories = {
     stories,
     fetchedAt: new Date().toISOString(),
-  }, { ttl: 86400 }); // [!code highlight]
+  };
 
-  c.var.logger.info('Stories cached', { count: stories.length });
-  return c.json({ success: true, count: stories.length });
-}));
+  await kv.set(CACHE_NAMESPACE, CACHE_KEY, cached, { ttl: CACHE_TTL_SECONDS });
 
-router.get('/stories', async (c) => {
-  const result = await c.var.kv.get<CachedStories>('cache', 'hn-stories'); // [!code highlight]
+  return c.json({ ok: true, count: stories.length });
+});
+
+app.get('/api/stories', async (c) => {
+  const result = await kv.get<CachedStories>(CACHE_NAMESPACE, CACHE_KEY);
 
   if (!result.exists) {
     return c.json({ stories: [], fetchedAt: null });
@@ -76,104 +81,81 @@ router.get('/stories', async (c) => {
   return c.json(result.data);
 });
 
-export default router;
+export default app;
 ```
 
-## Frontend
+The worker accepts any payload from the schedule and ignores it. Verifying signatures or restricting the route to scheduled callers belongs in middleware if the worker should not be publicly reachable.
 
-A simple interface can read the cached result without calling the protected cron endpoint:
+## Create the Schedule
 
-```tsx title="src/web/App.tsx"
-import { useState, useEffect } from 'react';
+The schedule is created once with the SDK. The CLI subcommand `agentuity cloud schedule create` does not accept destinations, so do this from a one-time script rather than an interactive flow.
 
-interface Story {
-  id: number;
-  title: string;
-  score: number;
-  by: string;
-  url: string;
-}
+```typescript title="scripts/create-schedule.ts"
+import { ScheduleClient } from '@agentuity/schedule';
+import { logger } from '@agentuity/telemetry';
 
-export function App() {
-  const [stories, setStories] = useState<Story[]>([]);
-  const [fetchedAt, setFetchedAt] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+const schedules = new ScheduleClient();
 
-  const loadStories = async () => {
-    const res = await fetch('/api/hn/stories'); // [!code highlight]
-    const data = await res.json();
-    setStories(data.stories || []);
-    setFetchedAt(data.fetchedAt);
-  };
+const { schedule } = await schedules.create({
+  name: 'Refresh Hacker News cache',
+  description: 'Calls the refresh worker every hour',
+  expression: '0 * * * *',
+  destinations: [
+    {
+      type: 'url',
+      config: {
+        url: 'https://<your-app-host>/api/workers/refresh-hn',
+        method: 'POST',
+      },
+    },
+  ],
+});
 
-  const refreshStories = async () => {
-    setIsLoading(true);
-    await loadStories();
-    setIsLoading(false);
-  };
-
-  useEffect(() => {
-    loadStories();
-  }, []);
-
-  return (
-    <div style={{ padding: '2rem', maxWidth: '600px' }}>
-      <h1>HN Top Stories</h1>
-
-      <div style={{ marginBottom: '1rem' }}>
-        <button onClick={refreshStories} disabled={isLoading}>
-          {isLoading ? 'Refreshing...' : 'Refresh'}
-        </button>
-        {fetchedAt && (
-          <span style={{ marginLeft: '1rem', color: '#666' }}>
-            Last updated: {new Date(fetchedAt).toLocaleString()}
-          </span>
-        )}
-      </div>
-
-      {stories.length === 0 ? (
-        <p>No stories cached yet.</p>
-      ) : (
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {stories.map((story) => (
-            <li key={story.id} style={{ marginBottom: '1rem' }}>
-              <a href={story.url} target="_blank" rel="noopener noreferrer">
-                {story.title}
-              </a>
-              <div style={{ fontSize: '0.85rem', color: '#666' }}>
-                {story.score} points by {story.by}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
+logger.info('schedule created', { id: schedule.id });
 ```
 
-## Testing Locally
+`schedules.create()` is atomic: a bad destination URL rolls back the whole call. Run the script once from a deployed environment, or against a public tunnel for local testing.
 
-Cron schedules only trigger in deployed environments. Locally, you can read cached data with the GET route:
-
-```bash
-curl http://localhost:3500/api/hn/stories
-```
-
-To exercise the cron handler locally, temporarily set `{ auth: false }` or send a signed request with `X-Agentuity-Cron-Signature` and `X-Agentuity-Cron-Timestamp`. Keep `{ auth: true }` for deployed cron routes.
-
-## Key Points
-
-- **`cron()` middleware** wraps POST handlers with a schedule expression
-- **KV with TTL** automatically expires stale data (24 hours in this example)
-- **Separate GET endpoint** lets clients retrieve cached results without cron auth
-- **Local testing** requires a manual POST because schedules only run when deployed
-
-<Callout type="tip" title="Full Working Example">
-See the [Scheduled Digest](https://github.com/agentuity/examples/tree/main/features/scheduled-digest) example for a Hacker News + GitHub digest using cron, KV storage, and durable streams.
+<Callout type="warning" title="Schedule destinations need a public URL">
+The platform calls the destination URL. `localhost` is unreachable. For local iteration, expose the dev server with a tunnel like ngrok and point the destination at the tunnel URL.
 </Callout>
 
-## See Also
+## Inspect Recent Deliveries
 
-- [Cron Routes](/routes/cron) for schedule expressions and patterns
-- [Key-Value Storage](/services/storage/key-value) for KV operations and TTL options
+Each schedule firing produces a delivery record. Use it for audit and debugging.
+
+```typescript
+const recent = await schedules.listDeliveries(schedule.id, { limit: 20 });
+
+for (const delivery of recent.deliveries) {
+  logger.info('delivery', {
+    id: delivery.id,
+    status: delivery.status,
+    date: delivery.date,
+  });
+}
+```
+
+`delivery.date` is the ISO 8601 timestamp when the platform attempted to deliver. `delivery.error` and `delivery.response` carry the destination's reply (or the failure reason).
+
+## Update or Delete
+
+Change the cron expression or description with `update()`. Removing the schedule also cancels future deliveries.
+
+```typescript
+await schedules.update(schedule.id, { expression: '0 */2 * * *' });
+await schedules.delete(schedule.id);
+```
+
+## Notes
+
+- the schedule owns the timer, key-value storage owns the cache, and the GET route owns the public read
+- set `ttl` longer than the schedule interval so a missed run does not produce an empty cache
+- write the entire payload as one key when reads should be atomic; split into multiple keys when callers want to read parts independently
+- `update()` recomputes the next run time the moment the new expression is saved
+
+## Next Steps
+
+- [Schedules](/services/schedules): destinations, deliveries, and platform behavior
+- [Key-Value Storage](/services/storage/key-value): TTL, namespaces, and search
+- [Background Work](/build/apps-and-apis/background-work): wire request, status, worker, and stream routes around a queue

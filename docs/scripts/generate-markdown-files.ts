@@ -1091,23 +1091,18 @@ function generateLlmsTxt(pages: DocPage[]): string {
 	}
 
 	if (missing.size > 0) {
-		console.error(
+		throw new Error(
 			`[generateLlmsTxt] Missing pages for nav URLs: ${Array.from(missing).join(', ')}`
 		);
 	}
 
 	const orphanPages = pages.filter((page) => !emitted.has(page.urlPath));
 	if (orphanPages.length > 0) {
-		console.error(
+		throw new Error(
 			`[generateLlmsTxt] Found orphan pages not present in nav-data.ts: ${orphanPages
 				.map((page) => page.urlPath)
 				.join(', ')}`
 		);
-		lines.push('## Other', '');
-		for (const page of orphanPages) {
-			lines.push(fmt(page));
-		}
-		lines.push('');
 	}
 
 	return lines.join('\n').trimEnd() + '\n';
@@ -1142,35 +1137,45 @@ function getLlmsPreamble(): string {
 
 > The full-stack platform for AI agents.
 
-Agentuity is a cloud platform for building, deploying, and operating AI agents.
-The TypeScript SDK provides a Bun-native runtime, schema validation, and React
-hooks. Use the \`agentuity\` CLI for local development and deployment.
+Agentuity runs framework apps with agent services attached. Start with a
+framework such as Next.js, Hono, React Router, SvelteKit, Nuxt, Astro, Vite
+React, or TanStack Start, then add Agentuity service clients in server-side
+routes, handlers, jobs, and scripts.
+
+Use the \`agentuity\` CLI to create or import projects, run local development
+with Agentuity environment wiring, inspect deployment bundles, and deploy only
+after explicit approval because deploy mutates cloud state.
 
 ## Built-in services
 
 Services include, but are not limited to:
 
-- **Routes and APIs**: type-safe Hono routes with auth, rate limiting, SSE, and WebSockets
-- **Frontend**: end-to-end type safety from agent schemas to React hooks
+- **Framework apps**: Next.js, Hono, React Router, SvelteKit, Nuxt, Astro, Vite React, and TanStack Start
+- **Model-backed workflows**: typed server functions, streaming routes, tool calls, and background work
 - **Data and storage**: Postgres, key-value, vector, object storage, and durable streams
 - **Sandboxes**: isolated runtimes for untrusted or generated code
 - **Messaging and scheduling**: queues, webhooks, email, and cron-style schedules
 - **Authentication**: sessions, API keys, bearer tokens, and OAuth apps
 - **AI Gateway**: LLM provider routing with usage and cost visibility
 - **Observability**: OpenTelemetry traces, structured logs, and session analytics
-- **Agent-to-agent communication**: type-safe calls between agents with context propagation
+- **Coder**: coding sessions with repos, tools, live events, replay, and resume
 
 ## Notes
 
-- This covers the Agentuity platform. General AI agent concepts may require
-  outside sources.
-- Bun is the supported runtime, so examples assume TypeScript and Bun.
-- LLM requests route through the Agentuity AI Gateway by default, so no
-  separate provider API keys are required.`;
+- These markdown files are generated from the MDX docs for coding agents and
+  LLM retrieval. Each \`.md\` page should be readable without site navigation.
+- For agent-driven setup, start with \`agentuity ai intro\`, then run the same
+  create, import, dev, build, and deploy commands a human would run.
+- Use standalone service clients from server-only code. Do not assume legacy
+  \`ctx.*\`, \`createApp()\`, or \`createAgent()\` patterns unless you are reading
+  migration or v2 compatibility pages.
+- Local development should run through \`agentuity dev\` when you want Agentuity
+  env wiring and AI Gateway routing. For deployed provider behavior, check the
+  relevant AI Gateway and environment variable docs.`;
 }
 
 function generateSitemapXml(pages: DocPage[]): string {
-	const DOCS_BASE = 'https://agentuity.com/docs';
+	const DOCS_BASE = 'https://agentuity.dev';
 	const today = new Date().toISOString().split('T')[0];
 
 	const urls = pages

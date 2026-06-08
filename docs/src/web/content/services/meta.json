@@ -1,17 +1,18 @@
 {
 	"title": "Services",
 	"pages": [
-		"database",
 		"storage",
+		"database",
 		"queues",
 		"email",
-		"webhooks",
-		"schedules",
 		"tasks",
-		"authentication",
-		"oidc-provider",
+		"schedules",
+		"webhooks",
+		"sandbox",
+		"ai-gateway",
 		"coder",
 		"observability",
-		"sandbox"
+		"authentication",
+		"oidc-provider"
 	]
 }

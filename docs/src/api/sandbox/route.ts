@@ -10,7 +10,8 @@
  *
  * Usage: GET /run?script=<name>&input=<base64JSON>
  */
-import { sse, createAgentContext, type Env } from '@agentuity/runtime';
+import { sse } from '../http';
+import type { ApiEnv } from '../context';
 import {
 	APIClient,
 	sandboxRun,
@@ -24,6 +25,12 @@ import {
 } from '@agentuity/server';
 import { Writable } from 'node:stream';
 import { SCRIPT_NAMES, SCRIPT_DEFAULTS } from './scripts';
+import {
+	createSandboxOutputForwarder,
+	type SandboxOutputForwarder,
+	type SSEStream,
+} from './output-forwarder';
+import { extractOutputPayload } from '../../lib/sandbox-output-protocol';
 import { Hono } from 'hono';
 
 const SNAPSHOT_ID = process.env.SANDBOX_SNAPSHOT_ID;
@@ -34,25 +41,84 @@ const SESSION_BUCKET = 'explorer-sessions';
 const SESSION_TTL = 600; // 10 min, matches sandbox idle timeout
 const SANDBOX_IDLE_TIMEOUT = '10m';
 const SSE_HEARTBEAT_INTERVAL_MS = 5_000;
+// Completion detection (interactive path)
+const MAX_EXECUTION_POLLS = 6;
+// Grace period after completion for live streams to flush trailing chunks
+// before we abort them (safety net for streams that don't EOF on exec end).
+const STREAM_FLUSH_GRACE_MS = 800;
 const SANDBOX_SERVICE_SCOPES = [
 	'services:read',
 	'services:write',
 	'schedule:read',
 	'schedule:write',
 ];
-
 // Terminal execution statuses — typed against the SDK enum so drift is caught at compile time
 const TERMINAL_STATUSES = new Set<ExecutionStatus>(['completed', 'failed', 'timeout', 'cancelled']);
 
-// ANSI escape sequence regex for stripping terminal colors
-const ANSI_ESCAPE_REGEX = /\x1b\[[0-9;]*m/g;
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-function cleanOutput(content: string): string {
-	return content
-		.replace(ANSI_ESCAPE_REGEX, '')
-		.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z[ \t]*/gm, '')
-		.replace(/\\"/g, '"')
-		.replace(/\\n/g, '\n');
+interface SandboxExecutionResult {
+	readonly exitCode: number;
+	readonly error?: string;
+}
+
+async function sendExecutionResult(
+	stream: SSEStream,
+	result: SandboxExecutionResult
+): Promise<void> {
+	if (result.error) {
+		await stream.writeSSE({ event: 'error', data: result.error });
+		return;
+	}
+
+	await stream.writeSSE({
+		event: 'done',
+		data: JSON.stringify({ exitCode: result.exitCode, status: 'completed' }),
+	});
+}
+
+/**
+ * Read a Pulse stream URL incrementally and forward protocol-framed chunks via
+ * the given forwarder. The `?v=2` query tells Pulse to hold the connection open and
+ * push chunks live instead of the legacy buffered-download path. Resolves on
+ * stream EOF (command finished) or when the signal aborts.
+ */
+async function streamOutputToSSE(
+	url: string,
+	forwarder: SandboxOutputForwarder,
+	signal?: AbortSignal
+): Promise<void> {
+	const v2Url = new URL(url);
+	v2Url.searchParams.set('v', '2');
+
+	let response: Response;
+	try {
+		response = await fetch(v2Url.href, signal ? { signal } : {});
+	} catch {
+		return;
+	}
+	if (!response.ok || !response.body) return;
+
+	const reader = response.body.getReader();
+	const decoder = new TextDecoder('utf-8');
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			if (value) forwarder.push(decoder.decode(value, { stream: true }));
+		}
+		// Flush any bytes the decoder buffered from a multibyte char split at EOF.
+		const tail = decoder.decode();
+		if (tail) forwarder.push(tail);
+	} catch {
+		// Aborted after completion, or a transient network error — stop reading.
+	} finally {
+		try {
+			await reader.cancel();
+		} catch {
+			// already closed
+		}
+	}
 }
 
 async function withHeartbeat<T>(
@@ -70,7 +136,7 @@ async function withHeartbeat<T>(
 	}
 }
 
-const router = new Hono<Env>().get(
+const router = new Hono<ApiEnv>().get(
 	'/run',
 	sse(async (c, stream) => {
 		// Validate config
@@ -113,7 +179,10 @@ const router = new Hono<Env>().get(
 			return;
 		}
 		const region = process.env.AGENTUITY_REGION ?? 'usc';
-		const orgId = process.env.AGENTUITY_ORG_ID;
+		const orgId =
+			process.env.AGENTUITY_ORG_ID ??
+			process.env.AGENTUITY_ORGID ??
+			process.env.AGENTUITY_CLOUD_ORG_ID;
 
 		const serviceUrls = getServiceUrls(region);
 		const client = new APIClient(serviceUrls.sandbox, logger, apiKey);
@@ -126,22 +195,26 @@ const router = new Hono<Env>().get(
 			OPENAI_BASE_URL: `${AI_GATEWAY_URL}/openai`,
 			ANTHROPIC_API_KEY: apiKey,
 			ANTHROPIC_BASE_URL: `${AI_GATEWAY_URL}/anthropic`,
-			GOOGLE_API_KEY: apiKey,
-			GOOGLE_GENERATIVE_AI_BASE_URL: `${AI_GATEWAY_URL}/google`,
 			GROQ_API_KEY: apiKey,
 			GROQ_BASE_URL: `${AI_GATEWAY_URL}/groq`,
 		};
 
-		// Exclude org/project identity — triggers session telemetry that sandbox
-		// tokens can't authorize, producing spurious errors on successful runs.
+		if (orgId) envVars.AGENTUITY_ORG_ID = orgId;
+
 		if (process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID)
 			envVars.AGENTUITY_CLOUD_DEPLOYMENT_ID = process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID;
 		if (process.env.DATABASE_URL) envVars.DATABASE_URL = process.env.DATABASE_URL;
-		if (process.env.S3_BUCKET) envVars.S3_BUCKET = process.env.S3_BUCKET;
-		if (process.env.S3_ENDPOINT) envVars.S3_ENDPOINT = process.env.S3_ENDPOINT;
-		if (process.env.S3_ACCESS_KEY_ID) envVars.S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
-		if (process.env.S3_SECRET_ACCESS_KEY)
-			envVars.S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
+
+		const storageEnv = {
+			AWS_BUCKET: process.env.AWS_BUCKET,
+			AWS_ENDPOINT: process.env.AWS_ENDPOINT,
+			AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+			AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
+			AWS_REGION: process.env.AWS_REGION,
+		};
+		for (const [key, value] of Object.entries(storageEnv)) {
+			if (value) envVars[key] = value;
+		}
 
 		const scriptPath = `dist/run/${scriptName}.js`;
 		const command = ['bun', 'run', scriptPath, JSON.stringify(input)];
@@ -151,8 +224,7 @@ const router = new Hono<Env>().get(
 			const threadId = c.var.thread?.id;
 
 			if (threadId) {
-				const ctx = createAgentContext();
-				const kvResult = await ctx.kv.get<string>(SESSION_BUCKET, threadId);
+				const kvResult = await c.var.kv.get<string>(SESSION_BUCKET, threadId);
 
 				let sandboxId: string;
 
@@ -162,11 +234,11 @@ const router = new Hono<Env>().get(
 
 					try {
 						await stream.writeSSE({ event: 'status', data: 'running' });
-						const output = await withHeartbeat(stream, () =>
-							executeOnSandbox(client, sandboxId, command, orgId)
+						const result = await withHeartbeat(stream, () =>
+							executeOnSandbox(client, sandboxId, command, orgId, stream)
 						);
-						await ctx.kv.set(SESSION_BUCKET, threadId, sandboxId, { ttl: SESSION_TTL });
-						await sendOutput(stream, output);
+						await c.var.kv.set(SESSION_BUCKET, threadId, sandboxId, { ttl: SESSION_TTL });
+						await sendExecutionResult(stream, result);
 						return;
 					} catch (err) {
 						if (
@@ -198,13 +270,13 @@ const router = new Hono<Env>().get(
 				sandboxId = createResponse.sandboxId;
 				logger?.info('Created interactive sandbox', { sandboxId, threadId });
 
-				await ctx.kv.set(SESSION_BUCKET, threadId, sandboxId, { ttl: SESSION_TTL });
+				await c.var.kv.set(SESSION_BUCKET, threadId, sandboxId, { ttl: SESSION_TTL });
 
 				await stream.writeSSE({ event: 'status', data: 'running' });
-				const output = await withHeartbeat(stream, () =>
-					executeOnSandbox(client, sandboxId, command, orgId)
+				const result = await withHeartbeat(stream, () =>
+					executeOnSandbox(client, sandboxId, command, orgId, stream)
 				);
-				await sendOutput(stream, output);
+				await sendExecutionResult(stream, result);
 				return;
 			}
 		} catch (err) {
@@ -217,22 +289,22 @@ const router = new Hono<Env>().get(
 		await stream.writeSSE({ event: 'status', data: 'creating' });
 
 		let detectedExitCode: number | null = null;
+		const oneShotChunks: string[] = [];
+		const oneShotForwarder = createSandboxOutputForwarder(stream);
 		const sseWritable = new Writable({
 			write(chunk, _encoding, callback) {
 				const raw = chunk.toString();
-				const text = cleanOutput(raw);
+				oneShotChunks.push(raw);
 
 				const exitMatch = raw.match(/process exited with error: exit status (\d+)/);
 				if (exitMatch) {
 					detectedExitCode = parseInt(exitMatch[1], 10);
 				}
 
-				if (text.length > 0) {
-					const encoded = text.replace(/\n/g, '\\n');
-					stream.writeSSE({ event: 'stdout', data: encoded }).then(() => callback(), callback);
-				} else {
-					callback();
-				}
+				// Forward protocol-framed chunks live as they arrive from sandboxRun's
+				// internal Pulse stream reader, instead of buffering until the end.
+				oneShotForwarder.push(raw);
+				callback();
 			},
 		});
 
@@ -259,7 +331,18 @@ const router = new Hono<Env>().get(
 				})
 			);
 
+			await oneShotForwarder.flush();
+
 			const exitCode = detectedExitCode ?? result.exitCode;
+			if (!oneShotForwarder.hasOutput()) {
+				const buffered = extractOutputPayload(oneShotChunks.join(''), {
+					allowUnmarkedFallback: exitCode !== 0,
+				});
+				if (buffered) {
+					await stream.writeSSE({ event: 'stdout', data: buffered.replace(/\n/g, '\\n') });
+				}
+			}
+
 			logger?.info('Sandbox completed', {
 				script: scriptName,
 				sandboxId: result.sandboxId,
@@ -287,57 +370,103 @@ async function executeOnSandbox(
 	client: APIClient,
 	sandboxId: string,
 	command: string[],
-	orgId: string | undefined
-): Promise<{ output: string; exitCode: number }> {
+	orgId: string | undefined,
+	sseStream: SSEStream
+): Promise<SandboxExecutionResult> {
 	const execution = await sandboxExecute(client, {
 		sandboxId,
 		options: { command, timeout: SANDBOX_EXEC_TIMEOUT },
 		orgId,
 	});
 
-	// Poll until execution reaches a terminal state.
-	// executionGet with `wait` uses server-side long-polling, but may return
-	// a non-terminal status if the wait duration expires before completion.
-	let result = await executionGet(client, {
-		executionId: execution.executionId,
-		orgId,
-		wait: '5m',
-	});
+	// Stream the stdout URL (available immediately from the execute response) live
+	// WHILE the command runs. Only protocol-framed stdout is forwarded; logger
+	// noise is ignored. An uncaught crash with no protocol output is surfaced by
+	// the post-completion safety net below.
+	const stdoutUrl = execution.stdoutStreamUrl;
+	const forwarder = createSandboxOutputForwarder(sseStream);
+	const abort = new AbortController();
+	const streamPromise = stdoutUrl
+		? streamOutputToSSE(stdoutUrl, forwarder, abort.signal)
+		: Promise.resolve();
 
-	// Guard against stuck-queued executions that never start
-	const MAX_POLL_ITERATIONS = 6;
-	let pollIterations = 0;
-
-	while (!TERMINAL_STATUSES.has(result.status)) {
-		if (++pollIterations > MAX_POLL_ITERATIONS) {
-			throw new Error(
-				`Execution ${execution.executionId} did not complete after ${MAX_POLL_ITERATIONS} poll attempts`
-			);
-		}
-		result = await executionGet(client, {
+	try {
+		// Wait for the execution to finish. executionGet long-polls server-side and
+		// returns as soon as the execution is terminal, so fast runs return fast.
+		// We do NOT race sandboxGetStatus here: on the interactive path the sandbox
+		// is reused and stays alive after each execution, so its status never
+		// reaches 'terminated' on normal completion. (The one-shot path gets that
+		// race for free inside sandboxRun.)
+		let result = await executionGet(client, {
 			executionId: execution.executionId,
 			orgId,
 			wait: '5m',
 		});
+		let pollIterations = 0;
+		while (!TERMINAL_STATUSES.has(result.status)) {
+			if (++pollIterations > MAX_EXECUTION_POLLS) {
+				throw new Error(
+					`Execution ${execution.executionId} did not complete after ${MAX_EXECUTION_POLLS} poll attempts`
+				);
+			}
+			result = await executionGet(client, {
+				executionId: execution.executionId,
+				orgId,
+				wait: '5m',
+			});
+		}
+
+		// Let the live stream flush trailing chunks, then stop it. Per-execution
+		// streams normally EOF when the command exits; the grace + abort is a safety
+		// net so a stream that stays open for the sandbox lifetime cannot hang us.
+		await Promise.race([streamPromise, delay(STREAM_FLUSH_GRACE_MS)]);
+		abort.abort();
+		await streamPromise;
+		await forwarder.flush();
+
+		const exitCode = result.exitCode ?? (result.status === 'completed' ? 0 : 1);
+
+		// Safety net: if the live stream produced no protocol output (stream URL not ready, or
+		// an uncaught crash with no protocol stdout), fetch the now-complete stdout +
+		// stderr once so the user still sees output or the error trace.
+		if (!forwarder.hasOutput()) {
+			const stderrUrl = execution.stderrStreamUrl;
+			const isCombined = !!stdoutUrl && !!stderrUrl && stdoutUrl === stderrUrl;
+			const [out, err] = await Promise.all([
+				fetchOutput(stdoutUrl),
+				isCombined ? Promise.resolve('') : fetchOutput(stderrUrl),
+			]);
+			const buffered = extractOutputPayload([out, err].filter(Boolean).join('\n'), {
+				allowUnmarkedFallback: exitCode !== 0,
+			});
+			if (buffered) {
+				await sseStream.writeSSE({ event: 'stdout', data: buffered.replace(/\n/g, '\\n') });
+			}
+		}
+
+		return { exitCode };
+	} catch (err) {
+		// Always stop the live stream.
+		abort.abort();
+		await streamPromise.catch(() => {});
+		await forwarder.flush();
+		// If protocol output already started, do NOT rethrow: the caller would fall
+		// back to a one-shot re-run and duplicate side effects. Report the failure
+		// on the existing SSE stream instead.
+		if (forwarder.hasOutput()) {
+			const message = err instanceof Error ? err.message : 'Sandbox execution failed';
+			return {
+				exitCode: 1,
+				error: `Sandbox execution failed after output started: ${message}`,
+			};
+		}
+		throw err;
 	}
-
-	// Fetch output after completion (prefer URLs from result, fall back to execution)
-	const stdoutUrl = result.stdoutStreamUrl ?? execution.stdoutStreamUrl;
-	const stderrUrl = result.stderrStreamUrl ?? execution.stderrStreamUrl;
-
-	// If stdout and stderr are the same stream, fetch once to avoid duplicates
-	const isCombined = stdoutUrl && stderrUrl && stdoutUrl === stderrUrl;
-	const [stdout, stderr] = isCombined
-		? [await fetchOutput(stdoutUrl), '']
-		: await Promise.all([fetchOutput(stdoutUrl), fetchOutput(stderrUrl)]);
-
-	const output = [stdout, stderr].filter(Boolean).join('\n');
-
-	return { output, exitCode: result.exitCode ?? (result.status === 'completed' ? 0 : 1) };
 }
 
 /**
  * Fetch output from a stream URL. Returns empty string on error.
+ * Used only by the executeOnSandbox safety-net fallback.
  */
 async function fetchOutput(url: string | undefined): Promise<string> {
 	if (!url) return '';
@@ -347,27 +476,6 @@ async function fetchOutput(url: string | undefined): Promise<string> {
 	} catch {
 		return '';
 	}
-}
-
-/**
- * Send output to SSE stream.
- */
-async function sendOutput(
-	stream: { writeSSE: (event: { event: string; data: string }) => Promise<void> },
-	result: { output: string; exitCode: number }
-): Promise<void> {
-	if (result.output) {
-		const cleaned = cleanOutput(result.output);
-		if (cleaned) {
-			const encoded = cleaned.replace(/\n/g, '\\n');
-			await stream.writeSSE({ event: 'stdout', data: encoded });
-		}
-	}
-
-	await stream.writeSSE({
-		event: 'done',
-		data: JSON.stringify({ exitCode: result.exitCode, status: 'completed' }),
-	});
 }
 
 export default router;

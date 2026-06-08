@@ -13,17 +13,17 @@ export function isValidEmail(value: string): boolean {
 export function generateEmailContent(): { subject: string; html: string; text: string } {
 	return {
 		subject: EMAIL_SUBJECT,
-		text: "This is a demo email from Agentuity's SDK Explorer. It was sent by an Agentuity agent using ctx.email.send(). Agents can also use features like queues, databases, webhooks, scheduled tasks, and more.",
+		text: "This is a demo email from Agentuity's SDK Explorer. It was sent through the Email service. Agentuity apps can also use queues, databases, webhooks, scheduled tasks, and more.",
 		html: `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px;">
   <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
     This is a demo email from Agentuity's SDK Explorer.
   </p>
   <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
-    It was sent by an Agentuity agent using <code style="font-size: 13px;">ctx.email.send()</code>.
+    It was sent through the Email service.
   </p>
   <p style="font-size: 15px; line-height: 1.6; margin: 0;">
-    Agents can also use features like queues, databases, webhooks, scheduled tasks, and more.
+    Agentuity apps can also use queues, databases, webhooks, scheduled tasks, and more.
   </p>
 </div>`.trim(),
 	};

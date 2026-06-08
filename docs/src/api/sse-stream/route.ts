@@ -4,15 +4,16 @@
  * GET /       - Returns metadata about the stream configuration
  * SSE /stream - Streams AI response chunks in real-time (query param: model)
  */
-import { sse, type Env } from '@agentuity/runtime';
-import { streamText } from 'ai';
-import { getModel } from '../../lib/models';
+import { sse } from '../http';
+import type { ApiEnv } from '../context';
+import { streamAIGatewayText, totalTokensFromAIGatewayMetadata } from '../../lib/ai-gateway-stream';
 import { Hono } from 'hono';
 
 // Fixed prompt for the demo - users choose the model
 const FIXED_PROMPT = 'What are AI agents and how do they work?';
+const DEFAULT_MODEL = 'anthropic/claude-opus-4-8';
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 
 	.get('/', (c) => {
 		return c.json({
@@ -25,7 +26,7 @@ const router = new Hono<Env>()
 	.get(
 		'/stream',
 		sse(async (c, stream) => {
-			const model = c.req.query('model') ?? 'gpt-5.4-mini';
+			const model = c.req.query('model') ?? DEFAULT_MODEL;
 
 			c.var.logger?.info('SSE stream started', {
 				prompt: FIXED_PROMPT.slice(0, 50),
@@ -35,9 +36,9 @@ const router = new Hono<Env>()
 			try {
 				let chunkCount = 0;
 
-				const { textStream, usage } = streamText({
-					model: getModel(model),
-					prompt: FIXED_PROMPT,
+				const { textStream, metadata } = await streamAIGatewayText({
+					model,
+					messages: [{ role: 'user', content: FIXED_PROMPT }],
 				});
 
 				for await (const chunk of textStream) {
@@ -48,8 +49,7 @@ const router = new Hono<Env>()
 					});
 				}
 
-				const usageData = await usage;
-				const totalTokens = usageData?.totalTokens ?? 0;
+				const totalTokens = totalTokensFromAIGatewayMetadata(await metadata);
 
 				await stream.writeSSE({
 					event: 'done',

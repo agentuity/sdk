@@ -1,85 +1,115 @@
 ---
 title: Webhook Handler
-description: Handle incoming webhooks with signature verification and background processing
+short_title: Webhook Handler
+description: Verify a signed external webhook in a framework route and hand the payload to a queue
 ---
 
-Process webhooks from external services (Stripe, GitHub, Slack) with proper signature verification and fast response times.
+External services like Stripe, GitHub, and Slack need a 2xx response in seconds and retry on anything else. The pattern is: read the raw body, verify the signature, publish to a queue, return 2xx. The slow work runs in a separate worker route triggered by the queue's HTTP destination.
 
-## The Pattern
-
-Webhooks require quick responses, usually under 3 seconds. Verify the raw request body first, then use `waitUntil` to acknowledge immediately and process in the background.
-
-For Stripe, use the official Node SDK to verify the `stripe-signature` header against the raw body:
-
-```typescript title="src/api/webhooks/route.ts"
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import Stripe from 'stripe';
-import stripeEventHandler from '@agent/stripe-event-handler/agent';
-
-const router = new Hono<Env>();
-
-router.post('/stripe', async (c) => {
-  const rawBody = await c.req.text();
-  const signature = c.req.header('stripe-signature');
-  const apiKey = process.env.STRIPE_SECRET_KEY;
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-  if (!apiKey || !webhookSecret || !signature) {
-    c.var.logger.error('Stripe webhook is missing configuration');
-    return c.text('Webhook not configured', 500);
-  }
-
-  const stripe = new Stripe(apiKey);
-  let event: Stripe.Event;
-
-  try {
-    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret); // [!code highlight]
-  } catch (error) {
-    c.var.logger.warn('Invalid Stripe webhook signature', { error });
-    return c.text('Invalid signature', 400);
-  }
-
-  c.var.logger.info('Webhook received', { type: event.type });
-
-  c.waitUntil(async () => { // [!code highlight]
-    try {
-      await stripeEventHandler.run({
-        eventId: event.id,
-        type: event.type,
-        payload: event.data.object,
-      });
-    } catch (error) {
-      c.var.logger.error('Webhook processing failed', { error, eventType: event.type });
-
-      await c.var.kv.set('failed-webhooks', event.id, {
-        event,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: Date.now(),
-      }, { ttl: 86400 }); // 24 hours
-    }
-  });
-
-  return c.json({ received: true }); // [!code highlight]
-});
-
-export default router;
+```bash
+npm install hono stripe @agentuity/queue @agentuity/keyvalue
 ```
 
-## Slack Webhook Example
+<Callout type="info" title="Want a managed ingest URL instead?">
+Use [`WebhookClient`](/services/webhooks) for a hosted ingest URL with receipts and delivery retries. The patterns below are for external webhooks where your app owns the verification and dispatch path.
+</Callout>
 
-```typescript title="src/api/webhooks/route.ts"
+## Stripe: Verify and Hand Off
+
+Stripe's SDK verifies the signature against the raw request body. Once the event is verified, push it onto a queue and return immediately.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import Stripe from 'stripe';
+import { QueueClient } from '@agentuity/queue';
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+const STRIPE_QUEUE = 'stripe-events';
+const FAILED_NAMESPACE = 'failed-webhooks';
+
+const queue = new QueueClient();
+const kv = new KeyValueClient();
+
+const app = new Hono();
+
+app.post('/api/webhooks/stripe', async (c) => {
+  const apiKey = process.env.STRIPE_SECRET_KEY;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const signature = c.req.header('stripe-signature');
+
+  if (!apiKey || !webhookSecret) {
+    return c.json({ error: 'Stripe webhook is not configured' }, 500);
+  }
+
+  if (!signature) {
+    return c.json({ error: 'Missing stripe-signature header' }, 400);
+  }
+
+  // Stripe's SDK verifies the HMAC against the raw body
+  const rawBody = await c.req.text();
+  const stripe = new Stripe(apiKey);
+
+  let event: Stripe.Event;
+  try {
+    event = await stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Invalid signature';
+    return c.json({ error: message }, 400);
+  }
+
+  try {
+    await queue.publish(STRIPE_QUEUE, event, {
+      // Stripe retries on non-2xx; idempotency stops duplicate processing
+      idempotencyKey: event.id,
+      partitionKey: typeof event.data.object === 'object' && event.data.object && 'customer' in event.data.object
+        ? String(event.data.object.customer ?? event.id)
+        : event.id,
+    });
+  } catch (error) {
+    // Persist enough to replay the event by hand if the queue is unavailable
+    await kv.set(
+      FAILED_NAMESPACE,
+      event.id,
+      {
+        type: event.type,
+        receivedAt: new Date().toISOString(),
+        message: error instanceof Error ? error.message : 'unknown error',
+      },
+      { ttl: 60 * 60 * 24 }
+    );
+    return c.json({ error: 'Queue publish failed' }, 500);
+  }
+
+  return c.json({ received: true });
+});
+
+export default app;
+```
+
+The route is bounded by signature verification and one queue publish. The slower work happens later in the worker route.
+
+## Slack: Verify without an SDK
+
+Slack signs requests with an HMAC over `v0:<timestamp>:<rawBody>`. Skip retries by checking the `x-slack-retry-num` header, and handle the `url_verification` challenge inline.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import slackHandler from '@agent/slack-handler/agent';
+import { QueueClient } from '@agentuity/queue';
 
-router.post('/slack', async (c) => {
-  // Slack retries on failure, skip duplicates
+const SLACK_QUEUE = 'slack-events';
+const SLACK_REPLAY_WINDOW_SECONDS = 60 * 5;
+
+const queue = new QueueClient();
+const app = new Hono();
+
+app.post('/api/webhooks/slack', async (c) => {
+  // Slack retries on errors; skip duplicates by acknowledging retries directly
   if (c.req.header('x-slack-retry-num')) {
     return c.text('OK');
   }
 
   const rawBody = await c.req.text();
-
   const timestamp = c.req.header('x-slack-request-timestamp');
   const signature = c.req.header('x-slack-signature');
   const secret = process.env.SLACK_SIGNING_SECRET;
@@ -90,12 +120,18 @@ router.post('/slack', async (c) => {
 
   const payload: unknown = JSON.parse(rawBody);
 
-  if (isSlackUrlVerification(payload)) {
+  if (typeof payload !== 'object' || payload === null) {
+    return c.text('Invalid payload', 400);
+  }
+
+  if (isUrlVerification(payload)) {
     return c.text(payload.challenge);
   }
 
-  c.waitUntil(async () => { // [!code highlight]
-    await slackHandler.run(payload);
+  const eventId = isEventCallback(payload) ? payload.event_id : crypto.randomUUID();
+
+  await queue.publish(SLACK_QUEUE, payload, {
+    idempotencyKey: eventId,
   });
 
   return c.text('OK');
@@ -113,11 +149,11 @@ function verifySlackSignature(
   if (!Number.isFinite(timestampSeconds)) return false;
 
   const ageSeconds = Math.abs(Date.now() / 1000 - timestampSeconds);
-  if (ageSeconds > 60 * 5) return false;
+  if (ageSeconds > SLACK_REPLAY_WINDOW_SECONDS) return false;
 
-  const expected = 'v0=' + createHmac('sha256', secret)
-    .update(`v0:${timestamp}:${rawBody}`)
-    .digest('hex');
+  const expected =
+    'v0=' +
+    createHmac('sha256', secret).update(`v0:${timestamp}:${rawBody}`).digest('hex');
 
   const expectedBuffer = Buffer.from(expected, 'utf8');
   const signatureBuffer = Buffer.from(signature, 'utf8');
@@ -126,28 +162,76 @@ function verifySlackSignature(
   return timingSafeEqual(expectedBuffer, signatureBuffer);
 }
 
-function isSlackUrlVerification(
+function isUrlVerification(
   payload: unknown
 ): payload is { type: 'url_verification'; challenge: string } {
-  return (
-    typeof payload === 'object' &&
-    payload !== null &&
-    'type' in payload &&
-    payload.type === 'url_verification' &&
-    'challenge' in payload &&
-    typeof payload.challenge === 'string'
-  );
+  if (typeof payload !== 'object' || payload === null) return false;
+  if (!('type' in payload) || payload.type !== 'url_verification') return false;
+  return 'challenge' in payload && typeof payload.challenge === 'string';
 }
+
+function isEventCallback(payload: unknown): payload is { event_id: string } {
+  if (typeof payload !== 'object' || payload === null) return false;
+  return 'event_id' in payload && typeof payload.event_id === 'string';
+}
+
+export default app;
 ```
 
-## Key Points
+## Process Events on the Worker Side
 
-- **Raw body first**: Read body as text before parsing for signature verification
-- **Fast response**: Return a 2xx quickly, process with `waitUntil`
-- **Error handling**: Store failed webhooks for retry/debugging
-- **Signature verification**: Always verify webhooks from external services
+Configure an HTTP destination on the queue once. Every published event is delivered to the worker route, which deserializes the payload and runs the slow work.
 
-## See Also
+```bash
+agentuity cloud queue create worker --name stripe-events --max-retries 3 --visibility-timeout 120
+agentuity cloud queue destinations create stripe-events \
+  --type http \
+  --name stripe-events-worker \
+  --url https://<your-app-host>/api/workers/stripe-events
+```
 
-- [HTTP Routes](/routes/http) for route patterns
-- [Calling Agents from Routes](/routes/calling-agents) for `c.waitUntil()` handoff patterns
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import type Stripe from 'stripe';
+
+const app = new Hono();
+
+app.post('/api/workers/stripe-events', async (c) => {
+  // The queue posts the published payload back as the request body
+  const event = await c.req.json<Stripe.Event>();
+
+  switch (event.type) {
+    case 'checkout.session.completed':
+      // process the session
+      break;
+    case 'invoice.payment_failed':
+      // notify the customer, retry the charge, etc
+      break;
+    default:
+      // quietly ignore events you do not handle
+      break;
+  }
+
+  return c.json({ ok: true });
+});
+
+export default app;
+```
+
+<Callout type="warning" title="HTTP destinations need a public URL">
+The queue calls your worker route over HTTPS. `localhost` is not reachable from the platform. Use a tunnel like ngrok during local development, or deploy the app and point the destination at the deployed URL.
+</Callout>
+
+## Notes
+
+- read the body as text **before** parsing it; signature verification needs the exact bytes the sender hashed
+- return non-2xx **only** when the request is invalid or the queue publish fails; everything else should respond `200`
+- use a stable identifier (`event.id`, `event_id`, request ID) as the queue `idempotencyKey` so retries do not duplicate work
+- keep secrets in environment variables; do not check them in
+- Hono's `c.executionCtx?.waitUntil()` is a Cloudflare Workers feature. For Bun and Node, hand work off via [Queues](/services/queues) instead
+
+## Next Steps
+
+- [Queues](/services/queues): publish API, partitioning, idempotency, and HTTP destinations
+- [Background Work](/build/apps-and-apis/background-work): wire request, status, worker, and stream routes around a queue
+- [Webhooks](/services/webhooks): managed ingest URLs with receipts and delivery retries when you do not want to verify signatures yourself

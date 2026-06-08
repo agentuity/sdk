@@ -197,7 +197,7 @@ Session logs show output for a single request. Deployment logs show all output f
 
 ## Thread Inspection
 
-List and manage conversation threads. For details on how threads work in agents, see [State Management](/agents/state-management).
+List and manage conversation threads. For details on how threads work in agents, see [State Management](/services/storage/key-value).
 
 ```bash
 # List recent threads
@@ -277,7 +277,7 @@ agentuity cloud deployment logs deploy_abc123xyz --project-id=proj_abc123xyz
 
 ## JSON Output for Scripting
 
-All commands support `--json` for machine-readable output. Combined with [jq](/reference/cli/getting-started#json-output), you can filter and transform results:
+All commands support `--json` for machine-readable output. Combined with a JSON processor such as `jq`, you can filter and transform results:
 
 ```bash
 # Get session list as JSON

@@ -1,432 +1,283 @@
 ---
 title: Build a RAG Agent
 short_title: RAG Agent
-description: Create a retrieval-augmented generation agent with vector search and citations
+description: Index documents into vector storage, retrieve the closest matches, and answer with citations
 ---
 
-This tutorial walks through building a RAG (Retrieval-Augmented Generation) agent that answers questions using your own knowledge base. The agent indexes documents into vector storage, retrieves the closest matches, and cites the sources it used.
+This tutorial builds a question-answering route on top of a vector index. The route searches a namespace for relevant documents, fetches the original text, asks a model to answer using that text, and returns the answer with source citations.
 
-## What You'll Build
+The agent itself is a plain typed function. The route owns HTTP. The vector index lives in Agentuity vector storage.
 
-A question-answering agent that:
-- Searches a vector database for relevant content
-- Uses retrieved documents as context for the LLM
-- Returns answers with source citations
-- Handles cases where no relevant information is found
+## What you build
 
-## Prerequisites
+- a `POST /api/knowledge/index` route that adds documents to a vector namespace
+- a `POST /api/knowledge` route that answers a question with retrieved context and source IDs
+- one shared agent function that both routes can reuse
 
-- An Agentuity project ([Quickstart](/get-started/quickstart) if you need one)
-- Basic familiarity with [Vector Storage](/services/storage/vector)
+## Install
 
-## Project Structure
-
-```
-src/agent/knowledge/
-└── agent.ts    # RAG agent logic
-src/agent/indexer/
-└── agent.ts    # Document indexing logic
-src/api/
-└── index.ts    # Query and indexing endpoints
+```bash
+npm install hono @agentuity/aigateway @agentuity/vector valibot zod
 ```
 
-<Steps>
+`@agentuity/vector` and `@agentuity/aigateway` read Agentuity project credentials from the environment, so run the route with `agentuity dev` or a linked Agentuity project.
 
-<Step>
-## Create the Agent
+## Index Documents
 
-When a user asks a question, the agent needs to:
+Indexing accepts a list of documents, calls `vector.upsert()` once per document, and returns the count. Upserts are idempotent: the same `id` overwrites the existing vector.
 
-1. Search the vector database for relevant documents
-2. Build context from the search results
-3. Generate an answer using the LLM with that context
-4. Return the answer with source citations
+```typescript title="src/lib/index-documents.ts"
+import { VectorClient } from '@agentuity/vector';
+import * as v from 'valibot';
 
-```typescript title="src/agent/knowledge/agent.ts"
-import { createAgent } from '@agentuity/runtime';
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { z } from 'zod';
+const documentSchema = v.object({
+  id: v.string(),
+  title: v.string(),
+  content: v.string(),
+  category: v.optional(v.string()),
+});
 
-interface KnowledgeMetadata extends Record<string, unknown> {
-  readonly title: string;
+const indexInputSchema = v.object({
+  documents: v.array(documentSchema),
+});
+
+type IndexInput = v.InferOutput<typeof indexInputSchema>;
+
+const VECTOR_NAMESPACE = 'knowledge-base';
+const vector = new VectorClient();
+
+export async function indexDocuments(body: unknown): Promise<{ indexed: number }> {
+  const input = v.parse(indexInputSchema, body);
+
+  for (const doc of input.documents) {
+    await vector.upsert(VECTOR_NAMESPACE, {
+      key: doc.id,
+      document: `${doc.title}\n\n${doc.content}`,
+      metadata: {
+        title: doc.title,
+        category: doc.category ?? 'general',
+        indexedAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  return { indexed: input.documents.length };
 }
 
-const agent = createAgent('Knowledge Agent', {
-  description: 'Answers questions using a knowledge base',
-  schema: {
-    input: z.object({
-      question: z.string().describe('The question to answer'),
-    }),
-    output: z.object({
-      answer: z.string(),
-      sources: z.array(z.object({
-        id: z.string(),
-        title: z.string(),
-        relevance: z.number(),
-      })),
-      confidence: z.number().min(0).max(1),
-    }),
-  },
-  handler: async (ctx, input) => {
-    ctx.logger.info('Searching knowledge base', { question: input.question });
-
-    // Search for relevant documents
-    const results = await ctx.vector.search<KnowledgeMetadata>('knowledge-base', { // [!code highlight]
-      query: input.question, // [!code highlight]
-      limit: 5,
-      similarity: 0.7, // [!code highlight]
-    });
-
-    // Handle no results
-    if (results.length === 0) {
-      ctx.logger.info('No relevant documents found');
-      return {
-        answer: "I couldn't find relevant information to answer your question.",
-        sources: [],
-        confidence: 0,
-      };
-    }
-
-    const documents = await ctx.vector.getMany<KnowledgeMetadata>(
-      'knowledge-base',
-      ...results.map((result) => result.key)
-    );
-
-    // Build context from the matched documents
-    const context = results // [!code highlight]
-      .map((r, i) => `[${i + 1}] ${documents.get(r.key)?.document ?? ''}`) // [!code highlight]
-      .join('\n\n');
-
-    ctx.logger.debug('Built context from documents', {
-      documentCount: results.length
-    });
-
-    // Generate answer with LLM
-    const { text } = await generateText({
-      model: openai('gpt-5-mini'),
-      system: `You are a helpful assistant that answers questions based on provided context.
-Only use information from the context. If the context doesn't contain the answer, say so.
-Cite sources using [1], [2], etc. when referencing specific information.`,
-      prompt: `Context:
-${context}
-
-Question: ${input.question}
-
-Answer the question using only the provided context. Cite your sources.`,
-    });
-
-    // Calculate confidence from average similarity
-    const avgSimilarity = results.reduce((sum, r) => sum + r.similarity, 0) / results.length;
-
-    return {
-      answer: text,
-      sources: results.map((r, i) => ({
-        id: r.key,
-        title: r.metadata?.title ?? `Document ${i + 1}`,
-        relevance: r.similarity,
-      })),
-      confidence: avgSimilarity,
-    };
-  },
-});
-
-export default agent;
+export type { IndexInput };
 ```
-</Step>
 
-<Step>
-## Add an Indexing Agent
+`document` is the searchable text. Vector storage generates the embeddings server-side. Pass `embeddings` directly only when you already have vectors from another model.
 
-Before you can query your knowledge base, you need to populate it. A separate indexing agent handles this by:
+## Answer Questions
 
-1. Accepting an array of documents
-2. Storing each document in the vector database with metadata
-3. Returning the count and IDs of indexed documents
+The answer function searches the namespace, fetches the original text for the matches with `getMany()`, and asks the model to write an answer that cites which source it used. The model output is validated by the schema, so the route can return a typed object straight to the client.
 
-```typescript title="src/agent/indexer/agent.ts"
-import { createAgent } from '@agentuity/runtime';
+```typescript title="src/lib/answer-question.ts"
+import { VectorClient } from '@agentuity/vector';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { z } from 'zod';
 
-const DocumentSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  content: z.string(),
-  category: z.string().optional(),
+type KnowledgeMetadata = {
+  readonly title: string;
+  readonly category: string;
+  readonly indexedAt: string;
+} & Record<string, unknown>;
+
+const answerSchema = z.object({
+  answer: z.string().describe('Answer in plain prose, citing sources with [1], [2], etc.'),
+  citedIndexes: z
+    .array(z.number().int().min(1))
+    .describe('1-based indexes of the sources the answer used'),
 });
 
-const agent = createAgent('Document Indexer', {
-  description: 'Indexes documents into the knowledge base',
-  schema: {
-    input: z.object({
-      documents: z.array(DocumentSchema),
-    }),
-    output: z.object({
-      indexed: z.number(),
-      ids: z.array(z.string()),
-    }),
-  },
-  handler: async (ctx, input) => {
-    ctx.logger.info('Indexing documents', { count: input.documents.length });
+type AnswerOutput = z.infer<typeof answerSchema>;
 
-    const ids: string[] = [];
+const VECTOR_NAMESPACE = 'knowledge-base';
+const SEARCH_LIMIT = 5;
+const MIN_SIMILARITY = 0.7;
 
-    for (const doc of input.documents) {
-      await ctx.vector.upsert('knowledge-base', { // [!code highlight]
-        key: doc.id, // [!code highlight]
-        document: doc.content, // [!code highlight]
-        metadata: {
-          title: doc.title,
-          category: doc.category,
-          indexedAt: new Date().toISOString(),
-        },
-      });
-      ids.push(doc.id);
-    }
+const vector = new VectorClient();
+const gateway = new AIGatewayClient();
 
-    ctx.logger.info('Indexing complete', { indexed: ids.length });
+interface AnswerResult {
+  readonly answer: string;
+  readonly sources: ReadonlyArray<{
+    readonly id: string;
+    readonly title: string;
+    readonly relevance: number;
+  }>;
+  readonly confidence: number;
+}
 
+export async function answerQuestion(question: string): Promise<AnswerResult> {
+  const matches = await vector.search<KnowledgeMetadata>(VECTOR_NAMESPACE, {
+    query: question,
+    limit: SEARCH_LIMIT,
+    similarity: MIN_SIMILARITY,
+  });
+
+  if (matches.length === 0) {
     return {
-      indexed: ids.length,
-      ids,
+      answer: "I couldn't find relevant information to answer that question.",
+      sources: [],
+      confidence: 0,
     };
-  },
-});
+  }
 
-export default agent;
+  // search() returns ids and metadata, but not the original document text
+  // getMany() returns a Map keyed by the same `key`, with `document` populated
+  const documents = await vector.getMany<KnowledgeMetadata>(
+    VECTOR_NAMESPACE,
+    ...matches.map((match) => match.key)
+  );
+
+  const context = matches
+    .map((match, i) => {
+      const stored = documents.get(match.key);
+      const document = stored?.document ?? '';
+      return `[${i + 1}] ${document}`;
+    })
+    .join('\n\n');
+
+  const model = 'anthropic/claude-opus-4-8';
+
+  const { data } = await gateway.completeStructured({
+    model,
+    messages: [
+      {
+        role: 'system',
+        content:
+          'Answer using only the provided context. If the context is insufficient, say so. Cite sources with [1], [2], etc.',
+      },
+      {
+        role: 'user',
+        content: `Context:\n${context}\n\nQuestion: ${question}`,
+      },
+    ],
+    response_schema: { name: 'rag_answer', schema: answerSchema },
+  });
+
+  const output = answerSchema.parse(data);
+
+  return {
+    answer: output.answer,
+    sources: matches.map((match, i) => ({
+      id: match.key,
+      title: match.metadata?.title ?? `Document ${i + 1}`,
+      relevance: match.similarity,
+    })),
+    confidence:
+      matches.reduce((sum, match) => sum + match.similarity, 0) / matches.length,
+  };
+}
+
+export type { AnswerOutput };
 ```
-</Step>
 
-<Step>
-## Create the Route
+A few details worth calling out:
 
-The route exposes both agents over HTTP. Use `agent.validator()` for type-safe validation using each agent's schema.
+- `vector.search()` returns `id`, `key`, `similarity`, optional `metadata`, and optional `expiresAt`. It does not return the original document text.
+- `vector.getMany()` returns a `Map`, with each entry shaped like a search result plus `document` and `embeddings`.
+- The metadata generic must satisfy `Record<string, unknown>`. Use a `type` intersection (`& Record<string, unknown>`) so the generic accepts an interface that has known fields.
+- The structured output schema's `.describe()` strings are passed to the model and reduce drift on enum or numeric fields.
 
-```typescript title="src/api/index.ts"
+## Wire the Routes
+
+The Hono app pulls both functions together. Validation happens at the route boundary; the agent functions take typed input.
+
+```typescript title="src/index.ts"
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import knowledgeAgent from '@agent/knowledge/agent';
-import indexerAgent from '@agent/indexer/agent';
+import { indexDocuments } from './lib/index-documents';
+import { answerQuestion } from './lib/answer-question';
+import * as v from 'valibot';
 
-const router = new Hono<Env>();
+const askSchema = v.object({
+  question: v.string(),
+});
 
-router.post('/knowledge/index', indexerAgent.validator(), async (c) => {
-  const data = c.req.valid('json');
-  const result = await indexerAgent.run(data);
+const app = new Hono();
+
+app.post('/api/knowledge/index', async (c) => {
+  const body: unknown = await c.req.json();
+  const result = await indexDocuments(body);
   return c.json(result);
 });
 
-// Query endpoint - validates using agent's input schema
-router.post('/knowledge', knowledgeAgent.validator(), async (c) => { // [!code highlight]
-  const { question } = c.req.valid('json'); // [!code highlight]
-  const result = await knowledgeAgent.run({ question }); // [!code highlight]
+app.post('/api/knowledge', async (c) => {
+  const body: unknown = await c.req.json();
+  const { question } = v.parse(askSchema, body);
+  const result = await answerQuestion(question);
   return c.json(result);
 });
 
-// Health check
-router.get('/health', (c) => c.text('OK'));
-
-export default router;
+export default app;
 ```
-</Step>
 
-<Step>
-## Test Your Agent
+## Try It
 
-With both agents created, you can test the full flow: index some documents, then query them.
-
-Start the dev server:
+Run the app locally:
 
 ```bash
 agentuity dev
 ```
 
-The examples below assume your API router is mounted at `/api` in `app.ts`, as shown in the [quickstart](/get-started/quickstart).
-
-Index some test documents:
+Index a few documents:
 
 ```bash
 curl -X POST http://localhost:3500/api/knowledge/index \
-  -H "Content-Type: application/json" \
+  -H 'content-type: application/json' \
   -d '{
     "documents": [
       {
         "id": "doc-1",
         "title": "Getting Started",
-        "content": "Agentuity is a full-stack platform for building AI agents. You can create agents using TypeScript and deploy them with a single command."
+        "content": "Agentuity ships service clients you can call from any framework. Start with `agentuity create`."
       },
       {
         "id": "doc-2",
         "title": "Storage Options",
-        "content": "Agentuity provides three storage options: key-value for simple data, vector for semantic search, and object storage for files."
+        "content": "Agentuity exposes key-value, vector, object, and durable stream storage as direct clients."
       }
     ]
   }'
 ```
 
-Query the knowledge base:
+Ask a question:
 
 ```bash
 curl -X POST http://localhost:3500/api/knowledge \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What storage options does Agentuity provide?"}'
+  -H 'content-type: application/json' \
+  -d '{ "question": "What kinds of storage does Agentuity offer?" }'
 ```
 
-Expected response:
+The response includes the model answer, the source IDs the model cited, and an aggregate confidence score derived from match similarity.
 
-```json
-{
-  "answer": "Agentuity provides three storage options [2]: key-value storage for simple data, vector storage for semantic search, and object storage for files.",
-  "sources": [
-    { "id": "doc-2", "title": "Storage Options", "relevance": 0.89 }
-  ],
-  "confidence": 0.89
-}
-```
+## Variations
 
-### Frontend
+- **Filter results before retrieval.** Search broadly, then narrow the result set before calling `getMany()`.
 
-Build a search interface for your knowledge base:
+  ```typescript
+  const matches = await vector.search<KnowledgeMetadata>('knowledge-base', {
+    query: question,
+  });
 
-```tsx title="src/web/App.tsx"
-import { useState } from 'react';
-
-interface Source {
-  id: string;
-  title: string;
-  relevance: number;
-}
-
-interface KnowledgeResult {
-  answer: string;
-  sources: Source[];
-  confidence: number;
-}
-
-export function App() {
-  const [question, setQuestion] = useState('');
-  const [data, setData] = useState<KnowledgeResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSearch = async () => { // [!code highlight]
-    if (!question.trim()) return; // [!code highlight]
-    setIsLoading(true); // [!code highlight]
-    setError(null); // [!code highlight]
-    try { // [!code highlight]
-      const res = await fetch('/api/knowledge', { // [!code highlight]
-        method: 'POST', // [!code highlight]
-        headers: { 'Content-Type': 'application/json' }, // [!code highlight]
-        body: JSON.stringify({ question }), // [!code highlight]
-      }); // [!code highlight]
-      if (!res.ok) { // [!code highlight]
-        setData(null); // [!code highlight]
-        setError(`Search failed (${res.status})`); // [!code highlight]
-        return; // [!code highlight]
-      } // [!code highlight]
-      setData(await res.json()); // [!code highlight]
-    } catch { // [!code highlight]
-      setData(null); // [!code highlight]
-      setError('Network error'); // [!code highlight]
-    } finally { // [!code highlight]
-      setIsLoading(false); // [!code highlight]
-    } // [!code highlight]
-  }; // [!code highlight]
-
-  return (
-    <div style={{ padding: '2rem', maxWidth: '700px' }}>
-      <h1>Knowledge Search</h1>
-
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-        <input
-          type="text"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          placeholder="Ask a question..."
-          disabled={isLoading}
-          style={{ flex: 1, padding: '0.75rem' }}
-        />
-        <button
-          onClick={handleSearch}
-          disabled={isLoading || !question.trim()}
-        >
-          {isLoading ? 'Searching...' : 'Search'}
-        </button>
-      </div>
-
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      {data && (
-        <div>
-          <div style={{ marginBottom: '1rem' }}>
-            <p style={{ fontSize: '1.1rem', lineHeight: 1.6 }}>{data.answer}</p>
-          </div>
-
-          <div style={{ marginBottom: '1rem', color: '#666' }}>
-            Confidence: {Math.round(data.confidence * 100)}%
-          </div>
-
-          {data.sources.length > 0 && (
-            <div>
-              <h3>Sources</h3>
-              <ul>
-                {data.sources.map((source) => (
-                  <li key={source.id}>
-                    <strong>{source.title}</strong>
-                    <span style={{ color: '#666', marginLeft: '0.5rem' }}>
-                      ({Math.round(source.relevance * 100)}% relevant)
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+  const pricingMatches = matches.filter(
+    (match) => match.metadata?.category === 'pricing'
   );
-}
-```
 
-Render the app directly:
+  const documents = await vector.getMany<KnowledgeMetadata>(
+    'knowledge-base',
+    ...pricingMatches.map((match) => match.key)
+  );
+  ```
 
-```tsx title="src/web/frontend.tsx"
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { App } from './App';
-
-const root = document.getElementById('root');
-if (!root) {
-  throw new Error('Root element not found');
-}
-
-createRoot(root).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
-```
-</Step>
-
-</Steps>
-
-## Summary
-
-| Concept | Description |
-|---------|-------------|
-| **Vector Search** | Find semantically similar documents using `ctx.vector.search()` |
-| **Context Building** | Format search results into LLM-readable context with citations |
-| **Similarity Threshold** | Filter results by minimum similarity score (e.g., 0.7) |
-| **Confidence Score** | Calculate from average similarity of retrieved documents |
-| **Indexing Agent** | Separate agent to populate the vector database with documents |
-
-<Callout type="tip" title="Check Answer Quality">
-For RAG apps, use [LLM as a Judge](/cookbook/patterns/llm-as-a-judge) to check whether generated answers are grounded in the retrieved sources.
-</Callout>
+- **Stream the answer.** Use `AIGatewayClient.streamRequest()` and return a `Response` whose body is the stream. See [Chat and Streaming](/build/agents/chat-and-streaming).
+- **Run indexing in the background.** Move `indexDocuments` behind a queue when documents arrive faster than the route should handle them. See [Background Work](/build/apps-and-apis/background-work).
+- **Track answer quality.** Feed the answer and retrieved context to a judge model to grade whether the answer was grounded. See [Agents](/build/agents) for the agent-as-function pattern.
 
 ## Next Steps
 
-- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): Review answer quality with model-based checks
-- [Streaming Responses](/agents/streaming-responses): Stream longer answers as they are generated
-- [Vector Storage](/services/storage/vector): Add metadata filters and advanced search options
+- [Vector Storage](/services/storage/vector): metadata generics, TTL behavior, and search options
+- [Agents](/build/agents): the plain-function pattern for model-backed work
+- [Product Search](/cookbook/patterns/product-search): another vector pattern, with metadata filters and recommendations

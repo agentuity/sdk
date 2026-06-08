@@ -137,7 +137,7 @@ Shows all active sessions on the connected Hub.
 | `sessionId` | Session identifier |
 | `label` | Human-readable session label |
 | `status` | Current session status |
-| `mode` | Session mode (`sandbox`, `tui`, or `remote`) |
+| `mode` | Session mode (`sandbox` or `tui`) |
 | `createdAt` | Creation timestamp |
 | `taskCount` | Number of tasks |
 | `subAgentCount` | Number of sub-agents |
@@ -163,9 +163,9 @@ Shows detailed information about a specific session, including participants, tas
 
 Manage reusable workspace configurations from the CLI.
 
-From the CLI, think of a workspace as a saved setup you can reuse later. It is a good fit for repository choices and agent selection. If you want to build a workspace around saved skills or skill buckets, do that from the SDK or web app.
+From the CLI, think of a workspace as a saved setup you can reuse later. It is a good fit for repository choices, dependency setup, Lead prompt guidance, and agent selection. If you want to build a workspace around saved skills or skill buckets, do that from the SDK or web app.
 
-Do not create an empty workspace. Start with at least one repository or agent selection.
+Do not create an empty workspace. Start with at least one repository, dependency, setup script, system prompt, or agent selection.
 
 ```bash
 # List workspaces
@@ -176,6 +176,12 @@ agentuity coder workspace create "Auth System" --repo https://github.com/org/rep
 
 # Create a workspace with agent selection
 agentuity coder workspace create "Review Workspace" --enabled-agents builder
+
+# Create a workspace with setup inputs
+agentuity coder workspace create "Node Workspace" --dependency git --setup-script-file ./setup.sh
+
+# Create a workspace with Lead prompt guidance
+agentuity coder workspace create "Focused Review" --system-prompt-file ./WORKSPACE_PROMPT.md --system-prompt-mode append
 
 # Show workspace details
 agentuity coder workspace get ws_abc123
@@ -193,6 +199,12 @@ agentuity coder workspace delete ws_abc123
 | `--scope <scope>` | `user` or `org` |
 | `--repo <url>` | Git repository URL to store on the workspace |
 | `--repo-branch <branch>` | Branch to associate with the repository |
+| `--dependency <list>` | Comma-separated APT dependencies to install while preparing the workspace |
+| `--setup-script <script>` | Inline shell script to run while preparing the workspace |
+| `--setup-script-file <path>` | Read the setup script from a file |
+| `--system-prompt <text>` | Inline Lead system prompt to apply to sessions created from the workspace |
+| `--system-prompt-file <path>` | Read the Lead system prompt from a file |
+| `--system-prompt-mode <mode>` | `append` or `overwrite` |
 | `--enabled-agents <list>` | Comma-separated agent slugs. Built-in roles like `builder` also work |
 | `--org-id <id>` | Organization ID override |
 
@@ -207,6 +219,9 @@ agentuity coder skill list
 # Save a skill
 agentuity coder skill save --repo my-org/skills --skill-id code-review --name "Code Review"
 
+# Create a custom SKILL.md-backed skill
+agentuity coder skill create --skill-id release-checklist --name "Release checklist" --content-file ./SKILL.md
+
 # List skill buckets
 agentuity coder skill buckets
 
@@ -219,6 +234,17 @@ agentuity coder skill delete skill_abc123
 # Delete a skill bucket
 agentuity coder skill buckets --delete bucket_abc123
 ```
+
+### Skill Create Options
+
+| Option | Description |
+|--------|-------------|
+| `--url <url>` | Coder API URL override |
+| `--skill-id <id>` | Skill identifier |
+| `--name <text>` | Skill name |
+| `--description <text>` | Skill description |
+| `--content <text>` | Inline `SKILL.md` content |
+| `--content-file <path>` | Read `SKILL.md` content from a file |
 
 ## URL Resolution
 

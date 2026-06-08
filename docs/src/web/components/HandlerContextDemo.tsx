@@ -14,15 +14,15 @@ interface LogEntry {
 const endpoints = [
 	{
 		id: 'session',
-		label: 'Session',
-		description: 'Session & thread IDs, state',
+		label: 'Request',
+		description: 'Method, path, and headers',
 		explanation: (
 			<>
-				Access per-request state via <code>ctx.session.state</code> and the unique session ID
-				via <code>ctx.session.id</code>. State resets after each request.
+				Read request data from <code>c.req</code>. This is the framework-owned boundary: method,
+				path, headers, and body parsing live here before you call services or shared app code.
 			</>
 		),
-		codeHint: 'ctx.session',
+		codeHint: 'c.req.method, c.req.path',
 	},
 	{
 		id: 'services',
@@ -30,47 +30,50 @@ const endpoints = [
 		description: 'Available storage & observability',
 		explanation: (
 			<>
-				Check which services are available: <code>ctx.kv</code>, <code>ctx.vector</code>,{' '}
-				<code>ctx.logger</code>, <code>ctx.tracer</code>. All are initialized automatically.
+				Agentuity middleware adds service clients to <code>c.var.*</code>. This demo shows the
+				storage and observability helpers the route can use without creating them inside the
+				handler.
 			</>
 		),
-		codeHint: 'ctx.kv, ctx.vector, ctx.logger',
+		codeHint: 'c.var.kv, c.var.vector, c.var.logger',
 	},
 	{
 		id: 'agents',
-		label: 'Agents',
-		description: 'Agent registry info',
+		label: 'Agent Calls',
+		description: 'Reusable model-backed code',
 		explanation: (
 			<>
-				List all registered agents and invoke them with <code>agent.run(input)</code>. Both
-				routes and agents can call <i>other</i> agents for complex workflows.
+				Keep focused model-backed work in functions, then call those functions from routes,
+				queues, schedules, or other server code. The route decides whether to wait for the
+				result or hand the work off.
 			</>
 		),
-		codeHint: 'ctx.agents',
+		codeHint: 'plain functions + route handlers',
 	},
 	{
 		id: 'state',
 		label: 'State',
-		description: 'State management (call multiple times!)',
+		description: 'App-owned state boundary',
 		explanation: (
 			<>
-				Thread state persists across requests (via cookies). Use <code>ctx.thread.state</code>{' '}
-				to store conversation history or user preferences.
+				Use cookies plus app-owned storage when request handlers need history, preferences, or
+				other lightweight state between calls. This demo uses a cookie and a local store to stay
+				self-contained.
 			</>
 		),
-		codeHint: 'ctx.thread.state',
+		codeHint: 'cookie + KeyValueClient',
 	},
 	{
 		id: 'full',
 		label: 'Full Context',
-		description: 'Complete context dump from route',
+		description: 'Request + services snapshot',
 		explanation: (
 			<>
-				Direct access to the full context object showing session, thread, and all available
-				properties.
+				See the request summary and injected services together. The route owns how it combines
+				request data with app-owned state; no runtime session or thread object is required.
 			</>
 		),
-		codeHint: 'ctx',
+		codeHint: 'c.req + c.var.*',
 	},
 	{
 		id: 'logger',
@@ -78,11 +81,11 @@ const endpoints = [
 		description: 'Log at different levels (check console)',
 		explanation: (
 			<>
-				Structured logging with <code>ctx.logger.info()</code>, <code>.warn()</code>,{' '}
-				<code>.error()</code>, <code>.trace()</code>. Logs appear in the Agentuity console.
+				Structured logging with <code>c.var.logger.info()</code>, <code>.warn()</code>,{' '}
+				<code>.error()</code>, and <code>.trace()</code>. Logs appear in the Agentuity console.
 			</>
 		),
-		codeHint: 'ctx.logger.info()',
+		codeHint: 'c.var.logger.info()',
 	},
 	{
 		id: 'background',
@@ -90,11 +93,11 @@ const endpoints = [
 		description: 'waitUntil demo (5s delay in logs)',
 		explanation: (
 			<>
-				Run tasks after the response is sent with <code>ctx.waitUntil(promise)</code>. Perfect
-				for analytics, cleanup, or slow operations.
+				Run tasks after the response with the platform <code>waitUntil()</code> helper when your
+				adapter exposes one, or move longer work to a queue.
 			</>
 		),
-		codeHint: 'ctx.waitUntil()',
+		codeHint: 'waitUntil() or QueueClient',
 	},
 ];
 
@@ -246,7 +249,7 @@ export function HandlerContextDemo() {
 									{selectedEndpoint?.codeHint}
 								</code>
 								<a
-									href="https://github.com/agentuity/sdk/blob/main/docs/src/agent/context/agent.ts"
+									href="https://github.com/agentuity/sdk/blob/main/docs/src/api/context/route.ts"
 									target="_blank"
 									rel="noopener noreferrer"
 									className="text-xs text-zinc-500 hover:text-cyan-700 dark:hover:text-cyan-500 flex items-center gap-1"
@@ -269,7 +272,7 @@ export function HandlerContextDemo() {
 						<span className="text-cyan-800 dark:text-cyan-400">/{lastEndpoint}</span>
 					)}
 				</h3>
-				<JsonDisplay data={data} loading={loading} error={error} />
+				<JsonDisplay data={data} loading={loading && data === null} error={error} />
 
 				{/* Mock Terminal - shows what the server terminal would display */}
 				{mockLogs.length > 0 && <MockTerminal logs={mockLogs} />}

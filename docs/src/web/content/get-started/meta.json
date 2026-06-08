@@ -5,6 +5,7 @@
 		"installation",
 		"quickstart",
 		"project-structure",
-		"app-configuration"
+		"app-configuration",
+		"import-existing-app"
 	]
 }

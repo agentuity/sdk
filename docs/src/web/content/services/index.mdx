@@ -1,6 +1,6 @@
 ---
 title: Services
-description: Identity, storage, messaging, observability, and execution services
+description: Agentuity service clients for identity, storage, messaging, observability, and execution
 ---
 
 import {
@@ -25,9 +25,15 @@ import {
   Webhook,
 } from 'lucide-react';
 
-Agentuity provides built-in services for identity, storage, messaging, observability, and code execution. These pages cover patterns, configuration, and best practices. For method signatures and return types, see the [SDK Reference](/reference/sdk-reference).
+Agentuity services are built-in app infrastructure you can call from server-side code: framework routes, server functions, workers, scripts, and CLIs. Use them when you want managed credentials, resources you can inspect in Agentuity, and service APIs that developers and coding agents can compose in the same project.
 
-## Identity
+You do not have to replace tools your app already owns. Keep your framework logger, OpenTelemetry collector, Postgres client or ORM, vendor SDKs, and framework conventions when they fit. Add Agentuity-native services where they reduce setup or put app and agent infrastructure in one place.
+
+## Service Guides
+
+Start with the service that owns the job you are adding. Use the tables below when you need to compare Agentuity services with app-owned tools.
+
+### Identity
 
 <Cards>
   <CardLink
@@ -44,7 +50,7 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
   />
 </Cards>
 
-## Storage
+### Storage
 
 <Cards>
   <CardLink
@@ -68,13 +74,13 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
   <CardLink
     href="/services/database"
     title="Database"
-    description="PostgreSQL and Drizzle ORM"
+    description="Relational Postgres for app-owned data"
     icon={<Server />}
   />
   <CardLink
     href="/services/storage/durable-streams"
     title="Durable Streams"
-    description="Persistent message streams"
+    description="Chunked generated output with reusable URLs"
     icon={<Activity />}
   />
   <CardLink
@@ -85,7 +91,7 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
   />
 </Cards>
 
-## Messaging & Integrations
+### Messaging and Integrations
 
 <Cards>
   <CardLink
@@ -120,13 +126,24 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
   />
 </Cards>
 
-## Observability
+### AI Gateway
+
+<Cards>
+  <CardLink
+    href="/services/ai-gateway"
+    title="AI Gateway"
+    description="Route model calls through Agentuity with project credentials and live model catalog"
+    icon={<BrainCircuit />}
+  />
+</Cards>
+
+### Observability
 
 <Cards>
   <CardLink
     href="/services/observability/logging"
     title="Logging"
-    description="Structured logging with ctx.logger"
+    description="Structured application logs"
     icon={<FileText />}
   />
   <CardLink
@@ -134,6 +151,12 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
     title="Tracing"
     description="Distributed tracing for debugging"
     icon={<Route />}
+  />
+  <CardLink
+    href="/services/observability/evals-and-testing"
+    title="Evals and Testing"
+    description="Evaluate app behavior with tests, traces, judges, and output contracts"
+    icon={<Eye />}
   />
   <CardLink
     href="/services/observability/sessions-debugging"
@@ -149,7 +172,7 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
   />
 </Cards>
 
-## Coder
+### Coder
 
 <Cards>
   <CardLink
@@ -160,7 +183,7 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
   />
 </Cards>
 
-## Sandbox
+### Sandbox
 
 <Cards>
   <CardLink
@@ -172,8 +195,14 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
   <CardLink
     href="/services/sandbox/sdk-usage"
     title="SDK Usage"
-    description="Use the sandbox from your agents"
+    description="Use the sandbox client from app code"
     icon={<Eye />}
+  />
+  <CardLink
+    href="/services/sandbox/coding-agents"
+    title="Coding Agents"
+    description="Run agent CLIs or servers when you need direct process control"
+    icon={<BrainCircuit />}
   />
   <CardLink
     href="/services/sandbox/snapshots"
@@ -182,3 +211,57 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
     icon={<Camera />}
   />
 </Cards>
+
+## Choose a Service
+
+| Need | Start With | Why |
+|------|------------|-----|
+| sign users in with Agentuity accounts or OAuth scopes | [OIDC Provider](/services/oidc-provider) or [Authentication](/services/authentication) | keep user auth in your framework or identity layer |
+| exact-key state, cache, counters, or preferences | [Key-Value](/services/storage/key-value) | read and write small records by bucket and key |
+| semantic search, embeddings, or RAG retrieval | [Vector](/services/storage/vector) | store documents and query by meaning |
+| files, images, documents, or large blobs | [Object](/services/storage/object) | use object storage for binary data |
+| relational app data and SQL queries | [Database](/services/database) | keep tables and migrations in your app's database layer |
+| async handoff, inbound events, or timed delivery | [Queues](/services/queues), [Webhooks](/services/webhooks), or [Schedules](/services/schedules) | decouple work from the request that discovered it |
+| tracked work items, issue state, comments, or attachments | [Tasks](/services/tasks) | give work a lifecycle your app can inspect |
+| routed model access, live model catalog lookup, or provider-SDK env wiring | [AI Gateway](/services/ai-gateway) | keep gateway setup and project credentials in one place |
+| logs, spans, request history, or eval runs | [Observability](/services/observability), [Evals and Testing](/services/observability/evals-and-testing), [OpenAI Evals API](/cookbook/patterns/openai-evals-api), or [Braintrust Evals](/cookbook/patterns/braintrust-evals) | treat evals as app code with traces and output contracts |
+| isolated command execution, generated-code checks, or sandbox files | [Sandbox](/services/sandbox) | run code away from your own host with explicit limits |
+| repo-aware coding work with history, reconnects, skills, or review | [Coder](/services/coder) | use a managed coding session instead of only a process |
+
+## Choose What Agentuity Owns
+
+Use the app-owned path when it already works. Add an Agentuity service when the project needs credentials, resources, inspection, or a coding-agent-friendly API.
+
+| If your app already owns | Keep | Add Agentuity when |
+| --- | --- | --- |
+| user sessions and authorization | the framework session layer or auth provider | users sign in with Agentuity or grant scoped Agentuity access through [Authentication](/services/authentication) |
+| relational data | `DATABASE_URL`, the database client or ORM, and migrations | use [Database](/services/database) to create, link, or inspect the Postgres resource |
+| process logs and traces | [Pino](/cookbook/patterns/structured-logging-with-pino), [LogTape](/cookbook/patterns/logtape-structured-logging), your structured logger, log drain, [OpenTelemetry Collector](/cookbook/patterns/opentelemetry-route-spans), or [Langfuse](/cookbook/patterns/langfuse-otel-tracing) | use [Observability](/services/observability) to collect logs, spans, eval runs, or session timelines |
+| model provider calls | provider SDKs, provider keys, prompts, tools, and streaming UI | use [AI Gateway](/services/ai-gateway) for model catalog lookup, project credentials, or local env wiring |
+| storage abstractions | the app-owned interface and existing backend | use [Storage](/services/storage) for KV, vector, object, or stream resources, or [Custom Storage](/services/storage/custom) to hide the backend choice |
+
+## Use Service Clients
+
+The package pattern is the same across services:
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+const kv = new KeyValueClient();
+
+await kv.set('cache', 'homepage', { generatedAt: new Date().toISOString() });
+const cached = await kv.get<{ readonly generatedAt: string }>('cache', 'homepage');
+```
+
+For package install and constructor options, see [Standalone Packages](/reference/standalone-packages). For REST request and response fields, use the generated [API Reference](/reference/api). For environment variables used by service clients, see [App Configuration](/get-started/app-configuration#agentuity-keys).
+
+Direct clients are the portable default across frameworks, workers, scripts, and CLIs. Hono apps can also install `@agentuity/hono` when middleware is the right injection point for common clients and telemetry on `c.var.*`. Relational Postgres has its own database section; for other services, use the package that owns that service.
+
+## Next Steps
+
+Use these pages after you choose a service and need to wire it into app code.
+
+- [Frameworks](/frameworks): add service clients to framework-native routes and server functions
+- [Standalone Packages](/reference/standalone-packages): install and configure client packages in server-side code
+- [App Configuration](/get-started/app-configuration): connect service clients to project keys and environment values
+- [API Reference](/reference/api): inspect generated method-level REST details when a guide intentionally stays conceptual

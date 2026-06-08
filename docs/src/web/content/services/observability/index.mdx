@@ -1,73 +1,154 @@
 ---
 title: Observability
-description: Monitor and debug your agents with built-in observability tools
+description: Monitor framework apps with telemetry, sessions, and deployment logs
 ---
 
-import { FileText, GitBranch, Bug, BarChart3 } from 'lucide-react';
+import { ClipboardCheck, FileText, GitBranch, Bug, MousePointerClick } from 'lucide-react';
 
-Monitor and debug your agents with built-in observability tools. Use collected logs, traces, session timelines, and web analytics to see what your app did and where it failed.
+For Agentuity projects, observability starts with the app's existing logging, tracing, and analytics path. Add Agentuity telemetry defaults or Agentuity session and deployment views where they make it easier to answer what ran, how long it took, and where it failed.
 
 <Cards>
   <CardLink
     href="/services/observability/logging"
     title="Logging"
-    description="Collected logs with searchable context"
+    description="Structured application logs"
     icon={<FileText />}
   />
   <CardLink
     href="/services/observability/tracing"
     title="Tracing"
-    description="Distributed tracing with OpenTelemetry"
+    description="OpenTelemetry spans and timing"
     icon={<GitBranch />}
+  />
+  <CardLink
+    href="/services/observability/evals-and-testing"
+    title="Evals and Testing"
+    description="App tests, output contracts, judge checks, and traces"
+    icon={<ClipboardCheck />}
   />
   <CardLink
     href="/services/observability/sessions-debugging"
     title="Sessions & Debugging"
-    description="Debug sessions and inspect state"
+    description="Session records, timelines, and logs"
     icon={<Bug />}
   />
   <CardLink
     href="/services/observability/web-analytics"
     title="Web Analytics"
-    description="Frontend page views and browser events"
-    icon={<BarChart3 />}
+    description="Browser page views and events when a collector endpoint is configured"
+    icon={<MousePointerClick />}
   />
 </Cards>
 
 ## Quick Reference
 
-### Logging
+| Need | Use |
+|------|-----|
+| application logs | [Pino app logs](/cookbook/patterns/structured-logging-with-pino), [LogTape logs](/cookbook/patterns/logtape-structured-logging), your framework logger, or `logger` from `@agentuity/telemetry` |
+| route logs in Hono | `c.var.logger` from `@agentuity/hono` |
+| custom spans | [OpenTelemetry API spans](/cookbook/patterns/opentelemetry-route-spans), [Langfuse traces](/cookbook/patterns/langfuse-otel-tracing), `tracer` from `@agentuity/telemetry`, or `c.var.tracer` in Hono |
+| eval runs | your test runner, output contracts, traces, [OpenAI Evals API](/cookbook/patterns/openai-evals-api), or [Braintrust Evals](/cookbook/patterns/braintrust-evals) |
+| request/session history | `agentuity cloud session` and the Agentuity Console |
+| deployment output | `agentuity cloud deployment logs` |
+| browser page views and events | `@agentuity/analytics` when a collect endpoint is configured, or your framework analytics tool |
 
-```typescript
-ctx.logger.child({ userId, action }).info('Processing request');
-ctx.logger.child({ error: 'OpenAI request timed out' }).error('Failed to process');
+## Access Patterns
+
+| App Shape | Logging | Tracing | Analytics |
+|-----------|---------|---------|-----------|
+| Any server framework or script | stdout through Pino, your structured logger, or `logger` from `@agentuity/telemetry` | your OpenTelemetry setup or `tracer` from `@agentuity/telemetry` | framework analytics or `@agentuity/analytics` |
+| Hono with `@agentuity/hono` | `c.var.logger` | `c.var.tracer` | framework analytics or `@agentuity/analytics` |
+| CLI and Console inspection | session and deployment log commands | session timeline views | session and deployment views |
+
+```bash
+npm install @agentuity/telemetry
 ```
 
-### Tracing
-
 ```typescript
-await ctx.tracer.startActiveSpan('fetch-data', async (span) => {
+import { logger, tracer } from '@agentuity/telemetry';
+
+logger.child({ route: 'POST /api/chat' }).info('Request received');
+
+await tracer.startActiveSpan('load-context', async (span) => {
   try {
-    span.setAttribute('source', 'api');
-    return await fetchData();
+    span.setAttribute('source', 'kv');
+    return { ready: true };
   } finally {
     span.end();
   }
 });
 ```
 
-### Sessions
+`@agentuity/telemetry` reads Agentuity environment variables when they are present. Use explicit `register()` options when the code runs outside an Agentuity project or you want to set service metadata yourself.
 
-```typescript
-// Access session ID for debugging
-ctx.logger.child({ sessionId: ctx.sessionId }).info('Session started');
+## Choose a Telemetry Path
+
+| Path | Use when |
+|------|----------|
+| `@agentuity/telemetry` | you want Agentuity defaults for logger, tracer, meter, auto-instrumentation, and OTLP export setup |
+| `@agentuity/hono` | Hono routes receive Agentuity clients and telemetry through `c.var.*` |
+| [Bring-your-own OpenTelemetry](/cookbook/patterns/opentelemetry-route-spans) | a framework plugin, collector, or vendor SDK already owns telemetry startup |
+| [Langfuse tracing](/cookbook/patterns/langfuse-otel-tracing) | Langfuse already owns LLM trace review for the app |
+| [Pino or LogTape logger](/services/observability/logging) | your existing log pipeline already captures process output |
+
+OpenTelemetry is useful for timing and cross-service context, but it does not need to be the center of every app. OpenTelemetry JavaScript traces and metrics are stable, while the JavaScript logs signal is still marked development by the upstream project. Normal stdout or structured logging remains a reasonable log path.
+
+## Hono Middleware
+
+Hono apps can install one middleware when `c.var.*` is the cleanest injection point for shared Agentuity clients and telemetry defaults.
+
+```bash
+npm install @agentuity/hono @opentelemetry/api hono
 ```
 
-## Access Patterns
+```typescript
+import { Hono } from 'hono';
+import { agentuity } from '@agentuity/hono';
+import type { Logger } from '@agentuity/hono';
+import type { Tracer } from '@opentelemetry/api';
 
-| Context | Logger | Tracer |
-|---------|--------|--------|
-| Agents | `ctx.logger` | `ctx.tracer` |
-| Routes | `c.var.logger` | `c.var.tracer` |
+interface Env {
+  readonly Variables: {
+    readonly logger: Logger;
+    readonly tracer: Tracer;
+  };
+}
 
-Agent session IDs are derived from trace IDs with a `sess_` prefix, so session logs and timelines line up in the [Agentuity Console](https://app.agentuity.com).
+const app = new Hono<Env>();
+
+app.use('*', agentuity({ telemetry: { logLevel: 'info' } }));
+
+app.get('/health', (c) => {
+  c.var.logger.info('Health check');
+  return c.json({ ok: true });
+});
+
+export default app;
+```
+
+## Sessions
+
+Sessions and deployment logs are Agentuity inspection surfaces. Use them to move from an app failure to the request or session timeline, deployment output, logs, and traces when that data is available.
+
+```bash
+agentuity cloud session list
+agentuity cloud session get sess_abc123xyz
+agentuity cloud session logs sess_abc123xyz
+```
+
+<Callout type="info" title="Session records are not app sessions">
+Use your framework or auth provider for user sessions. Agentuity session records are observability records used for debugging requests, logs, and traces.
+</Callout>
+
+## Next Steps
+
+- [Logging](/services/observability/logging): write structured server logs
+- [Tracing](/services/observability/tracing): add OpenTelemetry spans around important work
+- [Structured Logging with Pino](/cookbook/patterns/structured-logging-with-pino): keep JSON process logs app-owned
+- [Using LogTape with an OpenTelemetry Sink](/cookbook/patterns/logtape-structured-logging): keep LogTape logs app-owned
+- [Adding OpenTelemetry Spans to App Routes](/cookbook/patterns/opentelemetry-route-spans): keep SDK startup and collector tooling outside route code
+- [Sending Traces to Langfuse](/cookbook/patterns/langfuse-otel-tracing): keep Langfuse as the trace backend
+- [Evals and Testing](/services/observability/evals-and-testing): evaluate app behavior with tests, output contracts, judges, and traces
+- [Sessions & Debugging](/services/observability/sessions-debugging): inspect session records, timelines, and logs
+- [Web Analytics](/services/observability/web-analytics): add browser analytics when a collection endpoint is available
+- [Sessions API Reference](/reference/api/sessions): inspect generated REST details for session inspection

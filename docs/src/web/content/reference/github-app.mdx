@@ -109,7 +109,7 @@ If your `package.json` defines a `predeploy` script, it runs after dependency in
 ```json title="package.json"
 {
   "scripts": {
-    "predeploy": "bun run build:packages",
+    "predeploy": "npm run build:packages",
     "deploy": "agentuity deploy"
   }
 }
@@ -138,7 +138,7 @@ The build environment is separate from your runtime environment. If builds time 
 }
 ```
 
-These are independent from `deployment.resources`, which controls CPU, memory, and disk for your running agents. See [Configuring Build Resources](/reference/cli/deployment#configuring-build-resources) for details.
+These are independent from `deployment.resources`, which controls CPU, memory, and disk for your running agents. See [Runtime and build resources](/reference/cli/deployment#runtime-and-build-resources) for details.
 
 ## Authorization
 

@@ -1,22 +1,28 @@
 ---
 title: Reference
-description: SDK, API, and CLI reference documentation
+description: Reference docs for Agentuity v3 clients, framework apps, CLI, and REST API
 ---
 
-import { Code, Globe, Terminal, Package, ArrowRight, Network, Github } from 'lucide-react';
+import { Code, Globe, Terminal, Package, Network, Github, Layers } from 'lucide-react';
+
+Pick the reference surface that matches what you are calling or configuring. Most apps start with direct service clients inside server-only framework code, then use the CLI for local development, build, and deploy workflows.
+
+## Reference Guides
+
+Start with the API surface you need. Framework shape and platform references live below these core reference paths.
 
 <Cards>
   <CardLink
-    href="/reference/sdk-reference"
-    title="SDK Reference"
-    description="TypeScript method signatures for agents, routes, and services"
-    icon={<Code />}
+    href="/reference/standalone-packages"
+    title="Standalone Packages"
+    description="Install direct service clients in Node.js, Bun, scripts, workers, and server routes"
+    icon={<Package />}
   />
   <CardLink
-    href="/reference/api"
-    title="REST API Reference"
-    description="HTTP endpoints for platform services from any language"
-    icon={<Globe />}
+    href="/reference/sdk-reference"
+    title="SDK Reference"
+    description="Look up shared TypeScript helpers, schemas, workflow functions, and Coder APIs"
+    icon={<Layers />}
   />
   <CardLink
     href="/reference/cli"
@@ -25,10 +31,10 @@ import { Code, Globe, Terminal, Package, ArrowRight, Network, Github } from 'luc
     icon={<Terminal />}
   />
   <CardLink
-    href="/reference/standalone-packages"
-    title="Standalone Packages"
-    description="Use platform services from any Node.js or Bun app"
-    icon={<Package />}
+    href="/reference/api"
+    title="REST API Reference"
+    description="HTTP endpoints for platform services from any language"
+    icon={<Globe />}
   />
 </Cards>
 
@@ -36,22 +42,23 @@ import { Code, Globe, Terminal, Package, ArrowRight, Network, Github } from 'luc
 
 | I want to... | Use |
 |---|---|
-| Write an agent handler (`ctx.*`) | [SDK Reference](/reference/sdk-reference) |
-| Write an API route (`c.var.*`) | [SDK Reference](/reference/sdk-reference/router) |
-| Access services from Next.js, Express, or scripts | [Standalone Packages](/reference/standalone-packages) |
+| Install service clients in Node.js, Bun, scripts, workers, or server routes | [Standalone Packages](/reference/standalone-packages) |
+| Inspect shared TypeScript helpers, schemas, workflow functions, or Coder APIs | [SDK Reference](/reference/sdk-reference) |
+| Add Agentuity to Next.js, React Router, Hono, TanStack Start, or another framework app | [Framework Apps](/frameworks) |
+| Run local dev, package, deploy, or manage projects from the terminal | [CLI Reference](/reference/cli) |
 | Call Agentuity services from any language via HTTP | [REST API Reference](/reference/api) |
-| Create, deploy, or manage projects from the terminal | [CLI Reference](/reference/cli) |
+| Compare storage, messaging, observability, execution, and Coder services | [Service Guides](/services) |
 
-## Additional Resources
+## Related Reference
 
-Other reference pages for platform infrastructure, upgrades, and integrations.
+Use these pages when you need framework setup, platform background, or GitHub deployment behavior.
 
 <Cards>
   <CardLink
-    href="/reference/migration-guide"
-    title="Migration Guide"
-    description="Upgrade between SDK versions"
-    icon={<ArrowRight />}
+    href="/frameworks"
+    title="Framework Apps"
+    description="Add Agentuity services to Next.js, React Router, Hono, TanStack Start, and other apps"
+    icon={<Code />}
   />
   <CardLink
     href="/reference/gravity-network"

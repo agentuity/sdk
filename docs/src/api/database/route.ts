@@ -4,11 +4,11 @@
  * POST / - Execute a database query
  */
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
 import databaseAgent from '../../agent/database/agent';
 
-const router = new Hono<Env>().post('/', databaseAgent.validator(), async (c) => {
-	const data = c.req.valid('json');
+const router = new Hono<ApiEnv>().post('/', async (c) => {
+	const data = await c.req.json();
 	const result = await databaseAgent.run(data);
 	return c.json(result);
 });

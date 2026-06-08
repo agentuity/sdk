@@ -1,41 +1,65 @@
 ---
 title: Get Started
-description: Start building AI agents with Agentuity
+description: Start with your framework, add Agentuity services, and deploy with the CLI
 ---
 
 import { Rocket, Download, Zap, FolderTree, Settings } from 'lucide-react';
 
-Welcome to Agentuity. Follow these guides to set up your environment and build your first agent.
+Start here when you want to create or import an app that runs on Agentuity. In v3, the framework owns routing and startup. Agentuity adds service clients, local environment wiring, build packaging, and deploy.
+
+```bash
+npm create agentuity
+```
+
+## Setup Guides
+
+Follow these in order for a new app, or jump to the existing-app guide when the app already has routes and scripts.
 
 <Cards>
   <CardLink
     href="/get-started/what-is-agentuity"
     title="What is Agentuity?"
-    description="Learn about the platform and what you can build"
+    description="See how Agentuity fits around a framework app"
     icon={<Rocket />}
   />
   <CardLink
     href="/get-started/installation"
     title="Installation"
-    description="Set up your development environment"
+    description="Install the CLI, sign in, and create a framework starter"
     icon={<Download />}
   />
   <CardLink
     href="/get-started/quickstart"
     title="Quickstart"
-    description="Build your first agent in 5 minutes"
+    description="Scaffold a Next.js starter, run it locally, and deploy"
     icon={<Zap />}
   />
   <CardLink
     href="/get-started/project-structure"
     title="Project Structure"
-    description="Understand how Agentuity projects are organized"
+    description="See exactly what the scaffold adds to a framework app"
     icon={<FolderTree />}
   />
   <CardLink
     href="/get-started/app-configuration"
     title="App Configuration"
-    description="Configure your Agentuity project"
+    description="Configure scripts, agentuity.json, env vars, and service clients"
     icon={<Settings />}
   />
+  <CardLink
+    href="/get-started/import-existing-app"
+    title="Existing App"
+    description="Add Agentuity to an app that already has routes and scripts"
+    icon={<FolderTree />}
+  />
 </Cards>
+
+## Choose a Starting Point
+
+| If you have... | Start with | Why |
+| --- | --- | --- |
+| A new app | [Quickstart](/get-started/quickstart) | Scaffold a Next.js example, run it locally, and deploy it |
+| An existing framework app | [Existing App](/get-started/import-existing-app) | Keep your routes and scripts, then add Agentuity metadata and service clients |
+| A fresh machine or CI image | [Installation](/get-started/installation) | Install the CLI, sign in, and choose a framework slug |
+| Questions about generated files | [Project Structure](/get-started/project-structure) | See what the scaffold adds and what stays framework-owned |
+| Environment or service setup work | [App Configuration](/get-started/app-configuration) | Configure scripts, `agentuity.json`, env values, and standalone clients |

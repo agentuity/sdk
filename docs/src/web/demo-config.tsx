@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { CODE_EXAMPLES } from './code-examples';
 import { AgentCallsDemo } from './components/AgentCallsDemo';
 import { AIGatewayDemo } from './components/AIGatewayDemo';
@@ -17,6 +18,7 @@ import { EmailDemo } from './components/EmailDemo';
 import { QueueDemo } from './components/QueueDemo';
 import { SchedulesDemo } from './components/SchedulesDemo';
 
+import { WebRTCDemo } from './components/WebRTCDemo';
 import { WebSocketDemo } from './components/WebSocketDemo';
 import type { LineHighlight } from './components/CodeBlock';
 
@@ -31,6 +33,7 @@ export type DemoId =
 	| 'sse-stream'
 	| 'streaming'
 	| 'websocket'
+	| 'webrtc'
 	| 'durable-stream'
 	| 'schedules'
 	| 'agent-calls'
@@ -48,7 +51,7 @@ export interface DemoConfig {
 	description: string;
 	explanation: React.ReactNode;
 	docsUrl?: string;
-	category: 'basics' | 'services' | 'io-patterns' | 'examples';
+	category: 'app-basics' | 'services' | 'streaming-realtime' | 'agents';
 	component: React.ComponentType;
 	codeExample: string;
 	sandboxEnabled?: boolean;
@@ -59,34 +62,32 @@ export interface DemoConfig {
 }
 
 export const DEMOS: DemoConfig[] = [
-	// Basics - fundamental concepts
+	// App basics - fundamental concepts
 	{
 		id: 'hello',
-		title: 'Hello Agent',
-		subtitle: 'Basic Request/Response',
-		description: 'Your first agent - send input, get output.',
+		title: 'Hello World',
+		subtitle: 'App route',
+		description: 'Send JSON to a server route and return a typed response.',
 		explanation: (
 			<>
-				An <em>agent</em> is code that receives input, processes it, and returns output. Unlike
-				a simple function, agents can use tools, access storage, and maintain state across
-				requests.{' '}
+				A route is server code that receives a request and returns a response. This demo sends
+				JSON to a Hono route, validates the body, logs the request, and returns a typed
+				response.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					This is the building block of any Agentuity project
+					Start here before adding storage, model calls, or background work
 				</span>
-				. Every agent follows the same pattern: the <em>schema</em> declares what goes in and
-				comes out, the <em>handler</em> processes requests. Once you're comfortable here,
-				explore the{' '}
-				<a
-					href={explorerHref('handler-context')}
+				. Once you're comfortable here, explore{' '}
+				<Link
+					to={explorerHref('handler-context')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
-					Handler Context
-				</a>{' '}
-				to see what tools are available inside your handler.
+					Route Context
+				</Link>{' '}
+				to see request data, logging, and service clients.
 			</>
 		),
-		docsUrl: '/agents/creating-agents',
-		category: 'basics',
+		docsUrl: '/build/apps-and-apis/backend-apis',
+		category: 'app-basics',
 		component: HelloDemo,
 		codeExample: CODE_EXAMPLES.hello,
 		sandboxEnabled: true,
@@ -95,29 +96,29 @@ export const DEMOS: DemoConfig[] = [
 	},
 	{
 		id: 'handler-context',
-		title: 'Handler Context',
-		subtitle: 'AgentContext Properties',
-		description: "See what's available inside your agent handler.",
+		title: 'Route Context',
+		subtitle: 'Hono context',
+		description: 'See request data, injected services, and app-owned state in a Hono route.',
 		explanation: (
 			<>
-				When your agent runs, it receives a <em>context object</em> (ctx) with everything you
-				need:{' '}
+				Route context is the object your Hono handler receives for one request. It carries the
+				incoming request, lets you read Agentuity services from <code>c.var.*</code>, and gives
+				you the boundary where route code calls shared app logic.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					logging, storage access, session info, and more
+					Start here to see what lives in the framework context
 				</span>
-				. Think of it as your agent's toolbox. Click the buttons below to see live responses
-				from the API routes. The reference code on the right shows a simplified standalone
-				example you can run in the sandbox.
+				. Use the buttons below to inspect one part at a time, then compare the response with
+				the code on the right.
 			</>
 		),
-		docsUrl: '/reference/sdk-reference/context-api',
-		category: 'basics',
+		docsUrl: '/frameworks/hono',
+		category: 'app-basics',
 		component: HandlerContextDemo,
 		codeExample: CODE_EXAMPLES['handler-context'],
 		sandboxEnabled: true,
 		sandboxScript: 'handler-context',
 	},
-	// Services - storage and AI gateway
+	// Services - managed platform services
 	{
 		id: 'key-value',
 		title: 'KV Storage',
@@ -125,20 +126,19 @@ export const DEMOS: DemoConfig[] = [
 		description: 'Store and retrieve data by key, with auto-expiration.',
 		explanation: (
 			<>
-				Store and retrieve data by key, like a dictionary. Set a value with a key, get it back
-				later using that exact key. Optionally set a <em>TTL</em> (time-to-live), which tells
-				the system to automatically delete the data after a set period, perfect for caching or
-				temporary sessions.{' '}
+				Key-value storage is for exact lookups: save a value under a namespace and key, then
+				read it back with that same key. This demo loads sample records, lists the keys, and
+				shows the stored JSON value.{' '}
 				<span className="bg-zinc-300/15 px-1 rounded">
-					Use KV when you know the exact key you're looking for
+					Use KV for preferences, cache entries, counters, and short-lived state
 				</span>
 				. For searching by meaning or similarity, use{' '}
-				<a
-					href={explorerHref('vector-storage')}
+				<Link
+					to={explorerHref('vector-storage')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					Vector storage
-				</a>{' '}
+				</Link>{' '}
 				instead.
 			</>
 		),
@@ -168,12 +168,12 @@ export const DEMOS: DemoConfig[] = [
 					Use vector search when you need to find content by meaning
 				</span>{' '}
 				rather than exact keywords. For exact key lookups, use{' '}
-				<a
-					href={explorerHref('key-value')}
+				<Link
+					to={explorerHref('key-value')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					KV storage
-				</a>{' '}
+				</Link>{' '}
 				instead.
 			</>
 		),
@@ -192,24 +192,24 @@ export const DEMOS: DemoConfig[] = [
 	{
 		id: 'object-storage',
 		title: 'Object Storage',
-		subtitle: 'File Storage (Bun S3)',
+		subtitle: 'Agentuity Storage',
 		description: 'Store files with presigned URLs for sharing.',
 		explanation: (
 			<>
-				Need to store files like images, PDFs, or videos? That's what object storage is for, and
-				it handles larger files with ease. Upload a file and get back a shareable URL.{' '}
+				Object storage is for files and blobs, not small JSON records. This demo loads a sample
+				text file, lists files in the bucket, and generates a presigned URL for temporary
+				sharing.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					Need temporary access? Generate presigned URLs
+					Use it for files such as uploads, reports, images, and generated artifacts
 				</span>{' '}
-				that expire automatically. Under the hood, this uses <em>S3-compatible storage</em> (a
-				widely-used standard for file storage), so the patterns you learn here work anywhere.
-				For simple key-value data, see{' '}
-				<a
-					href={explorerHref('key-value')}
+				when the data is a file people or systems need to download. For exact-key JSON state,
+				see{' '}
+				<Link
+					to={explorerHref('key-value')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					KV storage
-				</a>
+				</Link>
 				.
 			</>
 		),
@@ -224,19 +224,20 @@ export const DEMOS: DemoConfig[] = [
 		id: 'ai-gateway',
 		title: 'AI Gateway',
 		subtitle: 'Multi-Provider Routing',
-		description: 'Use any AI provider with a single API key.',
+		description: 'Route supported model calls through one Agentuity project credential.',
 		explanation: (
 			<>
-				Use any AI model from any provider (OpenAI, Anthropic, Google, etc.) with a{' '}
-				<strong>single API key</strong>. No juggling multiple accounts or credentials.{' '}
+				AI Gateway lets a route call supported provider models through one Agentuity project
+				credential. This demo sends the same prompt to selected models in parallel and streams
+				each response as it arrives, so you can compare output shape, latency, and token
+				estimates.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					The AI Gateway handles authentication, tracks usage, and lets you switch models
-				</span>{' '}
-				with minimal code changes. Just import the provider SDK and call it. Works seamlessly
-				with the Vercel AI SDK for streaming and structured output.
+					Check supported models before choosing app defaults
+				</span>
+				.
 			</>
 		),
-		docsUrl: '/agents/ai-gateway',
+		docsUrl: '/services/ai-gateway',
 		category: 'services',
 		component: AIGatewayDemo,
 		codeExample: CODE_EXAMPLES['ai-gateway'],
@@ -244,7 +245,7 @@ export const DEMOS: DemoConfig[] = [
 		sandboxScript: 'ai-gateway',
 		sandboxInput: { prompt: 'Explain AI agents in 1 sentence.' },
 	},
-	// I/O Patterns - streaming and real-time
+	// Streaming and realtime
 	{
 		id: 'streaming',
 		title: 'Text Stream',
@@ -252,25 +253,25 @@ export const DEMOS: DemoConfig[] = [
 		description: "Stream responses as they're generated.",
 		explanation: (
 			<>
-				Stream data as it's generated instead of waiting for the complete response. This is{' '}
-				<em>raw streaming</em>: bytes flow through as they're ready, with no extra structure
-				added.{' '}
+				Raw streaming sends text chunks as soon as they are generated. This demo reads a
+				response body stream and appends each chunk to the page, without event names or
+				reconnect metadata.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					Perfect for simple LLM token streaming
+					Use it when you only need text to appear quickly
 				</span>{' '}
-				where you just want text to appear word-by-word. If you need typed events, message IDs,
-				or automatic reconnection, see{' '}
-				<a
-					href={explorerHref('sse-stream')}
+				and the browser doesn't need typed events. If you need event names, completion events,
+				or browser-managed reconnects, see{' '}
+				<Link
+					to={explorerHref('sse-stream')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					SSE streaming
-				</a>
+				</Link>
 				.
 			</>
 		),
-		docsUrl: '/agents/streaming-responses',
-		category: 'io-patterns',
+		docsUrl: '/build/agents/chat-and-streaming',
+		category: 'streaming-realtime',
 		component: StreamingDemo,
 		codeExample: CODE_EXAMPLES.streaming,
 		sandboxEnabled: true,
@@ -285,24 +286,24 @@ export const DEMOS: DemoConfig[] = [
 		description: 'Structured streaming with event types and auto-reconnect.',
 		explanation: (
 			<>
-				A one-way stream from your server to the user's browser, with structure built in. Unlike
-				raw streaming, SSE gives you <em>typed events</em> (like "chunk" or "done"), message{' '}
-				<em>IDs</em> for tracking, and automatic reconnection if the connection drops.{' '}
+				Server-Sent Events are a structured one-way stream from your server to the browser. This
+				demo receives named events such as <code>chunk</code> and <code>done</code> through{' '}
+				<code>EventSource</code>, then uses the done event to finish cleanly.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					The sweet spot for LLM token streaming, live feeds, and progress updates
+					Use SSE for LLM output, progress updates, and live feeds
 				</span>
-				. For simpler use cases where you just need raw bytes, see{' '}
-				<a
-					href={explorerHref('streaming')}
+				. For simpler use cases where you only need raw text chunks, see{' '}
+				<Link
+					to={explorerHref('streaming')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					Text Stream
-				</a>
+				</Link>
 				.
 			</>
 		),
-		docsUrl: '/routes/sse',
-		category: 'io-patterns',
+		docsUrl: '/build/agents/chat-and-streaming',
+		category: 'streaming-realtime',
 		component: SSEStreamDemo,
 		codeExample: CODE_EXAMPLES['sse-stream'],
 		sandboxEnabled: true,
@@ -317,28 +318,59 @@ export const DEMOS: DemoConfig[] = [
 		description: 'Real-time bidirectional messaging over a persistent connection.',
 		explanation: (
 			<>
-				WebSockets give you a <em>persistent, bidirectional</em> connection between client and
-				server. Unlike SSE, both sides can send messages at any time.{' '}
+				WebSockets keep one bidirectional connection open so the browser and server can both
+				send messages. This demo connects, sends a message, receives echoes and heartbeats, and
+				reconnects after connection loss.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					The websocket() middleware handles the protocol upgrade and lifecycle for you
+					Use WebSockets when clients must send live input without opening a new HTTP request
 				</span>
-				. Define <em>onOpen</em>, <em>onMessage</em>, and <em>onClose</em> callbacks, and call
-				agents or other async code from inside them. For one-way streaming, see{' '}
-				<a
-					href={explorerHref('sse-stream')}
+				. For one-way server updates, see{' '}
+				<Link
+					to={explorerHref('sse-stream')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					SSE Stream
-				</a>
+				</Link>
 				.
 			</>
 		),
-		docsUrl: '/routes/websockets',
-		category: 'io-patterns',
+		docsUrl: '/build/agents/chat-and-streaming',
+		category: 'streaming-realtime',
 		component: WebSocketDemo,
 		codeExample: CODE_EXAMPLES.websocket,
 		sandboxEnabled: true,
 		sandboxScript: 'websocket',
+		isRoute: true,
+	},
+	{
+		id: 'webrtc',
+		title: 'WebRTC Signaling',
+		subtitle: 'Browser Peer Connections',
+		description: 'Host the signaling route on Agentuity while browsers carry media peer-to-peer.',
+		explanation: (
+			<>
+				WebRTC carries audio, video, or data directly between browsers, but peers still need a
+				signaling route to exchange connection details. This demo uses Agentuity-hosted
+				WebSocket signaling to join a room.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					The browser RTCPeerConnection carries media and data peer-to-peer
+				</span>
+				. Open the same room in another tab to connect. For server-to-client events, see{' '}
+				<Link
+					to={explorerHref('sse-stream')}
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
+				>
+					SSE Stream
+				</Link>
+				.
+			</>
+		),
+		docsUrl: '/build/agents/chat-and-streaming',
+		category: 'streaming-realtime',
+		component: WebRTCDemo,
+		codeExample: CODE_EXAMPLES.webrtc,
+		sandboxEnabled: true,
+		sandboxScript: 'webrtc',
 		isRoute: true,
 	},
 	{
@@ -348,25 +380,24 @@ export const DEMOS: DemoConfig[] = [
 		description: 'Generate content and get a permanent, shareable URL.',
 		explanation: (
 			<>
-				Need to generate content and share it via URL? Durable streams let you write data (e.g.,
-				text, files, AI output) to storage, then get a <em>permanent public URL</em> that anyone
-				can access. Write your content, close the stream, and the URL stays accessible.{' '}
+				Durable streams save generated output as it is written, then keep the finished result
+				available by URL. This demo starts an AI summary, polls until content exists, and adds
+				the completed stream to a history list.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					Great for exports, reports, and generated artifacts
+					Use durable streams when generated output needs to outlive the request
 				</span>
-				. For real-time use cases where data streams in as it's generated, see{' '}
-				<a
-					href={explorerHref('sse-stream')}
+				. For live browser output that doesn't need a saved URL, see{' '}
+				<Link
+					to={explorerHref('sse-stream')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					SSE streaming
-				</a>
-				. Use <code className="bg-cyan-500/10 px-1 rounded">ctx.stream</code> to create, list,
-				and manage your streams.
+				</Link>
+				.
 			</>
 		),
 		docsUrl: '/services/storage/durable-streams',
-		category: 'io-patterns',
+		category: 'streaming-realtime',
 		component: PersistentStreamDemo,
 		codeExample: CODE_EXAMPLES['durable-stream'],
 		sandboxEnabled: true,
@@ -376,22 +407,21 @@ export const DEMOS: DemoConfig[] = [
 	{
 		id: 'agent-calls',
 		title: 'Agent Calls',
-		subtitle: 'Invocation Patterns',
-		description: 'Call agents from routes or other agents.',
+		subtitle: 'Calling focused agents',
+		description: 'Compose focused functions from routes, queues, and schedules.',
 		explanation: (
 			<>
-				Agents can call other agents, and routes can call agents too. Think of it like functions
-				calling functions:{' '}
+				An agent is focused model-backed code with a clear task. This demo compares three ways a
+				route can call that code: wait for a direct result, hand work to the background, or
+				chain one focused step into the next.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					you can break complex workflows into focused, reusable pieces
+					The caller owns timing; the agent owns the task
 				</span>
-				. Use <code className="bg-cyan-500/10 px-1 rounded">agent.run()</code> to invoke any
-				agent, wait for results synchronously, or use <em>ctx.waitUntil</em> for fire-and-forget
-				background tasks.
+				.
 			</>
 		),
-		docsUrl: '/agents/calling-other-agents',
-		category: 'io-patterns',
+		docsUrl: '/build/agents',
+		category: 'agents',
 		component: AgentCallsDemo,
 		codeExample: CODE_EXAMPLES['agent-calls'],
 		sandboxEnabled: true,
@@ -405,11 +435,11 @@ export const DEMOS: DemoConfig[] = [
 		description: 'Run code on a schedule with delivery tracking built in.',
 		explanation: (
 			<>
-				Schedules are platform-managed recurring jobs. Define a cron expression, point it at a
-				destination, and inspect each attempt with <code>listDeliveries()</code>. The live demo
-				creates one real schedule against{' '}
+				Schedules run an HTTP destination on a cron expression and keep delivery records. This
+				demo creates one managed schedule against{' '}
 				<code className="bg-cyan-500/10 px-1 rounded">/api/hello</code>, waits for the first
-				recorded delivery, then cleans it up.
+				recorded delivery, then deletes it. Use schedules for recurring jobs such as syncs,
+				cleanup, reports, and polling external systems.
 			</>
 		),
 		docsUrl: '/services/schedules',
@@ -423,7 +453,7 @@ export const DEMOS: DemoConfig[] = [
 			destinationUrl: 'https://agentuity.dev/api/hello',
 		},
 	},
-	// Examples - complete use cases
+	// Agents - model-backed patterns
 	{
 		id: 'chat',
 		title: 'Chat',
@@ -431,24 +461,24 @@ export const DEMOS: DemoConfig[] = [
 		description: 'Conversation memory that persists across messages.',
 		explanation: (
 			<>
-				A conversation that remembers what was said before. Each message you send is a separate
-				request, but the agent keeps track of the full conversation using <em>thread state</em>.
-				This lets the AI reference earlier messages and maintain context.{' '}
+				Chat is a repeated model call with memory. This demo stores recent turns in key-value
+				storage, then includes that history on the next request so the model can answer with
+				context.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					No database setup required; state management is built in
+					Use this shape for lightweight chat history
 				</span>
-				. See{' '}
-				<a
-					href={explorerHref('handler-context')}
+				. Use{' '}
+				<Link
+					to="/build/agents/state-and-memory"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
-					Handler Context
-				</a>{' '}
-				for more on state management.
+					State and Memory
+				</Link>{' '}
+				when the state needs stronger ownership, search, or retention rules.
 			</>
 		),
 		docsUrl: '/cookbook/patterns/chat-with-history',
-		category: 'examples',
+		category: 'agents',
 		component: ChatDemo,
 		codeExample: CODE_EXAMPLES.chat,
 		sandboxEnabled: true,
@@ -462,22 +492,23 @@ export const DEMOS: DemoConfig[] = [
 		description: 'Compare AI models using another AI as judge.',
 		explanation: (
 			<>
-				Compare outputs from different AI models by{' '}
-				<span className="bg-cyan-500/10 px-1 rounded">using another AI as the judge</span>.
-				Generate content from multiple providers in parallel via the{' '}
-				<a
-					href={explorerHref('ai-gateway')}
+				Model Arena compares model outputs with a second model acting as judge. This demo runs
+				the same prompt through multiple providers via the{' '}
+				<Link
+					to={explorerHref('ai-gateway')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					AI Gateway
-				</a>
-				, then have a judge model score them on criteria you define: creativity, accuracy, tone,
-				or whatever matters for your use case. Useful for comparing models or testing different
-				prompts.
+				</Link>
+				, then scores the answers against criteria.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					Use it for early prompt and model evaluation
+				</span>{' '}
+				before you turn the same idea into repeatable tests.
 			</>
 		),
 		docsUrl: '/cookbook/patterns/llm-as-a-judge',
-		category: 'examples',
+		category: 'agents',
 		component: ModelArena,
 		codeExample: CODE_EXAMPLES['model-arena'],
 		sandboxEnabled: true,
@@ -491,14 +522,13 @@ export const DEMOS: DemoConfig[] = [
 		description: 'Publish messages, receive with ack/nack, and explore the dead letter queue.',
 		explanation: (
 			<>
-				Message queues decouple producers from consumers. Publish a message and a worker picks
-				it up later, processes it, and acknowledges completion.{' '}
+				Queues decouple the route that publishes work from the worker that processes it. This
+				demo creates a queue, publishes sample messages, shows ack/nack behavior, and exposes
+				the dead letter queue after failures.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					If processing fails, the message retries automatically
+					Use queues when work can run after the request returns or needs retries
 				</span>
-				. After exhausting retries, it moves to the <em>dead letter queue</em> (DLQ) for
-				inspection and replay. Agents use <em>ctx.queue</em> to create queues and publish.
-				Server routes consume with receive/ack/nack.
+				. Use schedules when time, not an incoming request, starts the work.
 			</>
 		),
 		docsUrl: '/services/queues',
@@ -515,13 +545,13 @@ export const DEMOS: DemoConfig[] = [
 		description: 'Preview the email, send it to your inbox, and inspect delivery status.',
 		explanation: (
 			<>
-				Send transactional emails using <em>ctx.email.send()</em> with full control over HTML
-				content, recipients, and attachments.{' '}
+				Email lets your app send outbound messages and inspect delivery state. This demo
+				previews a transactional email, sends it to an address you control, and reads delivery
+				status so the UI can show what happened.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					Preview the exact HTML first, then send it to an address you control
+					Use it for emails such as receipts, notifications, invites, and inbound flows
 				</span>
-				. The same API also supports managed inboxes, destinations, and inbound message
-				inspection, so you can pair outbound sends with receive workflows when you need them.
+				.
 			</>
 		),
 		docsUrl: '/services/email',
@@ -539,20 +569,20 @@ export const DEMOS: DemoConfig[] = [
 		description: 'Query a PostgreSQL database with type-safe Drizzle ORM.',
 		explanation: (
 			<>
-				Query a real PostgreSQL database using <em>Drizzle ORM</em> for type-safe, composable
-				queries.{' '}
+				Relational databases are for structured data you query by fields and relationships. This
+				demo stores the same product catalog used in Vector Search in PostgreSQL, then queries
+				it with Drizzle by price, rating, and keywords.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					Define your schema in TypeScript and query with full autocompletion
+					Use a database when exact filters and transactions matter
 				</span>
-				. The same chairs from the{' '}
-				<a
-					href="/explorer/vector-storage"
+				. Use{' '}
+				<Link
+					to="/explorer/vector-storage"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					Vector Search
-				</a>{' '}
-				demo are stored here in a relational table. Vector found them by meaning, this finds
-				them by exact criteria: price ranges, ratings, and keywords.
+				</Link>{' '}
+				when meaning matters more than exact fields.
 			</>
 		),
 		docsUrl: '/services/database',

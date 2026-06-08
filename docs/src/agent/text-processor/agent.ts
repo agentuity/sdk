@@ -1,15 +1,16 @@
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
-import { generateText } from 'ai';
-import { createGroqProvider } from '../../lib/ai-gateway';
+import { AIGatewayClient } from '@agentuity/aigateway';
+
+const CLEAN_MODEL = 'openai/gpt-5.4-mini';
 
 /**
- * Text Processor Agent
+ * Text processor Explorer demo
  *
- * An agent that cleans or analyzes text using AI. Used by the Agent Calls demo
- * to demonstrate agent-to-agent communication patterns.
+ * Cleans or analyzes text using AI. Used by the Agent Calls demo to show how a
+ * route can compose focused model-backed functions.
  */
-const agent = createAgent('text-processor', {
+const agent = defineDemoAgent('text-processor', {
 	description: 'Cleans or analyzes text using AI',
 	schema: {
 		input: s.object({
@@ -32,10 +33,15 @@ const agent = createAgent('text-processor', {
 		let result: string;
 
 		if (input.operation === 'clean') {
-			// Use Groq LLM to intelligently clean the text
-			const { text } = await generateText({
-				model: createGroqProvider()('llama-3.1-8b-instant'),
-				prompt: `Clean this text by removing unnecessary symbols, hashtags, excessive punctuation, and fixing spacing. Keep the meaning intact. Return ONLY the cleaned text, nothing else:\n\n${input.text}`,
+			const gateway = new AIGatewayClient();
+			const { text } = await gateway.completeText({
+				model: CLEAN_MODEL,
+				messages: [
+					{
+						role: 'user',
+						content: `Clean this text by removing unnecessary symbols, hashtags, excessive punctuation, and fixing spacing. Keep the meaning intact. Return ONLY the cleaned text, nothing else:\n\n${input.text}`,
+					},
+				],
 			});
 			result = text.trim();
 			ctx.logger.info('Text cleaned with LLM', { resultLength: result.length });

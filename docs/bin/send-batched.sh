@@ -7,6 +7,9 @@ set -euo pipefail
 #
 # Environment:
 #   BATCH_SIZE - files per request (default: 10)
+#
+# Full sync sends mode=full only for the first batch so the receiver clears the
+# vector namespace once, then ingests later batches incrementally.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -67,6 +70,11 @@ for (( i=0; i<total_files; i+=BATCH_SIZE )); do
     echo "" >&2
     echo "Batch $batch_num/$total_batches: sending $batch_count files..." >&2
 
+    payload_mode="$MODE"
+    if [ "$MODE" = "full" ] && [ "$batch_num" -gt 1 ]; then
+        payload_mode="incremental"
+    fi
+
     # Write batch file paths to temp file
     BATCH_FILE=$(mktemp)
     trap 'rm -f "$BATCH_FILE"' EXIT
@@ -76,7 +84,7 @@ for (( i=0; i<total_files; i+=BATCH_SIZE )); do
 
     # Build payload and send. Stderr (progress logs) passes through to console.
     # Only stdout (the JSON response) is captured in $response.
-    if response=$(cat "$BATCH_FILE" | "$SCRIPT_DIR/build-payload.sh" "$REPO_NAME" "$MODE" | "$SCRIPT_DIR/send-webhook.sh" "$WEBHOOK_URL" "$AUTH_TOKEN"); then
+    if response=$(cat "$BATCH_FILE" | "$SCRIPT_DIR/build-payload.sh" "$REPO_NAME" "$payload_mode" | "$SCRIPT_DIR/send-webhook.sh" "$WEBHOOK_URL" "$AUTH_TOKEN"); then
         # Validate response contains stats before extracting
         if echo "$response" | jq -e '.stats and (.stats.processed | type == "number")' >/dev/null 2>&1; then
             batch_processed=$(echo "$response" | jq -r '.stats.processed')

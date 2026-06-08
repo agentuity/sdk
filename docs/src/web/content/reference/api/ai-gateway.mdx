@@ -94,6 +94,18 @@ Completion request. Use `messages` for chat-compatible models and `prompt` for l
     "required": true
   },
   {
+    "name": "input",
+    "type": "any",
+    "description": "Responses-compatible input payload for models using the Responses API.",
+    "required": false
+  },
+  {
+    "name": "contents",
+    "type": "array",
+    "description": "Google Generative AI contents payload.",
+    "required": false
+  },
+  {
     "name": "messages",
     "type": "object[]",
     "description": "Messages to complete.",
@@ -163,6 +175,18 @@ Completion request. Use `messages` for chat-compatible models and `prompt` for l
     "name": "stop",
     "type": "string | string[]",
     "description": "",
+    "required": false
+  },
+  {
+    "name": "response_format",
+    "type": "any",
+    "description": "OpenAI-style `response_format` passed through to OpenAI-compatible providers. Prefer `response_schema` for provider-agnostic structured output.",
+    "required": false
+  },
+  {
+    "name": "response_schema",
+    "type": "object | any",
+    "description": "Provider-agnostic structured-output schema (JSON Schema, StandardSchema v1, or Zod). At request time the gateway translates this to the right provider-native primitive: OpenAI `response_format: { type: \"json_schema\" }`, Anthropic `submit_response` tool with forced `tool_choice`, Google `generationConfig.responseSchema`, or schema-injected prompt fallback for unknown models.",
     "required": false
   }
 ]} />
@@ -240,6 +264,21 @@ Provider-compatible completion response.
     "description": "Total estimated gateway cost in USD."
   },
   {
+    "name": "agentuity.cost.unit",
+    "type": "string",
+    "description": "Gateway billing unit."
+  },
+  {
+    "name": "agentuity.cost.inputQuantity",
+    "type": "number",
+    "description": "Input quantity used for non-token gateway billing."
+  },
+  {
+    "name": "agentuity.cost.outputQuantity",
+    "type": "number",
+    "description": "Output quantity used for non-token gateway billing."
+  },
+  {
     "name": "agentuity.cost.promptTokens",
     "type": "number",
     "description": "Prompt token count used for gateway billing."
@@ -248,6 +287,11 @@ Provider-compatible completion response.
     "name": "agentuity.cost.completionTokens",
     "type": "number",
     "description": "Completion token count used for gateway billing."
+  },
+  {
+    "name": "agentuity.cost.reasoningTokens",
+    "type": "number",
+    "description": "Reasoning token count reported by the model provider when available."
   }
 ]} />
 
@@ -284,6 +328,18 @@ Completion request with `stream` set to `true`.
     "type": "string",
     "description": "Model to use for the completion.",
     "required": true
+  },
+  {
+    "name": "input",
+    "type": "any",
+    "description": "Responses-compatible input payload for models using the Responses API.",
+    "required": false
+  },
+  {
+    "name": "contents",
+    "type": "array",
+    "description": "Google Generative AI contents payload.",
+    "required": false
   },
   {
     "name": "messages",
@@ -355,6 +411,18 @@ Completion request with `stream` set to `true`.
     "name": "stop",
     "type": "string | string[]",
     "description": "",
+    "required": false
+  },
+  {
+    "name": "response_format",
+    "type": "any",
+    "description": "OpenAI-style `response_format` passed through to OpenAI-compatible providers. Prefer `response_schema` for provider-agnostic structured output.",
+    "required": false
+  },
+  {
+    "name": "response_schema",
+    "type": "object | any",
+    "description": "Provider-agnostic structured-output schema (JSON Schema, StandardSchema v1, or Zod). At request time the gateway translates this to the right provider-native primitive: OpenAI `response_format: { type: \"json_schema\" }`, Anthropic `submit_response` tool with forced `tool_choice`, Google `generationConfig.responseSchema`, or schema-injected prompt fallback for unknown models.",
     "required": false
   }
 ]} />

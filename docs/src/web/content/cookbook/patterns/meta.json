@@ -12,19 +12,32 @@
 				"preparing-coder-sessions-for-remote-attach",
 				"observing-a-coder-session-through-the-hub"
 			]
+		},
+		{
+			"title": "Research",
+			"pages": ["autonomous-research", "web-exploration"]
+		},
+		{
+			"title": "Background Work",
+			"pages": ["webhook-handler", "cron-with-storage", "background-tasks"]
+		},
+		{
+			"title": "Evals",
+			"pages": ["llm-as-a-judge", "openai-evals-api", "braintrust-evals"]
+		},
+		{
+			"title": "Logging & Tracing",
+			"pages": [
+				"structured-logging-with-pino",
+				"logtape-structured-logging",
+				"opentelemetry-route-spans",
+				"langfuse-otel-tracing"
+			]
+		},
+		{
+			"title": "App Structure",
+			"pages": ["hono-rpc-tanstack-query", "server-utilities", "tailwind-setup"]
 		}
 	],
-	"pages": [
-		"autonomous-research",
-		"background-tasks",
-		"chat-with-history",
-		"cron-with-storage",
-		"hono-rpc-tanstack-query",
-		"llm-as-a-judge",
-		"server-utilities",
-		"product-search",
-		"tailwind-setup",
-		"web-exploration",
-		"webhook-handler"
-	]
+	"pages": ["chat-with-history", "product-search", "running-external-coding-tools-in-sandbox"]
 }

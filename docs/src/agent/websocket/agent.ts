@@ -1,5 +1,5 @@
 /**
- * WebSocket Agent
+ * WebSocket Explorer demo
  *
  * Bidirectional real-time messaging - both client and server can send anytime.
  * Unlike SSE (one-way server→client), WebSockets maintain a persistent two-way
@@ -12,13 +12,13 @@
  * - Anything needing instant back-and-forth
  *
  * The route (router.websocket) handles the connection lifecycle (onOpen, onClose).
- * This agent processes individual messages - it's a simple echo that adds timestamps.
+ * This demo processes individual messages: a simple echo with timestamps.
  *
  * Docs: https://agentuity.dev/routes/websockets
  */
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
-const agent = createAgent('websocket', {
+const agent = defineDemoAgent('websocket', {
 	description: 'Echo agent for WebSocket messages with timestamps',
 	schema: {
 		input: s.string(),

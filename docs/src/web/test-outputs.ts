@@ -7,32 +7,28 @@ export const TEST_OUTPUTS: Record<string, string> = {
 ---OUTPUT---
 Hello, World! Welcome to Agentuity.`,
 
-	'handler-context': `[INFO] Processing request {"userId":"user-123"}
-[DEBUG] Debug details {"threadId":"thrd_def456uvw"}
+	'handler-context': `[INFO] Context inspected {"visitorId":"demo_abc123xyz"}
+[DEBUG] Service surface checked {"visitorId":"demo_abc123xyz"}
 [WARN] Example warning log
 [ERROR] Example error log
 ---OUTPUT---
-=== Handler Context Demo ===
+Route logging:
+  Hono routes read the logger from c.var.logger
 
-Identifiers:
-  sessionId: sess_abc123xyz
-  threadId: thrd_def456uvw
+Services available to route code:
+  c.var.kv - Key-Value storage
+  c.var.vector - Vector storage
+  c.var.stream - Durable stream management
+  c.var.queue - Queue publishing
 
-Logger (writes to trace, shown above):
-  ctx.logger.info(), .debug(), .error() available
+App-owned state boundary:
+  visitorId: demo_abc123xyz
+  previous visits: 0
+  current visits: 1
+  in a real route, keep the id in a cookie and the record in KV or your DB
 
-Storage Access:
-  ctx.kv - Key-Value storage
-  ctx.vector - Vector storage
-  ctx.objectstore - Object storage (S3)
-
-Thread State (persists across requests):
-  set("demo-key", {value: "test"})
-  get("demo-key") -> {"value":"test"}
-
-Session State (per-request only):
-  set("request-time", Date.now())
-  get("request-time") -> 1736956200000`,
+Background helper:
+  background task completed`,
 
 	kv: `[INFO] Session found {"data":{"message":"Hello from KV!","timestamp":"2026-01-15T11:30:00.000Z"}}
 [INFO] Active sessions {"count":1}
@@ -108,14 +104,14 @@ Public URL (shareable):
 
 	'agent-calls': `[INFO] Cleaned text
 ---OUTPUT---
-=== Agent Calls Demo ===
-Original: "  Hello!!!  World...  #testing   @demo  "
+	=== Route Composition Demo ===
+	Original: "  Hello!!!  World...  #testing   @demo  "
 
-Step 1: Calling text-processor (clean)...
-  Result: "Hello! World. testing demo"
+	Step 1: Calling cleanText()...
+	  Result: "Hello! World. testing demo"
 
-Step 2: Calling text-processor (analyze)...
-  Result: 4 words, 26 characters, 2 sentences
+	Step 2: Calling analyzeText()...
+	  Result: 4 words, 26 characters, 2 sentences
 
 Pipeline completed`,
 
@@ -134,11 +130,11 @@ Thread ID: thrd_xyz789abc
 User: What is Agentuity?
 Assistant: Agentuity is a platform for building and deploying AI agents. It provides an SDK with built-in storage (KV, Vector, Object), AI gateway for multiple providers, streaming support, and evaluation tools.`,
 
-	'model-arena': `[INFO] Model A (OpenAI gpt-5.4-nano): "Code is poetry written in logic, where semicolons are the punctuation of dreams."
+	'model-arena': `[INFO] OpenAI (openai/gpt-5.4-mini): "Code is poetry written in logic, where semicolons are the punctuation of dreams."
 
-[INFO] Model B (Anthropic claude-haiku-4-5): "Programming is the art of teaching rocks to think, one boolean at a time."
+[INFO] Anthropic (anthropic/claude-opus-4-8): "Programming is the art of teaching rocks to think, one boolean at a time."
 
-[INFO] Judge (Groq gpt-oss-120b) {"winner":"model-b"}
+[INFO] Judge (openai/gpt-5.4-mini) {"winner":"anthropic"}
 [INFO] Scores {"creativity":0.85,"clarity":0.9}
-[INFO] Reasoning: Model B offers a more vivid and humorous metaphor with unexpected imagery, while Model A relies on a more conventional poetry comparison.`,
+[INFO] Reasoning: Anthropic offers a more vivid and humorous metaphor with unexpected imagery, while OpenAI relies on a more conventional poetry comparison.`,
 };

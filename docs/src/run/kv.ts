@@ -1,25 +1,20 @@
 /**
  * Standalone run script for KV Storage demo
  *
- * NOTE: Intentionally separate from src/agent/kv/agent.ts.
- * Uses "explorer-sandbox" bucket with cleanup (delete) operations.
- * See src/run/AGENTS.md for architecture details.
- *
- * Shows direct SDK calls: set → get → delete
- * Uses unique keys per run for isolation
+ * Shows the direct service flow: set a value, read it by the same key, then
+ * delete the demo record. Unique keys keep concurrent Explorer runs isolated.
  *
  * Usage: bun run src/run/kv.ts '{}'
  */
-import { createAgentContext } from '@agentuity/runtime';
+import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 
-// Unique key prefix for this run (isolation)
 const runId = Date.now().toString(36);
 const bucket = 'explorer-sandbox';
 const key = `${runId}:session-001`;
 
-// Sample session data to store
 const sessionData = {
 	visitorId: 'visitor-abc123',
 	lastActive: new Date().toISOString(),
@@ -29,27 +24,26 @@ const sessionData = {
 try {
 	ctx.logger.info('Setting key');
 
-	// SET - store data with TTL
+	// TTL keeps demo data from lingering if cleanup fails.
 	await ctx.kv.set(bucket, key, sessionData, { ttl: 300 });
 
 	ctx.logger.info('Getting key');
 
-	// GET - retrieve data
 	const result = await ctx.kv.get(bucket, key);
 
-	// DELETE - cleanup (before OUTPUT so it shows in logs)
 	await ctx.kv.delete(bucket, key);
 	ctx.logger.info('Deleted key');
 
-	console.log('---OUTPUT---');
-	console.log(`Set: "${key}"`);
-	console.log(`  visitorId: "${sessionData.visitorId}"`);
-	console.log(`  theme: "${sessionData.preferences.theme}"`);
-	console.log(`Get: ${result.exists ? 'found' : 'not found'}`);
-	console.log(`Deleted: "${key}"`);
-	console.log('---OUTPUT---');
+	writeSandboxOutput(
+		[
+			`Set: "${key}"`,
+			`  visitorId: "${sessionData.visitorId}"`,
+			`  theme: "${sessionData.preferences.theme}"`,
+			`Get: ${result.exists ? 'found' : 'not found'}`,
+			`Deleted: "${key}"`,
+		].join('\n')
+	);
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
+	process.exitCode = 1;
 }

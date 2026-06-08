@@ -1,22 +1,22 @@
 'use client';
 
 import type { ReactNode, ReactElement } from 'react';
-import { Children, isValidElement, useState, useLayoutEffect, useCallback } from 'react';
+import { Children, isValidElement, useState, useEffect, useCallback } from 'react';
 import { Tabs as TabsRoot, TabsList, TabsTrigger, TabsContent } from '../ui';
 import { cn } from '../../lib/utils';
 
 interface TabProps {
-	value: string;
-	children: ReactNode;
-	className?: string;
+	readonly value: string;
+	readonly children: ReactNode;
+	readonly className?: string;
 }
 
 interface TabsProps {
-	items: string[];
-	defaultValue?: string;
-	hashSync?: boolean;
-	children: ReactNode;
-	className?: string;
+	readonly items: readonly string[];
+	readonly defaultValue?: string;
+	readonly hashSync?: boolean;
+	readonly children: ReactNode;
+	readonly className?: string;
 }
 
 /** Convert a tab label to a URL hash slug: "v1 → v2" becomes "v1-to-v2" */
@@ -29,7 +29,7 @@ function toSlug(label: string): string {
 }
 
 /** Find the tab item matching a hash slug */
-function fromHash(hash: string, items: string[]): string | undefined {
+function fromHash(hash: string, items: readonly string[]): string | undefined {
 	const slug = hash.replace(/^#/, '');
 	return items.find((item) => toSlug(item) === slug);
 }
@@ -39,7 +39,7 @@ function fromHash(hash: string, items: string[]): string | undefined {
  * @example
  * <Tab value="npm">npm install agentuity</Tab>
  */
-export function Tab({ value, children, className }: TabProps) {
+export function Tab({ value, children, className }: TabProps): ReactElement {
 	return (
 		<TabsContent value={value} className={cn('mt-2', className)}>
 			{children}
@@ -58,15 +58,21 @@ export function Tab({ value, children, className }: TabProps) {
  * Enable hashSync to sync the active tab with the URL hash:
  * <Tabs items={["v0 → v1", "v1 → v2"]} hashSync>
  */
-export function Tabs({ items, defaultValue, hashSync, children, className }: TabsProps) {
+export function Tabs({
+	items,
+	defaultValue,
+	hashSync,
+	children,
+	className,
+}: TabsProps): ReactElement {
 	const tabs = Children.toArray(children).filter(
 		(child): child is ReactElement<TabProps> => isValidElement(child) && child.type === Tab
 	);
 
-	const initial = defaultValue ?? items[0];
+	const initial = defaultValue ?? items[0] ?? tabs[0]?.props.value ?? '';
 	const [activeTab, setActiveTab] = useState(initial);
 
-	useLayoutEffect(() => {
+	useEffect(() => {
 		if (!hashSync || typeof window === 'undefined') return;
 
 		const match = fromHash(window.location.hash, items);

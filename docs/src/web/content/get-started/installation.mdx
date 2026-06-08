@@ -1,55 +1,191 @@
 ---
 title: Installation
-description: Set up your development environment
+description: Install the Agentuity CLI, sign in, and create a framework starter
 ---
 
-## Install the CLI
+The fastest path is to scaffold a project with `npm create agentuity`, which runs the current framework-first create flow without a global install.
+
+## Prerequisites
+
+Install Node.js `24.0.0` or newer:
+
+```bash
+node --version
+```
+
+The CLI also supports [Bun](https://bun.sh) `1.3.3` or newer. Use whichever package manager owns the app's lockfile. Agentuity detects that package manager when it runs framework scripts.
+
+```bash
+bun --version
+```
+
+## Create a Project
+
+Run the create flow with no flags when you want to choose the project shape interactively:
+
+```bash
+npm create agentuity
+```
+
+In an interactive terminal, the CLI walks through the setup:
+
+1. project name
+2. package manager
+3. framework
+4. AI example
+5. service augments
+6. resource provisioning when you add managed database or storage resources
+7. custom domain
+8. project registration and next steps
+
+If you run create inside an existing supported-framework directory, the CLI detects that app and offers to import/register it instead of scaffolding a new one.
+
+Pass flags when you want to skip prompts. `--name` sets the output directory and project name:
+
+```bash
+npm create agentuity -- --name my-app
+```
+
+Use `--framework` for a non-interactive framework choice:
+
+```bash
+npm create agentuity -- --name my-app --framework nextjs
+```
+
+Pass `--package-manager` when you care which lockfile the new framework app uses:
+
+```bash
+npm create agentuity -- \
+  --name my-app \
+  --framework nextjs \
+  --package-manager npm
+```
+
+The create flow runs the framework's official create CLI, applies an Agentuity overlay (an AI translation example, scripts, deps), then registers the project unless you pass `--no-register`.
+
+### Supported Framework Slugs
+
+| Slug | Framework | Created with |
+|------|-----------|--------------|
+| `nextjs` | Next.js | `create-next-app` (App Router, src dir, Tailwind) |
+| `nuxt` | Nuxt | `nuxi init` (minimal) |
+| `sveltekit` | SvelteKit | `sv create` |
+| `astro` | Astro | `create-astro` (basics template) |
+| `hono` | Hono | `create-hono` (Node.js template) |
+
+React Router, Vite + React, and TanStack Start are build/deploy detection targets, not create slugs. Start with each framework's own CLI, then run `agentuity project import` to add Agentuity metadata.
+
+### Useful Flags
+
+| Flag | What it does |
+|------|--------------|
+| `--name <name>` | Project name (also used for the directory) |
+| `--framework <slug>` | Pick a framework non-interactively |
+| `--package-manager <pm>` | Choose `bun`, `npm`, `pnpm`, or `yarn` for the scaffolded app |
+| `--services <list>` | Add service augments such as `db`, `keyvalue`, `queue`, `vector`, or `storage` |
+| `--no-register` | Skip cloud registration; create a local-only project |
+| `--no-install` | Skip dependency installation |
+| `--no-build` | Skip the post-install build step |
+| `--dir <path>` | Place the project under a different directory |
+
+Run `npm create agentuity -- --help` for the full list.
+
+## Run Locally
+
+The create flow adds `@agentuity/cli` as a devDependency at the same version as the create package, so `npx` resolves the right CLI inside the project:
+
+```bash
+cd my-app
+npx agentuity dev
+```
+
+`agentuity dev` runs your framework's `dev` script and patches `AGENTUITY_SDK_KEY` into the dev process. Direct `AIGatewayClient` calls use that key. Existing OpenAI, Anthropic, and Groq SDK calls can route through Agentuity when no provider key is set.
+
+Override the port (passed as `PORT` to the framework):
+
+```bash
+npx agentuity dev --port 8080
+```
+
+Use a non-default script name:
+
+```bash
+npx agentuity dev --script dev:web
+```
+
+## Local Versus Global CLI
+
+We recommend a project-local CLI for app repos. `-D`, `--dev`, or Bun's lowercase `-d` records `@agentuity/cli` in `devDependencies`. This keeps the CLI version with the app instead of relying on whichever global CLI is installed on your machine.
+
+When a global v3 CLI runs inside a project with a different local `@agentuity/cli`, it delegates to the project-local CLI. This keeps existing apps on the CLI version they pinned in their lockfile.
+
+| Package manager | Add local CLI | Run local CLI | Undo local install |
+|------|------|------|------|
+| npm | `npm install -D @agentuity/cli` | `npx agentuity ...` | `npm uninstall @agentuity/cli` |
+| Bun | `bun add -d @agentuity/cli` | `bunx agentuity ...` | `bun remove @agentuity/cli` |
+| pnpm | `pnpm add -D @agentuity/cli` | `pnpm exec agentuity ...` | `pnpm remove @agentuity/cli` |
+| Yarn | `yarn add -D @agentuity/cli` | `yarn exec agentuity ...` | `yarn remove @agentuity/cli` |
+
+A global install is optional. It only changes your shell so bare `agentuity ...` works outside a project; it does not import or register an app by itself.
+
+You can switch later. To move from global to local, run the local add command and call the CLI through the exec wrapper. The global install can stay installed because the wrapper resolves the project copy. To move from local to global, install the global CLI, then keep the dev dependency if package scripts or CI call `agentuity`, or remove it with the table command when you no longer want the project to pin the CLI.
+
+For global cleanup, use the package manager that created the global install. For npm, run `npm uninstall -g @agentuity/cli`; for Bun, run `bun remove -g @agentuity/cli`.
+
+## Deploy
+
+The create flow adds `deploy: agentuity deploy` to `package.json`, so this works without a global install:
+
+```bash
+npm run deploy
+```
+
+See [Deploy & Operate](/deploy-operate) for the full lifecycle.
+
+## Optional: Install the CLI Globally
+
+Install the CLI globally if you want to type `agentuity ...` outside a project, or to run `agentuity project import` against an existing directory before scaffolding:
+
+```bash
+npm install -g @agentuity/cli
+# or
+bun add -g @agentuity/cli
+```
+
+Or install with the shell installer:
 
 ```bash
 curl -fsSL https://agentuity.sh | sh
 ```
 
-This installs the `agentuity` CLI globally on your system.
-
-<Callout type="info" title="Alternative: Install via Bun">
-If you prefer package managers: `bun install -g @agentuity/cli`
-</Callout>
-
-## Create a Project
+After install, sign in once:
 
 ```bash
-agentuity project create --name my-app
-# or
-agentuity create --name my-app
+agentuity auth login
 ```
 
-This scaffolds a project using the [default template](/reference/cli/getting-started#default-template), which includes a translation agent, API routes, and a React frontend with Tailwind.
-
-## Start the Dev Server
-
-```bash
-agentuity dev
-# or
-bun run dev
-```
-
-Your project is now running at `http://localhost:3500`. The dev server uses Vite for frontend updates and Bun for server rebuilds.
-
-<Callout type="info" title="Bun Required">
-Agentuity projects run on [Bun](https://bun.sh). If you don't have Bun installed, the CLI will prompt you to install it when you create your first project.
+<Callout type="tip" title="Use npx when you don't want a global install">
+Outside a project, run `npx @agentuity/cli ...` to use the current CLI from npm without adding a global binary.
 </Callout>
 
-### CLI Shortcuts
+## Verify the Install
 
-While the dev server is running, use these shortcuts:
+In a scaffolded project:
 
-| Key | Action |
-|-----|--------|
-| `h` | Show help |
-| `c` | Clear console |
-| `q` | Quit |
+```bash
+npx agentuity --version
+# 3.0.x
+```
+
+After the global v3 install:
+
+```bash
+agentuity --version
+# 3.0.x
+```
 
 ## Next Steps
 
-- [Quickstart](/get-started/quickstart): Build your first agent
-- [Project Structure](/get-started/project-structure): Understand the file layout
+- [Quickstart](/get-started/quickstart): scaffold a Next.js starter, run it locally, and deploy
+- [Project Structure](/get-started/project-structure): see exactly what the scaffold adds to a framework app
+- [App Configuration](/get-started/app-configuration): configure scripts, `agentuity.json`, env vars, and service clients

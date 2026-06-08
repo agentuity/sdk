@@ -147,12 +147,16 @@ export function EmailDemo() {
 	const deliveryLabel = result ? getDeliveryLabel(result.deliveryState) : null;
 	const deliveryDetail = result ? getDeliveryDetail(result) : null;
 
-	const setupCode = `await ctx.email.send({
+	const setupCode = `import { EmailClient } from "@agentuity/email";
+
+const email = new EmailClient();
+
+await email.send({
   from: "${EMAIL_FROM}",
   to: ["${displayTo}"],
   subject: "${preview.subject}",
-  html: "<p>This email was sent by an agent...</p>",
-  text: "This email was sent by an Agentuity agent...",
+  html: "<p>This email was sent by an Agentuity app...</p>",
+  text: "This email was sent by an Agentuity app...",
 });`;
 
 	// Determine if send button should be disabled
@@ -300,7 +304,7 @@ export function EmailDemo() {
 
 				{/* Both tabs rendered, inactive is invisible -- prevents height jumps */}
 				<div className="grid flex-1 min-w-0">
-					{/* Setup tab -- ctx.email.send() code */}
+					{/* Setup tab -- EmailClient code */}
 					<div
 						className={`col-start-1 row-start-1 p-4 min-w-0 ${tab === 'setup' ? '' : 'invisible'}`}
 					>

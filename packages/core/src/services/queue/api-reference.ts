@@ -313,7 +313,8 @@ const service: Service = {
 				{
 					name: 'state',
 					type: 'string',
-					description: '`pending`, `processing`, `completed`, `failed`, or `dead`',
+					description:
+						'`pending`, `leased`, `delivered`, `failed`, or `dead`. `processing` is a legacy alias for `leased`.',
 					required: false,
 				},
 			],
@@ -375,8 +376,7 @@ const service: Service = {
 			sectionTitle: 'Message Operations',
 			method: 'GET',
 			path: '/queue/consume/{name}',
-			description:
-				'Log-style consumption starting from offset. Does not mark messages as processing.',
+			description: 'Log-style consumption starting from offset. Does not lease messages.',
 			pathParams: [{ name: 'name', type: 'string', description: 'Queue name' }],
 			queryParams: [
 				{ name: 'offset', type: 'number', description: 'Starting offset', required: true },
@@ -430,7 +430,7 @@ const service: Service = {
 			sectionTitle: 'Message Operations',
 			method: 'POST',
 			path: '/queue/ack/{name}/{messageId}',
-			description: 'Mark message as successfully processed (completed).',
+			description: 'Mark message as successfully processed (`delivered`).',
 			pathParams: [
 				{ name: 'name', type: 'string', description: 'Queue name' },
 				{ name: 'messageId', type: 'string', description: 'Message ID' },

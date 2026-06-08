@@ -3,84 +3,85 @@ title: AI Commands
 description: CLI commands for AI agents, IDE integration, and schema inspection.
 ---
 
-AI coding agents and IDE extensions work best when they understand your tools programmatically. These commands expose the CLI's structure, capabilities, and project context in machine-readable formats.
+Use these commands when a coding agent needs current Agentuity CLI context before it edits files or runs project commands. They print context and schemas. They do not create project files by themselves.
 
-## CLI Capabilities
+```bash
+agentuity ai intro
+agentuity ai capabilities show
+agentuity ai schema show
+agentuity ai prompt llm
+```
 
-Show the CLI's capabilities in a structured format for AI consumption:
+## Which command to use
+
+| Need | Command |
+| --- | --- |
+| current framework-first setup model | `agentuity ai intro` |
+| CLI command inventory and workflows | `agentuity ai capabilities show` |
+| full CLI schema for automation | `agentuity ai schema show` or `agentuity --help=json` |
+| `agentuity.json` config schema | `agentuity ai schema generate` |
+| broad safety prompt for an LLM agent | `agentuity ai prompt llm` |
+| app-provided first-run handoff token | `agentuity setup --setup-token <token>` |
+
+## Agent Introduction
+
+Print the short primer a coding agent should read before it modifies an Agentuity project:
+
+```bash
+agentuity ai intro
+```
+
+The output is framework-first. It tells the agent to use normal create, import, dev, build, and deploy commands, and it treats deploy as a cloud mutation that needs approval.
+
+Use it at the start of an agent-driven setup or when a coding agent joins an existing app.
+
+## Capabilities
+
+Show the CLI's agent-facing capabilities:
 
 ```bash
 agentuity ai capabilities show
+agentuity --json ai capabilities show
 ```
 
-This outputs a machine-readable description of what the CLI can do, useful for:
-- AI coding agents that need to understand available commands
-- IDE extensions building Agentuity integrations
-- Documentation generators
+Use JSON when another program needs to parse the result. The output lists capability groups and workflows, but the exact command flags still come from command help or schema output.
 
 ## Schema Inspection
 
-Output the CLI's command schema for programmatic consumption:
+Use the CLI schema when an agent needs exact command names, options, defaults, and requirements:
 
 ```bash
-# Show the full CLI schema
 agentuity ai schema show
+agentuity --help=json
+```
 
-# Generate schema in a specific format
+Generate the project config schema when an editor or validation tool needs the `agentuity.json` shape:
+
+```bash
 agentuity ai schema generate
 ```
 
-The schema includes:
-- All available commands and subcommands
-- Required and optional parameters
-- Parameter types and validation rules
-- Command descriptions and examples
-
-## Project Context Files
-
-During development (`agentuity dev` or `bun run dev`), the CLI generates AGENTS.md files to help AI coding assistants (e.g., Claude Code, Codex, Cursor) understand Agentuity patterns:
-
-```
-.agents/
-└── agentuity/
-    └── sdk/
-        ├── agent/AGENTS.md   # Agent creation patterns
-        ├── api/AGENTS.md     # Route creation patterns
-        └── web/AGENTS.md     # Frontend patterns
-```
-
-These files are auto-updated when the CLI version changes and should be added to `.gitignore`.
-
 ## Prompt Generation
 
-Generate context-aware prompts for LLMs working with Agentuity projects:
+Generate a broad CLI safety prompt for LLM agents:
 
 ```bash
-# Generate prompt for building agents
-agentuity ai prompt agent
-
-# Generate prompt for building APIs
-agentuity ai prompt api
-
-# Generate general LLM prompt
 agentuity ai prompt llm
-
-# Generate prompt for web/frontend development
-agentuity ai prompt web
 ```
 
-Each prompt type includes:
-- Relevant SDK patterns and best practices
-- Code examples for the target domain
-- Common pitfalls to avoid
-- Links to documentation
-
-<Callout type="info" title="Use Cases">
-These prompts are useful for:
-- Bootstrapping AI coding sessions with Agentuity context
-- Training custom AI assistants on Agentuity patterns
-- Generating project-specific documentation
+<Callout type="info" title="Use intro for setup tasks">
+`agentuity ai prompt llm` is broad CLI context. For a coding agent that needs to create, import, build, or deploy an app, start with `agentuity ai intro` and a task-specific prompt.
 </Callout>
+
+## Agentic Setup Token
+
+The app can launch an authenticated first-run flow by calling the hidden setup command with a one-time token:
+
+```bash
+agentuity setup --setup-token <token>
+```
+
+When the token is valid, the command authenticates through the CLI and prints the onboarding prompt used by coding agents. The token must come from the app-to-agent handoff flow. Do not invent one in a prompt.
 
 ## Integration Examples
 
@@ -89,30 +90,29 @@ These prompts are useful for:
 Use the CLI to provide autocomplete, validation, and project configuration help:
 
 ```typescript
-import { execSync } from 'child_process';
+import { execFileSync } from 'node:child_process';
 
-// Get CLI capabilities for IDE integration
-const capabilities = JSON.parse(
-  execSync('agentuity --json ai capabilities show').toString()
+const capabilities: unknown = JSON.parse(
+  execFileSync('agentuity', ['--json', 'ai', 'capabilities', 'show'], {
+    encoding: 'utf8',
+  })
 );
 ```
 
 ```typescript
-import { execSync } from 'child_process';
+import { execFileSync } from 'node:child_process';
 
-// Get agentuity.json schema for configuration validation
-const schema = JSON.parse(
-  execSync('agentuity --json ai schema generate').toString()
+const schema: unknown = JSON.parse(
+  execFileSync('agentuity', ['ai', 'schema', 'generate'], {
+    encoding: 'utf8',
+  })
 );
 ```
 
 ### AI Coding Agent
 
 ```bash
-# Generate context for an AI agent working on your project
-agentuity ai prompt agent > /tmp/agentuity-context.md
-
-# Include in your AI agent's system prompt
+agentuity ai intro > /tmp/agentuity-context.md
 cat /tmp/agentuity-context.md
 ```
 
@@ -175,5 +175,5 @@ See [OpenCode Plugin: Cadence Mode](/reference/cli/opencode-plugin#cadence-mode)
 ## Next Steps
 
 - [Getting Started with the CLI](/reference/cli/getting-started): Install and authenticate
-- [Local Development](/reference/cli/development): Run agents locally
-- [Creating Agents](/agents/creating-agents): Build your first agent
+- [Local Development](/reference/cli/development): Run Agentuity projects locally
+- [Agents](/build/agents): Structure model-backed workflows in current Agentuity apps

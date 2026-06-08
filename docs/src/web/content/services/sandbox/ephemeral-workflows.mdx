@@ -1,0 +1,159 @@
+---
+title: Ephemeral workflows
+description: Run short-lived data and code workflows in isolated sandboxes.
+---
+
+Use ephemeral sandboxes when a job needs a clean Linux container, temporary files, and a result you can read back without keeping the environment alive.
+
+```bash
+npm install @agentuity/sandbox @agentuity/telemetry
+```
+
+## Run a One-Shot Python Job
+
+`SandboxClient.run()` creates a sandbox, writes files, runs the command, captures output, and destroys the sandbox.
+
+```typescript
+import { Buffer } from 'node:buffer';
+import { SandboxClient } from '@agentuity/sandbox';
+import { logger } from '@agentuity/telemetry';
+
+const client = new SandboxClient();
+
+const result = await client.run({
+  runtime: 'python:3.14',
+  command: {
+    exec: ['python3', 'main.py'],
+    files: [
+      {
+        path: 'main.py',
+        content: Buffer.from(`
+import csv
+from io import StringIO
+
+rows = list(csv.DictReader(StringIO("name,score\\nAda,98\\nGrace,95\\n")))
+best = max(rows, key=lambda row: int(row["score"]))
+print(f'{best["name"]}: {best["score"]}')
+        `.trim()),
+      },
+    ],
+  },
+});
+
+logger.info('sandbox finished', {
+  exitCode: result.exitCode,
+  stdout: result.stdout,
+});
+```
+
+## Validate Generated Code
+
+Use a one-shot sandbox when a model generates code and your app needs a clean compile or test result before using it.
+
+```typescript
+import { Buffer } from 'node:buffer';
+import { SandboxClient } from '@agentuity/sandbox';
+import { logger } from '@agentuity/telemetry';
+
+const client = new SandboxClient();
+
+const generatedCode = `
+export function total(values: readonly number[]): number {
+  return values.reduce((sum, value) => sum + value, 0);
+}
+`.trim();
+
+const result = await client.run({
+  runtime: 'bun:1',
+  command: {
+    exec: ['bun', 'test', 'solution.test.ts'],
+    files: [
+      {
+        path: 'solution.ts',
+        content: Buffer.from(generatedCode),
+      },
+      {
+        path: 'solution.test.ts',
+        content: Buffer.from(`
+import { expect, test } from 'bun:test';
+import { total } from './solution';
+
+test('totals values', () => {
+  expect(total([2, 3, 5])).toBe(10);
+});
+        `.trim()),
+      },
+    ],
+  },
+  timeout: { execution: '30s' },
+});
+
+logger.info('generated code validation finished', {
+  exitCode: result.exitCode,
+  stdout: result.stdout,
+  stderr: result.stderr,
+});
+```
+
+Use [Coder](/services/coder) instead when the work needs a repo checkout, multiple tools, session history, human review, or a workflow that can pause and resume. Use `SandboxClient.run()` when the job is a bounded command with inputs and outputs. If the bounded command is a coding-agent CLI, read [Coding agents in sandboxes](/services/sandbox/coding-agents) first so you verify the runtime, provider access, and structured error events.
+
+## Keep a Sandbox for Multiple Steps
+
+Use `client.create()` when you need to install packages, write more than one file, or run several commands against the same filesystem.
+
+```typescript
+import { Buffer } from 'node:buffer';
+import { SandboxClient } from '@agentuity/sandbox';
+import { logger } from '@agentuity/telemetry';
+
+const client = new SandboxClient();
+const sandbox = await client.create({
+  runtime: 'python:3.14',
+  resources: { memory: '512Mi', cpu: '1000m' },
+});
+
+try {
+  await sandbox.writeFiles([
+    {
+      path: 'sales.csv',
+      content: Buffer.from('region,amount\\nwest,41\\neast,37\\nwest,9\\n'),
+    },
+    {
+      path: 'rollup.py',
+      content: Buffer.from(`
+import csv
+import sqlite3
+
+db = sqlite3.connect(":memory:")
+db.execute("create table sales(region text, amount integer)")
+
+with open("sales.csv", newline="") as handle:
+    for row in csv.DictReader(handle):
+        db.execute("insert into sales values (?, ?)", (row["region"], int(row["amount"])))
+
+for region, total in db.execute("select region, sum(amount) from sales group by region"):
+    print(f"{region},{total}")
+      `.trim()),
+    },
+  ]);
+
+  const execution = await sandbox.execute({
+    command: ['python3', 'rollup.py'],
+  });
+
+  logger.info('sqlite rollup finished', {
+    sandboxId: sandbox.id,
+    exitCode: execution.exitCode,
+  });
+} finally {
+  await sandbox.destroy();
+}
+```
+
+The `finally` block matters: it destroys the sandbox even when package install, file writes, or execution fail.
+
+## When to use a database
+
+Use an in-memory SQLite database inside the sandbox for one job's scratch data. Use [Database](/services/database) when records need to outlive the sandbox, serve app traffic, or be queried later by another process.
+
+See [Sandbox SDK Usage](/services/sandbox/sdk-usage) for file operations, streaming output, pause/resume, and snapshots. See [Coding agents in sandboxes](/services/sandbox/coding-agents) when the workflow needs a tool image such as `opencode:latest` instead of a plain language runtime. Use the [Sandboxes API Reference](/reference/api/sandboxes) when you need generated REST fields for sandbox lifecycle and execution details.

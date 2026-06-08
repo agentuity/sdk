@@ -194,6 +194,17 @@
 			},
 			"additionalProperties": false
 		},
+		"devmode": {
+			"description": "per-project devmode preferences",
+			"type": "object",
+			"properties": {
+				"public": {
+					"description": "whether `agentuity dev` should expose a public URL via the gravity tunnel",
+					"type": "boolean"
+				}
+			},
+			"additionalProperties": false
+		},
 		"$schema": {
 			"type": "string"
 		}

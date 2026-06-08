@@ -1,14 +1,16 @@
 /**
- * Standalone invoke script for Email Agent
+ * Standalone run script for the Email demo
  *
- * Uses ctx.invoke() with agent.run() pattern (SDK 0.1.14+)
+ * Uses the same plain function module as the API route, then polls delivery
+ * status so the sandbox output shows what happened after send().
  *
  * Usage: bun run src/run/email.ts '{"template":"welcome"}'
  */
-import { createAgentContext } from '@agentuity/runtime';
-import emailAgent from '../agent/email/agent';
+import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
+import email from '../agent/email/agent';
 
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 const OUTBOUND_POLL_ATTEMPTS = 6;
 const POLL_INTERVAL_MS = 750;
 type EmailOutboundRecord = { status?: string } | null;
@@ -46,11 +48,10 @@ async function waitForOutboundStatus(outboundId: string) {
 
 try {
 	const input = JSON.parse(process.argv[2] ?? '{"template":"welcome"}');
-	const result = await ctx.invoke(() => emailAgent.run(input));
+	const result = await email.run(input);
 	const outbound = await waitForOutboundStatus(result.id);
 
-	console.log('---OUTPUT---');
-	console.log(
+	writeSandboxOutput(
 		JSON.stringify(
 			{
 				status: outbound?.status ?? result.status,
@@ -62,9 +63,7 @@ try {
 			2
 		)
 	);
-	console.log('---OUTPUT---');
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
+	process.exitCode = 1;
 }

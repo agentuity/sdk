@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { ServiceException } from '@agentuity/core/exception';
-import type { Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
 import type {
 	CreateScheduleParams,
 	Schedule,
@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { config } from '../../config';
 import { cookieAuth } from '../../middleware/auth';
 
-type ScheduleApiService = Env['Variables']['schedule'];
+type ScheduleApiService = ApiEnv['Variables']['schedule'];
 
 const CreateScheduleRequestSchema = z.object({
 	expression: z.string().trim().min(1).optional(),
@@ -136,7 +136,7 @@ function createScheduleParams(expression: string, destinationUrl: string): Creat
 	};
 }
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 	.post('/', cookieAuth, async (c) => {
 		try {
 			const userId = (c.get as (key: string) => string)('userId');

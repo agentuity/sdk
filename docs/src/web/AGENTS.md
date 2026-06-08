@@ -1,181 +1,90 @@
 # Web Folder Guide
 
-This folder contains your React-based web application that communicates with your Agentuity agents.
+This folder contains the TanStack Start docs app and React-based SDK Explorer UI.
+
+## Frontend Guidelines
+
+- Keep Explorer UI code close to standard React and browser APIs unless a nearby component already establishes a stronger pattern.
+- Treat `code-examples.ts` as the public reference surface. Snippets there should match the current docs and be safe for readers to copy.
+- Keep live-demo implementation details out of public copy when they only exist for compatibility with older Explorer internals.
+- After adding a route under `src/web/routes`, regenerate TanStack route output before typechecking.
+- After adding a sandbox script under `src/run`, run `bun run generate:scripts` from `docs/`.
 
 ## Directory Structure
 
-Required files:
-
-- **App.tsx** (required) - Main React application component
-- **frontend.tsx** (required) - Frontend entry point with client-side rendering
-- **index.html** (required) - HTML template
-- **public/** (optional) - Static assets (images, CSS, JS files)
-
-SDK Explorer structure:
+Important files:
 
 ```text
 src/web/
-├── App.tsx              # Main app with demo config and routing
-├── frontend.tsx         # Entry point with HMR support
-├── index.html           # HTML template
-├── code-examples.ts     # Educational code snippets for display
-├── test-outputs.ts      # Test mode output fixtures
+├── App.tsx              # Root app shell
+├── router.tsx           # TanStack Router setup
+├── routeTree.gen.ts     # Generated route tree
+├── routes/              # TanStack route files
+│   ├── _docs/           # Public docs routes
+│   ├── explorer/        # SDK Explorer routes
+│   └── demo/            # Shared demo routes
+├── content/             # MDX docs content and meta.json files
+├── demo-config.tsx      # SDK Explorer demo registry
+├── code-examples.ts     # Reference snippets displayed in Explorer
+├── test-outputs.ts      # Test-mode output fixtures
 ├── hooks/
-│   └── useSandboxRunner.ts  # SSE-based cloud sandbox execution
+│   └── useSandboxRunner.ts  # SSE-based sandbox execution
 ├── components/
-│   ├── CodeBlock.tsx        # Monaco editor with run button
+│   ├── docs/                # Docs layout, cards, navigation, MDX rendering
+│   ├── demo-view.tsx        # Shared Explorer page wrapper
+│   ├── CodeBlock.tsx        # Code display and run button
 │   ├── TerminalOutput.tsx   # Streaming output display
-│   ├── ThemeContext.tsx     # Theme provider
-│   ├── ThemeToggle.tsx      # Theme switcher
-│   ├── JsonDisplay.tsx      # JSON formatter
-│   ├── Typing.tsx           # Loading animation
-│   └── *Demo.tsx            # Demo components (HelloDemo, ChatDemo, etc.)
-├── public/
-│   └── favicon.ico
+│   └── *Demo.tsx            # Explorer demo components
+├── public/              # Root-served static assets
 └── status/
-    └── route.ts         # Health check endpoint
+    └── route.ts         # Health check route
 ```
 
-## Creating the Web App
+## Route Patterns
 
-### App.tsx - Main Component
+Docs routes wrap MDX content with `MDXPage`:
 
 ```typescript
-import { AgentuityProvider, useAgent } from '@agentuity/react';
-import { useState } from 'react';
+import { createFileRoute } from '@tanstack/react-router';
+import { MDXPage } from '../../../components/docs/mdx-page';
+import type { MDXModule } from '../../../components/docs/mdx-page';
+import Content, { frontmatter, tableOfContents } from '../../../content/services/example.mdx';
 
-export function App() {
-    const [name, setName] = useState('World');
-    const { run, running, data: greeting } = useAgent('hello');
+const mdxModule = {
+    default: Content,
+    frontmatter,
+    tableOfContents,
+} satisfies MDXModule;
 
-    return (
-        <div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-            <AgentuityProvider>
-                <h1>Welcome to Agentuity</h1>
-
-                <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    disabled={running}
-                />
-
-                <button
-                    onClick={() => run({ name })}
-                    disabled={running}
-                >
-                    {running ? 'Running...' : 'Say Hello'}
-                </button>
-
-                <div>{greeting ?? 'Waiting for response'}</div>
-            </AgentuityProvider>
-        </div>
-    );
-}
+export const Route = createFileRoute('/_docs/services/example')({
+	component: () => <MDXPage module={mdxModule} />,
+	staticData: { crumb: 'Example' },
+});
 ```
 
-### frontend.tsx - Entry Point
+Explorer routes usually delegate to the shared `DemoView`:
 
 ```typescript
-import { createRoot } from 'react-dom/client';
-import { App } from './App';
+import { createFileRoute } from '@tanstack/react-router';
+import { DemoView } from '../../components/demo-view';
 
-const root = document.getElementById('root');
-if (!root) throw new Error('Root element not found');
-
-createRoot(root).render(<App />);
-```
-
-### index.html - HTML Template
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>My Agentuity App</title>
-	</head>
-	<body>
-		<div id="root"></div>
-		<script type="module" src="/web/frontend.tsx"></script>
-	</body>
-</html>
-```
-
-## React Hooks
-
-### useAPI - Call API Routes
-
-Most SDK Explorer demos use `useAPI` for HTTP calls to API routes:
-
-```typescript
-import { useAPI } from '@agentuity/react';
-
-function HelloDemo() {
-    const { run, running, data, error } = useAPI('POST /api/hello');
-
-    return (
-        <button onClick={() => run({ name: 'World' })} disabled={running}>
-            {running ? 'Running...' : 'Say Hello'}
-        </button>
-    );
-}
-```
-
-### useAgent - Call Agents Directly
-
-```typescript
-import { useAgent } from '@agentuity/react';
-
-function MyComponent() {
-    const { run, running, data, error } = useAgent('myAgent');
-
-    return (
-        <button onClick={() => run({ input: 'value' })}>
-            {running ? 'Running...' : 'Call Agent'}
-        </button>
-    );
-}
-```
-
-### useAgentWebsocket - WebSocket Connection
-
-```typescript
-import { useAgentWebsocket } from '@agentuity/react';
-
-function MyComponent() {
-    const { connected, send, data } = useAgentWebsocket('websocket');
-
-    return (
-        <div>
-            <p>Status: {connected ? 'Connected' : 'Disconnected'}</p>
-            <button onClick={() => send('Hello')}>Send Message</button>
-            <p>Received: {data}</p>
-        </div>
-    );
-}
-```
-
-### useAgentEventStream - Server-Sent Events
-
-```typescript
-import { useAgentEventStream } from '@agentuity/react';
-
-function MyComponent() {
-    const { connected, data, error } = useAgentEventStream('sse');
-
-    return (
-        <div>
-            <p>Connected: {connected ? 'Yes' : 'No'}</p>
-            {error && <p>Error: {error.message}</p>}
-            <p>Data: {data}</p>
-        </div>
-    );
-}
+export const Route = createFileRoute('/explorer/example')({
+	component: () => <DemoView demoId="example" />,
+	staticData: { crumb: 'Demo' },
+});
 ```
 
 ## SDK Explorer Components
+
+### Demo Registry
+
+Add Explorer demos in `demo-config.tsx`. Keep these values in sync:
+
+- `DemoId` union
+- `DEMOS` entry
+- `routes/explorer/{id}.tsx`
+- `CODE_EXAMPLES` entry
+- sandbox script name and default input, when the demo can run in a sandbox
 
 ### useSandboxRunner Hook
 
@@ -251,13 +160,13 @@ import { TerminalOutput } from './components/TerminalOutput';
 />;
 ```
 
-## Demo Configuration (App.tsx)
+## Demo Configuration
 
-Demos are configured in the `DEMOS` array:
+Demos are configured in `demo-config.tsx`:
 
 ```typescript
 interface DemoConfig {
-	id: string; // URL param: ?demo-id=hello
+	id: DemoId; // route segment: /explorer/hello
 	title: string; // Display name
 	subtitle: string; // Short tagline
 	description: string; // Landing page description
@@ -271,54 +180,6 @@ interface DemoConfig {
 	sandboxInput?: unknown; // Default input
 	codeHighlights?: LineHighlight[];
 	isRoute?: boolean; // Route vs agent demo
-}
-```
-
-## Complete Example
-
-```typescript
-import { AgentuityProvider, useAgent, useAgentWebsocket } from '@agentuity/react';
-import { useEffect, useState } from 'react';
-
-export function App() {
-    const [count, setCount] = useState(0);
-    const { run, data: agentResult } = useAgent('simple');
-    const { connected, send, data: wsMessage } = useAgentWebsocket('websocket');
-
-    useEffect(() => {
-        // Send WebSocket message every second
-        const interval = setInterval(() => {
-            send(`Message at ${new Date().toISOString()}`);
-        }, 1000);
-        return () => clearInterval(interval);
-    }, [send]);
-
-    return (
-        <div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-            <AgentuityProvider>
-                <h1>My Agentuity App</h1>
-
-                <div>
-                    <p>Count: {count}</p>
-                    <button onClick={() => setCount(c => c + 1)}>
-                        Increment
-                    </button>
-                </div>
-
-                <div>
-                    <button onClick={() => run({ name: 'Jeff', age: 30 })}>
-                        Call Agent
-                    </button>
-                    <p>{agentResult}</p>
-                </div>
-
-                <div>
-                    <strong>WebSocket:</strong>
-                    {connected ? JSON.stringify(wsMessage) : 'Not connected'}
-                </div>
-            </AgentuityProvider>
-        </div>
-    );
 }
 ```
 
@@ -342,18 +203,18 @@ Vite emits a content-hashed copy and replaces the import with the final URL
 
 ### Use `publicDir` for root-served files
 
-Files under `src/web/public/` are served at the URL root — **without** a
+Files under `src/web/public/` are served at the URL root, **without** a
 `/public/` prefix:
 
 ```
 src/web/public/
-├── favicon.ico      → served at /favicon.ico
-├── robots.txt       → served at /robots.txt
-└── styles.css       → served at /styles.css
+├── favicon.ico      # served at /favicon.ico
+├── robots.txt       # served at /robots.txt
+└── styles.css       # served at /styles.css
 ```
 
 ```html
-<!-- In index.html — Vite rewrites root paths to the CDN in production -->
+<!-- In index.html, Vite rewrites root paths to the CDN in production -->
 <link rel="stylesheet" href="/styles.css" />
 <script src="/script.js"></script>
 <link rel="icon" href="/favicon.ico" />
@@ -364,67 +225,20 @@ src/web/public/
 
 ## Styling
 
-### Inline Styles
-
-```typescript
-<div style={{ backgroundColor: '#000', color: '#fff', padding: '1rem' }}>
-    Styled content
-</div>
-```
-
-### CSS Files
-
-Create `src/web/public/styles.css`:
-
-```css
-body {
-	background-color: #09090b;
-	color: #fff;
-	font-family: sans-serif;
-}
-```
-
-Import in `index.html`:
-
-```html
-<link rel="stylesheet" href="/styles.css" />
-```
-
-### Style Tag in Component
-
-```typescript
-<div>
-    <button className="glow-btn">Click me</button>
-    <style>{`
-        .glow-btn {
-            background: linear-gradient(to right, #155e75, #3b82f6);
-            border: none;
-            padding: 0.75rem 1.5rem;
-            color: white;
-            cursor: pointer;
-        }
-    `}</style>
-</div>
-```
+Use the existing Tailwind and component patterns before adding new styling approaches. Keep route-level layout in route components and reusable UI in `components/`.
 
 ## Best Practices
 
-- Wrap your app with **AgentuityProvider** for hooks to work
-- Use **useAgent** for one-off agent calls
-- Use **useAgentWebsocket** for bidirectional real-time communication
-- Use **useAgentEventStream** for server-to-client streaming
-- Place reusable components in separate files
-- Keep static assets in the **public/** folder
-- Use TypeScript for type safety
-- Handle loading and error states in UI
+- Prefer shared docs components from `components/docs/` for MDX routes.
+- Prefer `DemoView` plus `demo-config.tsx` for Explorer pages.
+- Keep displayed snippets in `code-examples.ts` aligned with the docs page for the same feature.
+- Use `useSandboxRunner` for sandbox-backed demos and plain browser APIs for route calls when no shared hook already exists.
+- Keep compatibility-only implementation details in comments or internal docs, not in public UI copy.
 
 ## Rules
 
-- **App.tsx** must export a function named `App`
-- **frontend.tsx** must render the `App` component to `#root`
-- **index.html** must have a `<div id="root"></div>`
-- All agents are accessible via `useAgent('agentName')`
-- The web app is served at `/` by default
-- Files in `src/web/public/` are served at the URL root (`/filename`, **not** `/public/filename`)
-- For assets referenced from JS/TSX, use `import url from './path.svg'` — never a string literal like `/public/foo.svg`
-- Module script tag: `<script type="module" src="/web/frontend.tsx"></script>`
+- Route files under `routes/` should use `createFileRoute`.
+- Regenerate route output after adding or renaming route files.
+- Run `bun run generate:scripts` after adding or renaming sandbox scripts.
+- Files in `src/web/public/` are served at the URL root (`/filename`, not `/public/filename`).
+- For assets referenced from JS/TSX, use `import url from './path.svg'` instead of a `/public/...` string literal.

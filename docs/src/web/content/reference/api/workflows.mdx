@@ -1,0 +1,1159 @@
+---
+title: Workflows API
+short_title: Workflows
+description: Create and manage workflows that route events from sources to destinations
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your API or SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Workflow Management
+
+### List Workflows
+
+List all workflows with optional filtering and pagination.
+
+<ApiEndpoint method="GET" path="/workflow/list" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum number of workflows to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by status (enabled or disabled)"
+  },
+  {
+    "name": "source_type",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by source type (email, queue, webhook, or schedule)"
+  },
+  {
+    "name": "filter",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter workflows by name"
+  }
+]} />
+
+#### Response
+
+Returns paginated list of workflows.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Workflows returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "workflows",
+    "type": "object[]",
+    "description": "Array of workflows",
+    "required": true
+  },
+  {
+    "name": "workflows[].id",
+    "type": "string",
+    "description": "Unique identifier for the workflow (prefixed with wf_)",
+    "required": true
+  },
+  {
+    "name": "workflows[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the workflow was created",
+    "required": true
+  },
+  {
+    "name": "workflows[].updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the workflow was last updated",
+    "required": true
+  },
+  {
+    "name": "workflows[].created_by",
+    "type": "string",
+    "description": "ID of the user who created the workflow",
+    "required": true
+  },
+  {
+    "name": "workflows[].org_id",
+    "type": "string",
+    "description": "Organization ID that owns the workflow",
+    "required": true
+  },
+  {
+    "name": "workflows[].name",
+    "type": "string",
+    "description": "Human-readable name for the workflow",
+    "required": true
+  },
+  {
+    "name": "workflows[].description",
+    "type": "string | null",
+    "description": "Optional description of the workflow",
+    "required": true
+  },
+  {
+    "name": "workflows[].source_type",
+    "type": "string",
+    "description": "The type of source that triggers this workflow",
+    "required": true
+  },
+  {
+    "name": "workflows[].source_ref_id",
+    "type": "string",
+    "description": "The ID of the source (email address, queue, webhook, or schedule)",
+    "required": true
+  },
+  {
+    "name": "workflows[].source_config",
+    "type": "object | null",
+    "description": "Optional configuration for the source",
+    "required": true
+  },
+  {
+    "name": "workflows[].status",
+    "type": "string",
+    "description": "The current status of the workflow",
+    "required": true
+  },
+  {
+    "name": "workflows[].graph_json",
+    "type": "object | null",
+    "description": "The workflow graph definition (nodes and edges)",
+    "required": true
+  },
+  {
+    "name": "workflows[].execution_count",
+    "type": "number",
+    "description": "Number of times this workflow has been executed",
+    "required": false
+  },
+  {
+    "name": "workflows[].link",
+    "type": "string",
+    "description": "Link to the workflow detail page",
+    "required": false
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total number of workflows",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/workflow/list" />
+
+---
+
+### Get Workflow
+
+Get a specific workflow by ID.
+
+<ApiEndpoint method="GET" path="/workflow/{workflowId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "workflowId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Workflow ID (wf_ prefix)"
+  }
+]} />
+
+#### Response
+
+Returns the workflow object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Workflow returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Workflow not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "workflow",
+    "type": "object",
+    "description": "The requested workflow"
+  },
+  {
+    "name": "workflow.id",
+    "type": "string",
+    "description": "Unique identifier for the workflow (prefixed with wf_)"
+  },
+  {
+    "name": "workflow.created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the workflow was created"
+  },
+  {
+    "name": "workflow.updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the workflow was last updated"
+  },
+  {
+    "name": "workflow.created_by",
+    "type": "string",
+    "description": "ID of the user who created the workflow"
+  },
+  {
+    "name": "workflow.org_id",
+    "type": "string",
+    "description": "Organization ID that owns the workflow"
+  },
+  {
+    "name": "workflow.name",
+    "type": "string",
+    "description": "Human-readable name for the workflow"
+  },
+  {
+    "name": "workflow.description",
+    "type": "string | null",
+    "description": "Optional description of the workflow"
+  },
+  {
+    "name": "workflow.source_type",
+    "type": "string",
+    "description": "The type of source that triggers this workflow"
+  },
+  {
+    "name": "workflow.source_ref_id",
+    "type": "string",
+    "description": "The ID of the source (email address, queue, webhook, or schedule)"
+  },
+  {
+    "name": "workflow.source_config",
+    "type": "object | null",
+    "description": "Optional configuration for the source"
+  },
+  {
+    "name": "workflow.status",
+    "type": "string",
+    "description": "The current status of the workflow"
+  },
+  {
+    "name": "workflow.graph_json",
+    "type": "object | null",
+    "description": "The workflow graph definition (nodes and edges)"
+  },
+  {
+    "name": "workflow.execution_count",
+    "type": "number",
+    "description": "Number of times this workflow has been executed"
+  },
+  {
+    "name": "workflow.link",
+    "type": "string",
+    "description": "Link to the workflow detail page"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/workflow/wf_abc123" />
+
+---
+
+### Create Workflow
+
+Create a new workflow with a source type and reference.
+
+<ApiEndpoint method="POST" path="/workflow/create" />
+
+
+
+#### Request Body
+
+Workflow creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Human-readable name for the workflow",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Optional description of the workflow",
+    "required": false
+  },
+  {
+    "name": "source_type",
+    "type": "string",
+    "description": "The type of source that triggers this workflow",
+    "required": true
+  },
+  {
+    "name": "source_ref_id",
+    "type": "string",
+    "description": "The ID of the source",
+    "required": true
+  },
+  {
+    "name": "source_config",
+    "type": "object",
+    "description": "Optional source configuration",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the created workflow.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Workflow created |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "workflow",
+    "type": "object",
+    "description": "The newly created workflow",
+    "required": true
+  },
+  {
+    "name": "workflow.id",
+    "type": "string",
+    "description": "Unique identifier for the workflow (prefixed with wf_)",
+    "required": true
+  },
+  {
+    "name": "workflow.created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the workflow was created",
+    "required": true
+  },
+  {
+    "name": "workflow.updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the workflow was last updated",
+    "required": true
+  },
+  {
+    "name": "workflow.created_by",
+    "type": "string",
+    "description": "ID of the user who created the workflow",
+    "required": true
+  },
+  {
+    "name": "workflow.org_id",
+    "type": "string",
+    "description": "Organization ID that owns the workflow",
+    "required": true
+  },
+  {
+    "name": "workflow.name",
+    "type": "string",
+    "description": "Human-readable name for the workflow",
+    "required": true
+  },
+  {
+    "name": "workflow.description",
+    "type": "string | null",
+    "description": "Optional description of the workflow",
+    "required": true
+  },
+  {
+    "name": "workflow.source_type",
+    "type": "string",
+    "description": "The type of source that triggers this workflow",
+    "required": true
+  },
+  {
+    "name": "workflow.source_ref_id",
+    "type": "string",
+    "description": "The ID of the source (email address, queue, webhook, or schedule)",
+    "required": true
+  },
+  {
+    "name": "workflow.source_config",
+    "type": "object | null",
+    "description": "Optional configuration for the source",
+    "required": true
+  },
+  {
+    "name": "workflow.status",
+    "type": "string",
+    "description": "The current status of the workflow",
+    "required": true
+  },
+  {
+    "name": "workflow.graph_json",
+    "type": "object | null",
+    "description": "The workflow graph definition (nodes and edges)",
+    "required": true
+  },
+  {
+    "name": "workflow.execution_count",
+    "type": "number",
+    "description": "Number of times this workflow has been executed",
+    "required": false
+  },
+  {
+    "name": "workflow.link",
+    "type": "string",
+    "description": "Link to the workflow detail page",
+    "required": false
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/workflow/create" body={{
+  "name": "GitHub to Slack",
+  "source_type": "webhook",
+  "source_ref_id": "wh_abc123"
+}} />
+
+---
+
+### Update Workflow
+
+Update a workflow's name, description, or status.
+
+<ApiEndpoint method="PATCH" path="/workflow/{workflowId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "workflowId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Workflow ID"
+  }
+]} />
+
+#### Request Body
+
+Fields to update.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "New name for the workflow",
+    "required": false
+  },
+  {
+    "name": "description",
+    "type": "string | null",
+    "description": "New description for the workflow",
+    "required": false
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "New status for the workflow",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the updated workflow.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Workflow updated |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Workflow not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "workflow",
+    "type": "object",
+    "description": "The updated workflow"
+  },
+  {
+    "name": "workflow.id",
+    "type": "string",
+    "description": "Unique identifier for the workflow (prefixed with wf_)"
+  },
+  {
+    "name": "workflow.created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the workflow was created"
+  },
+  {
+    "name": "workflow.updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the workflow was last updated"
+  },
+  {
+    "name": "workflow.created_by",
+    "type": "string",
+    "description": "ID of the user who created the workflow"
+  },
+  {
+    "name": "workflow.org_id",
+    "type": "string",
+    "description": "Organization ID that owns the workflow"
+  },
+  {
+    "name": "workflow.name",
+    "type": "string",
+    "description": "Human-readable name for the workflow"
+  },
+  {
+    "name": "workflow.description",
+    "type": "string | null",
+    "description": "Optional description of the workflow"
+  },
+  {
+    "name": "workflow.source_type",
+    "type": "string",
+    "description": "The type of source that triggers this workflow"
+  },
+  {
+    "name": "workflow.source_ref_id",
+    "type": "string",
+    "description": "The ID of the source (email address, queue, webhook, or schedule)"
+  },
+  {
+    "name": "workflow.source_config",
+    "type": "object | null",
+    "description": "Optional configuration for the source"
+  },
+  {
+    "name": "workflow.status",
+    "type": "string",
+    "description": "The current status of the workflow"
+  },
+  {
+    "name": "workflow.graph_json",
+    "type": "object | null",
+    "description": "The workflow graph definition (nodes and edges)"
+  },
+  {
+    "name": "workflow.execution_count",
+    "type": "number",
+    "description": "Number of times this workflow has been executed"
+  },
+  {
+    "name": "workflow.link",
+    "type": "string",
+    "description": "Link to the workflow detail page"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="PATCH" path="/workflow/wf_abc123" body={{
+  "name": "Renamed Workflow",
+  "status": "disabled"
+}} />
+
+---
+
+### Update Workflow Graph
+
+Update the workflow graph definition (nodes and edges).
+
+<ApiEndpoint method="PUT" path="/workflow/graph/{workflowId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "workflowId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Workflow ID"
+  }
+]} />
+
+#### Request Body
+
+Graph definition with nodes and edges.
+
+<ResponseFields fields={[
+  {
+    "name": "nodes",
+    "type": "object[]",
+    "description": "Array of workflow nodes",
+    "required": true
+  },
+  {
+    "name": "nodes[].id",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "nodes[].type",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "nodes[].position",
+    "type": "object",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "nodes[].position.x",
+    "type": "number",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "nodes[].position.y",
+    "type": "number",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "nodes[].data",
+    "type": "any",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "edges",
+    "type": "object[]",
+    "description": "Array of workflow edges",
+    "required": true
+  },
+  {
+    "name": "edges[].id",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "edges[].source",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "edges[].target",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "edges[].sourceHandle",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "edges[].targetHandle",
+    "type": "string",
+    "description": "",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the updated workflow.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Workflow graph updated |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Workflow not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "workflow",
+    "type": "object",
+    "description": "The updated workflow"
+  },
+  {
+    "name": "workflow.id",
+    "type": "string",
+    "description": "Unique identifier for the workflow (prefixed with wf_)"
+  },
+  {
+    "name": "workflow.created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the workflow was created"
+  },
+  {
+    "name": "workflow.updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the workflow was last updated"
+  },
+  {
+    "name": "workflow.created_by",
+    "type": "string",
+    "description": "ID of the user who created the workflow"
+  },
+  {
+    "name": "workflow.org_id",
+    "type": "string",
+    "description": "Organization ID that owns the workflow"
+  },
+  {
+    "name": "workflow.name",
+    "type": "string",
+    "description": "Human-readable name for the workflow"
+  },
+  {
+    "name": "workflow.description",
+    "type": "string | null",
+    "description": "Optional description of the workflow"
+  },
+  {
+    "name": "workflow.source_type",
+    "type": "string",
+    "description": "The type of source that triggers this workflow"
+  },
+  {
+    "name": "workflow.source_ref_id",
+    "type": "string",
+    "description": "The ID of the source (email address, queue, webhook, or schedule)"
+  },
+  {
+    "name": "workflow.source_config",
+    "type": "object | null",
+    "description": "Optional configuration for the source"
+  },
+  {
+    "name": "workflow.status",
+    "type": "string",
+    "description": "The current status of the workflow"
+  },
+  {
+    "name": "workflow.graph_json",
+    "type": "object | null",
+    "description": "The workflow graph definition (nodes and edges)"
+  },
+  {
+    "name": "workflow.execution_count",
+    "type": "number",
+    "description": "Number of times this workflow has been executed"
+  },
+  {
+    "name": "workflow.link",
+    "type": "string",
+    "description": "Link to the workflow detail page"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="PUT" path="/workflow/graph/wf_abc123" body={{
+  "graph_json": {
+    "nodes": [
+      {
+        "id": "n1",
+        "type": "filter"
+      },
+      {
+        "id": "n2",
+        "type": "action"
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "n1",
+        "target": "n2"
+      }
+    ]
+  }
+}} />
+
+---
+
+### Delete Workflow
+
+Delete a workflow and all associated executions and deliveries.
+
+<ApiEndpoint method="DELETE" path="/workflow/{workflowId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "workflowId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Workflow ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Workflow deleted |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Workflow not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/workflow/wf_abc123" />
+
+---
+
+## Testing
+
+### Test Workflow
+
+Test a workflow with a sample payload.
+
+<ApiEndpoint method="POST" path="/workflow/test/{workflowId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "workflowId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Workflow ID"
+  }
+]} />
+
+#### Request Body
+
+Test payload to send through the workflow.
+
+<ResponseFields fields={[
+  {
+    "name": "payload",
+    "type": "any",
+    "description": "Test payload to send through the workflow",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the test execution result.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Test completed |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Workflow not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "execution_id",
+    "type": "string",
+    "description": "ID of the test execution",
+    "required": true
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Status of the test execution",
+    "required": true
+  },
+  {
+    "name": "steps",
+    "type": "object[]",
+    "description": "Individual step results",
+    "required": false
+  },
+  {
+    "name": "steps[].node_id",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "steps[].node_type",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "steps[].status",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "steps[].output",
+    "type": "any",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "steps[].error",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "error",
+    "type": "string",
+    "description": "Error message if test failed",
+    "required": false
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/workflow/test/wf_abc123" body={{
+  "payload": {
+    "event": "test",
+    "data": {
+      "key": "value"
+    }
+  }
+}} />
+
+---
+
+## Analytics
+
+### Get Workflow Activity
+
+Get workflow activity statistics for the organization.
+
+<ApiEndpoint method="GET" path="/workflow/activity" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "days",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Number of days to look back"
+  }
+]} />
+
+#### Response
+
+Returns aggregate workflow activity statistics.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Activity returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "total_workflows",
+    "type": "number",
+    "description": "Total number of workflows",
+    "required": true
+  },
+  {
+    "name": "enabled_workflows",
+    "type": "number",
+    "description": "Number of enabled workflows",
+    "required": true
+  },
+  {
+    "name": "disabled_workflows",
+    "type": "number",
+    "description": "Number of disabled workflows",
+    "required": true
+  },
+  {
+    "name": "total_executions",
+    "type": "number",
+    "description": "Total number of executions",
+    "required": true
+  },
+  {
+    "name": "succeeded_executions",
+    "type": "number",
+    "description": "Number of successful executions",
+    "required": true
+  },
+  {
+    "name": "failed_executions",
+    "type": "number",
+    "description": "Number of failed executions",
+    "required": true
+  },
+  {
+    "name": "last_activity_at",
+    "type": "string | null",
+    "description": "When the last activity occurred",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/workflow/activity" />
+
+---
+
+## Executions
+
+### List Workflow Executions
+
+List execution records for a specific workflow.
+
+<ApiEndpoint method="GET" path="/workflow/executions/{workflowId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "workflowId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Workflow ID"
+  }
+]} />
+
+#### Response
+
+Returns list of executions.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Executions returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Workflow not found |
+
+#### Example
+
+<ApiExample method="GET" path="/workflow/executions/wf_abc123" />
+
+---
+
+## Deliveries
+
+### List Workflow Deliveries
+
+List delivery records for a specific execution.
+
+<ApiEndpoint method="GET" path="/workflow/deliveries/{executionId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "executionId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Execution ID"
+  }
+]} />
+
+#### Response
+
+Returns list of deliveries.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Deliveries returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Execution not found |
+
+#### Example
+
+<ApiExample method="GET" path="/workflow/deliveries/exec_abc123" />
+
+---
+
+## Analytics
+
+### Get Recent Payload
+
+Get the most recent payload received by a workflow.
+
+<ApiEndpoint method="GET" path="/workflow/recent-payload/{workflowId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "workflowId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Workflow ID"
+  }
+]} />
+
+#### Response
+
+Returns the most recent payload data.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Payload returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Workflow not found or no recent payload |
+
+#### Example
+
+<ApiExample method="GET" path="/workflow/recent-payload/wf_abc123" />
+
+---

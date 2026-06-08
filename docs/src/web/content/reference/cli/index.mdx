@@ -1,11 +1,23 @@
 ---
 title: CLI Reference
-description: Command-line tools for building, deploying, and managing agents
+description: Command-line tools for framework apps, deployment, and Agentuity resources
 ---
 
 import { Terminal, Play, Wrench, Rocket, GitBranch, HardDrive, Box, Users, Settings, Bug, Sparkles, KeyRound, Activity, BrainCircuit } from 'lucide-react';
 
-Build, deploy, and manage agents from the terminal. Install with `curl -fsSL https://agentuity.sh | sh`, then see [Getting Started](/reference/cli/getting-started) for authentication and first steps.
+Use the CLI to create or import framework apps, run local development with Agentuity env values, package deploy bundles, and manage cloud resources. Install with `curl -fsSL https://agentuity.sh | sh`, then see [Getting Started](/reference/cli/getting-started) for authentication and first steps.
+
+## Choose a Command Area
+
+| Need | Start with | Command family |
+| --- | --- | --- |
+| Install, sign in, or create a framework project | [Getting Started](/reference/cli/getting-started) | `auth`, `project create`, `project import` |
+| Run a local framework server with Agentuity env values | [Development](/reference/cli/development) | `dev` |
+| Inspect or tune deployment packaging | [Build Configuration](/reference/cli/build-configuration) | `build` |
+| Deploy and manage cloud app releases | [Deployment](/reference/cli/deployment) | `deploy`, cloud deployment commands |
+| Configure env values and project secrets | [Configuration](/reference/cli/configuration) | env, secrets, API keys |
+| Manage service resources from a terminal | [Storage](/reference/cli/storage), [Sandbox](/reference/cli/sandbox), [Coder](/reference/cli/coder) | service-specific commands |
+| Debug a running app or coding session | [Monitoring](/reference/cli/monitoring), [Debugging](/reference/cli/debugging) | health, logs, SSH, sessions |
 
 <Cards>
   <CardLink

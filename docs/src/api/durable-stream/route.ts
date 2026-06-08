@@ -13,14 +13,15 @@
  * GET /list          - List all summary streams
  * GET /progress/:id  - Get stream progress
  */
-import type { Env } from '@agentuity/runtime';
-import { streamText } from 'ai';
-import { getModel } from '../../lib/models';
+import type { ApiEnv } from '../context';
+import { waitUntil } from '../http';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import agentuityDocs from '../../agent/chat/agentuity-context.txt';
 import { Hono } from 'hono';
 
 const STREAM_NAME = 'ai-summary';
 const MAX_STREAMS = 10;
+const SUMMARY_MODEL = 'openai/gpt-5.4-mini';
 
 const PROMPT = `You are a technical writer. Based on the following documentation about Agentuity, write a clear and engaging summary (3-4 paragraphs) that explains what Agentuity is and why developers would use it. Be specific about key features. Ensure the summary ends with a complete sentence ending in a period.
 
@@ -29,7 +30,7 @@ const PROMPT = `You are a technical writer. Based on the following documentation
 
 Write the summary now:`;
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 
 	// Create a new persistent stream with LLM-generated content
 	.post('/create', async (c) => {
@@ -59,7 +60,7 @@ const router = new Hono<Env>()
 			contentType: 'text/plain',
 			metadata: {
 				type: 'ai-summary',
-				model: 'llama-3.3-70b-versatile',
+				model: SUMMARY_MODEL,
 				startTime: new Date().toISOString(),
 			},
 		});
@@ -72,14 +73,13 @@ const router = new Hono<Env>()
 		// Stream LLM output in background (fire-and-forget)
 		const generateInBackground = async () => {
 			try {
-				const { textStream } = streamText({
-					model: getModel('llama-3.3-70b-versatile'),
-					prompt: PROMPT,
+				const gateway = new AIGatewayClient();
+				const result = await gateway.completeText({
+					model: SUMMARY_MODEL,
+					messages: [{ role: 'user', content: PROMPT }],
 				});
 
-				for await (const chunk of textStream) {
-					await stream.write(chunk);
-				}
+				await stream.write(result.text);
 
 				c.var.logger?.info('LLM summary complete', {
 					streamId: stream.id,
@@ -95,7 +95,7 @@ const router = new Hono<Env>()
 		};
 
 		// Start generation in background
-		c.waitUntil(generateInBackground());
+		waitUntil(c, generateInBackground());
 
 		// Return immediately - URL will return content once stream is closed
 		return c.json({

@@ -1,10 +1,10 @@
 ---
 title: Using Workspaces to Reuse Repos, Skills, and Agent Selection
 short_title: Use Workspaces
-description: Store reusable Coder selections in a workspace and attach them to sessions with workspaceId
+description: Store reusable Coder setup in a workspace and attach it to sessions with workspaceId
 ---
 
-Workspaces save a session setup once and reuse it everywhere by `workspaceId`. They hold the selections your app repeats most often: repositories, saved skills, skill buckets, and agent selection. That means you aren't re-listing those on every `createSession()` call.
+Workspaces save a session setup once and reuse it everywhere by `workspaceId`. They hold the inputs your app repeats most often: repositories, setup scripts, saved skills, skill buckets, prompt guidance, and agent selection. That means you aren't re-listing those on every `createSession()` call.
 
 <Callout type="tip" title="Start with what you already repeat">
 This example stores a saved skill and an agent selection, then pulls both in by `workspaceId`. Repositories and skill buckets can join the same workspace later.
@@ -16,6 +16,7 @@ Create a workspace, then create a session that points at it:
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 const DEFAULT_TASK =
   'Use the workspace selections to review the repo, identify the biggest implementation risk, and recommend a focused next step.';
@@ -58,7 +59,7 @@ async function main(): Promise<void> {
   // Read the session back to confirm the workspace selections took effect
   const session = await client.getSession(created.sessionId);
 
-  console.log(
+  logger.info(
     JSON.stringify(
       {
         workspaceId: workspace.id,
@@ -102,7 +103,7 @@ What this means:
 - `workspaceId` carried those selections into the session
 - you can still set a default agent like `builder` when you create the session
 
-## Where Repositories Fit
+## Where repositories fit
 
 Once your app has a valid `CoderSessionRepositoryRef`, add it to the same workspace. If you already grouped skills into a bucket, attach that by `skillBucketIds` too:
 
@@ -119,7 +120,38 @@ const workspace = await client.createWorkspace({
 
 That keeps repo, skill, bucket, and agent selections in one reusable object. If your app doesn't have repository refs yet, start with skills and agents and layer repositories in later.
 
-## When to Use This Pattern
+## Where setup inputs fit
+
+Use dependencies and setup scripts when every session needs the same packages or bootstrap commands. Validate APT dependencies first, then refresh the workspace snapshot after setup changes so future sessions start from the updated prepared state.
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
+
+const client = new CoderClient();
+
+const dependencyCheck = await client.validateWorkspaceDependencies(['git']);
+if (dependencyCheck.invalid.length > 0) {
+  logger.warn('workspace dependencies need review', {
+    invalid: dependencyCheck.invalid.map((item) => item.package),
+  });
+}
+
+const workspace = await client.createWorkspace({
+  name: 'node-review-workspace',
+  dependencies: ['git'],
+  setupScript: 'corepack enable && bun install',
+  systemPrompt: 'Start by reading package scripts and test setup.',
+  systemPromptMode: 'append',
+  enabledAgents: ['builder', 'reviewer'],
+});
+
+await client.refreshWorkspaceSnapshot(workspace.id);
+```
+
+Use `systemPromptMode: 'overwrite'` only when the workspace should replace the default Lead prompt. Most reusable workspaces should append focused guidance instead.
+
+## When to use this pattern
 
 Use this pattern when you want:
 
@@ -131,13 +163,13 @@ Use this pattern when you want:
 ## Key Points
 
 - Workspaces pay off when the same selections repeat across sessions.
-- A workspace can't be empty. Include at least one repo, saved skill, skill bucket, or agent selection.
+- A workspace can't be empty. Include at least one repo, dependency, setup script, system prompt, saved skill, skill bucket, or agent selection.
 - `workspaceId` doesn't replace the normal session lifecycle APIs; create, inspect, archive, and delete sessions the same way.
 - Read the session back after creation to confirm the workspace selections flowed through.
 
 ## See Also
 
 - [Attaching Skills to a Coder Session](/cookbook/patterns/attaching-skills-to-a-coder-session): Attach saved skills directly without first creating a workspace
-- [Choosing Built-In Agents for a Coder Session](/cookbook/patterns/choosing-built-in-agents-for-a-coder-session): Set the built-in roster without introducing a workspace
+- [Choosing Coder Agents for a Session](/cookbook/patterns/choosing-built-in-agents-for-a-coder-session): Set the agent roster without introducing a workspace
 - [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Core session lifecycle flow
 - [Coder Client](/reference/sdk-reference/coder): Full `createWorkspace()` and `createSession()` reference

@@ -29,6 +29,8 @@ jobs:
            env:
               AGENT_BEARER_TOKEN: ${{ secrets.AGENT_BEARER_TOKEN }}
               DOCS_WEBHOOK_URL: ${{ secrets.DOCS_WEBHOOK_URL }}
+              DOCS_SYNC_COMMIT: ${{ github.sha }}
+              BATCH_SIZE: 5
            run: |
               set -euo pipefail
               cat all-files.txt | \

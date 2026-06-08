@@ -1,269 +1,108 @@
 ---
 title: Quickstart
-description: Build your first agent in 5 minutes
+description: Scaffold a Next.js starter, run it locally, and deploy it
 ---
 
-import { Lightbulb } from 'lucide-react';
+This page follows the framework-first happy path with Next.js. You end with a normal Next.js app that uses Agentuity for service clients, local environment wiring, and deploy packaging. The same create flow works for the five create-supported frameworks: Next.js, Nuxt, SvelteKit, Astro, and Hono. For React Router, Vite + React, and TanStack Start, start with the framework CLI and then [import the app](/get-started/import-existing-app).
 
-Start from a new Agentuity project and replace the default translation example with a small chat agent using OpenAI.
-
-<Callout type="info" title="Default Template">
-When you create a project with `agentuity project create`, you get a translation agent demonstrating:
-
-- **AI Gateway**: OpenAI SDK routed through Agentuity (unified billing, no separate API keys)
-- **Thread state**: Persistent translation history across requests
-- **Structured logging**: Observability via `ctx.logger`
-- **Tailwind CSS**: Pre-configured styling
-</Callout>
-
-<CardLink
-  href="/cookbook/tutorials/understanding-agents"
-  title="New to AI Agents?"
-  icon={<Lightbulb />}
-  description="Learn how agents use tools and run in loops to complete tasks autonomously."
-/>
-
-## 1. Add Chat Dependencies
-
-The default template includes the OpenAI SDK. This quickstart uses Vercel AI SDK helpers, so add them before replacing the default agent:
+## 1. Create the Project
 
 ```bash
-bun add ai @ai-sdk/openai
+npm create agentuity -- \
+  --name my-app \
+  --framework nextjs \
+  --package-manager npm
+cd my-app
 ```
 
-## 2. Create the Agent
+The scaffold runs `create-next-app`, then layers on:
 
-Create `src/agent/chat/agent.ts`:
+- `@agentuity/cli` as a devDependency
+- `@agentuity/aigateway` and `swr` as dependencies
+- A working translation page at `src/app/page.tsx`
+- An API route at `src/app/api/translate/route.ts` that uses `AIGatewayClient`
+- `deploy: agentuity deploy` in `package.json`
+- `agentuity.json` with the registered project's metadata
+- `.env` with the project's `AGENTUITY_SDK_KEY`
 
-```typescript
-import { createAgent } from '@agentuity/runtime';
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { s } from '@agentuity/schema';
+Expected result: the command exits with a `my-app/` directory that contains the framework files, `agentuity.json`, `.env`, and the translation route. If it stops before those files exist, rerun the command from an empty directory. If authentication fails before the project is created, run `npx @agentuity/cli auth login`, then create the project again.
 
-const agent = createAgent('Chat', {
-  schema: {
-    input: s.object({ message: s.string() }),
-    output: s.object({ response: s.string() }),
-  },
-  handler: async (ctx, input) => {
-    ctx.logger.info('Received message', { message: input.message });
-
-    const { text } = await generateText({
-      model: openai('gpt-5.4-nano'),
-      prompt: input.message,
-    });
-
-    return { response: text };
-  },
-});
-
-export default agent;
-```
-
-## 3. Register the Agent
-
-Add the agent to the registry in `src/agent/index.ts`:
-
-```typescript
-import chat from './chat/agent';
-
-export default [chat];
-```
-
-## 4. Add a Route
-
-Create `src/api/index.ts`:
-
-```typescript
-import { createRouter } from '@agentuity/runtime';
-import chat from '@agent/chat/agent';
-
-const router = createRouter();
-
-router.post('/chat', chat.validator(), async (c) => {
-  const data = c.req.valid('json');
-  return c.json(await chat.run(data));
-});
-
-export type ApiRouter = typeof router;
-
-export default router;
-```
-
-Wire the route and your agent into the project-root `app.ts`:
-
-```typescript
-import { createApp } from '@agentuity/runtime';
-import api from './src/api/index';
-import agents from './src/agent';
-
-export default await createApp({
-  router: { path: '/api', router: api },
-  agents,
-});
-```
-
-## 5. Run Your Agent
-
-Start the dev server:
+## 2. Run It Locally
 
 ```bash
-agentuity dev
-# or: bun run dev
+npx agentuity dev
 ```
 
-Test your agent via curl:
+`npx` runs the local CLI from `devDependencies`. The CLI runs `next dev` as a child process and patches `AGENTUITY_SDK_KEY` plus service environment values into its env, so `@agentuity/aigateway` can call the gateway for the project. Open the URL Next.js prints (typically `http://localhost:3000`) and try a translation.
+
+You can also call the API route directly:
 
 ```bash
-curl -X POST http://localhost:3500/api/chat \
+curl -X POST http://localhost:3000/api/translate \
   -H "Content-Type: application/json" \
-  -d '{"message": "What is the capital of France?"}'
+  -d '{"text":"Hello from Agentuity","toLanguage":"French"}'
 ```
 
-Response:
+The response includes the translation, token count, model, and target language.
 
-```json
-{
-  "response": "The capital of France is Paris."
-}
+If the dev server starts but the route fails, read the route response and terminal error first. `401` or missing-key errors usually mean the command is not running from the registered project root or `AGENTUITY_SDK_KEY` is missing from the dev process. If the port is already in use, run `npx agentuity dev --port 8080` or use the port your framework prints.
+
+## 3. Make an Edit
+
+Open `src/app/page.tsx` and add a language to the picker:
+
+```tsx title="src/app/page.tsx"
+const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese', 'Japanese'] as const;
 ```
 
-## 6. Add a Frontend
+Save the file. Next.js hot-reloads, the new option appears in the dropdown, and the route accepts it without any other change.
 
-Add a React UI in `src/web/` to call your agent. Use Hono's `hc()` client for type-safe API calls:
+## 4. Add a Service Client
 
-```tsx
-import { hc } from 'hono/client';
-import type { ApiRouter } from '../api';
-import { useState } from 'react';
-
-const client = hc<ApiRouter>('/api');
-
-export function App() {
-  const [message, setMessage] = useState('');
-  const [response, setResponse] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSend = async () => {
-    setIsLoading(true);
-    try {
-      const res = await client.chat.$post({ json: { message } });
-      const data = await res.json();
-      setResponse(data.response);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div>
-      <input
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        placeholder="Ask something..."
-        disabled={isLoading}
-      />
-      <button onClick={handleSend} disabled={isLoading}>
-        {isLoading ? 'Thinking...' : 'Send'}
-      </button>
-      {response && <p>{response}</p>}
-    </div>
-  );
-}
-```
-
-The `hc()` client infers types from your router, so `data.response` is fully typed.
-
-## 7. Add Streaming
-
-For real-time responses, return a stream instead:
-
-```typescript
-import { createAgent } from '@agentuity/runtime';
-import { streamText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { s } from '@agentuity/schema';
-
-const agent = createAgent('chat', {
-  schema: {
-    input: s.object({ message: s.string() }),
-    stream: true,
-  },
-  handler: async (ctx, input) => {
-    ctx.logger.info('Streaming chat response');
-
-    const { textStream } = streamText({
-      model: openai('gpt-5.4-nano'),
-      prompt: input.message,
-    });
-
-    return textStream;
-  },
-});
-
-export default agent;
-```
-
-Update the route to return the agent stream:
-
-```typescript
-import { createRouter } from '@agentuity/runtime';
-import chat from '@agent/chat/agent';
-
-const router = createRouter();
-
-router.post('/chat', chat.validator(), async (c) => {
-  const data = c.req.valid('json');
-  return c.body(await chat.run(data));
-});
-
-export type ApiRouter = typeof router;
-
-export default router;
-```
-
-## 8. Deploy
-
-When the project is ready, deploy to Agentuity:
+Service clients work in any framework route or script. Add key-value storage without touching the router or runtime:
 
 ```bash
-agentuity deploy
-# or: bun run deploy
+npm install @agentuity/keyvalue
 ```
 
-Your agent is live with a public URL. View deployments, logs, and sessions in the [Web App](https://app.agentuity.com).
+```typescript title="src/app/api/translate/route.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
 
-<Callout type="info" title="What You'll See in the App">
-After your first deployment, the App populates with:
-- **Agents**: Your deployed agents with their endpoints
-- **Routes**: Registered HTTP, streaming, and other routes
-- **Sessions**: Request history and logs as traffic flows
-- **Deployments**: Version history with rollback options
-</Callout>
+const kv = new KeyValueClient();
 
-## What's Next?
+await kv.set('analytics', 'last-translation-at', { at: new Date().toISOString() });
+```
 
-<Callout type="tip" title="AI-Assisted Development">
-Install the [OpenCode plugin](/reference/cli/opencode-plugin) for AI-assisted agent development. Get help writing agents, debugging, and deploying directly from your editor:
+The client reads `AGENTUITY_SDK_KEY` from process env. `agentuity dev` supplies that key for local runs, and registered deployed apps receive it as a project secret.
+
+See [Services](/services) for queues, vector storage, email, schedules, sandbox execution, and the rest.
+
+## 5. Deploy
 
 ```bash
-agentuity ai opencode install
+npm run deploy
 ```
-</Callout>
 
-**Learn the concepts:**
+The `deploy` script runs `agentuity deploy`, which:
 
-- [Understanding How Agents Work](/cookbook/tutorials/understanding-agents): Tools, loops, and autonomous behavior
+- Detects the framework from `package.json` and config files
+- Runs the framework's build, then packages the output into `.agentuity/`
+- Encrypts the bundle, uploads it, and starts the deployment
 
-**Build something more:**
+The CLI prints both the deployment-specific URL and the latest deployment URL. Visit either in a browser, or check [app.agentuity.com](https://app.agentuity.com) for logs and resource settings.
 
-- [Build a multi-agent system](/agents/calling-other-agents): Routing, RAG, workflows
-- [Persist data](/agents/state-management): Use thread and session state
-- [RPC Client](/frontend/rpc-client): Type-safe `hc()` patterns for browser and server code
+## Verify the Path
 
-**Understand the platform:**
+| Stage | Success looks like | If it fails |
+| --- | --- | --- |
+| Create | `agentuity.json`, `.env`, and the framework route exist in `my-app/` | Start from an empty directory, then rerun the create command |
+| Local route | The page translates text, and the `curl` request returns JSON | Check the terminal error, project root, port, and `AGENTUITY_SDK_KEY` |
+| Service client | `npm install @agentuity/keyvalue` installs, and server code imports `KeyValueClient` | Keep the client in server-side code, not browser components |
+| Deploy | The CLI prints deployment URLs after the framework build | Fix the framework build error first; deploy packages that build output |
 
-- [Project Structure](/get-started/project-structure): Agents, routes, and frontend
-- [App Configuration](/get-started/app-configuration): Configure your project
-- [Local Development](/reference/cli/development): Dev server, hot reload, and debugging
+## Next Steps
+
+- [Project Structure](/get-started/project-structure): the file map for each framework
+- [App Configuration](/get-started/app-configuration): scripts, `agentuity.json`, env vars, and service clients
+- [Frameworks](/frameworks): per-framework setup, route patterns, and deploy notes
+- [Local Development](/deploy-operate/local-development): how `agentuity dev` resolves the SDK key, env files, and gateway routing

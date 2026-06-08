@@ -99,9 +99,9 @@ const FIXED_TONE = 'sci-fi';
 
 const PROVIDER_STYLES: Record<string, { bg: string; border: string; text: string }> = {
 	openai: {
-		bg: 'bg-green-600 dark:bg-green-500',
-		border: 'border-green-600 dark:border-green-500',
-		text: 'text-green-600 dark:text-green-400',
+		bg: 'bg-emerald-500 dark:bg-emerald-400',
+		border: 'border-emerald-500 dark:border-emerald-400',
+		text: 'text-emerald-600 dark:text-emerald-400',
 	},
 	anthropic: {
 		bg: 'bg-orange-500 dark:bg-orange-400',
@@ -326,17 +326,17 @@ export function ModelArena() {
 						</span>
 						<div className="flex flex-wrap gap-2">
 							<Badge variant="outline">
-								<span className="text-green-600 dark:text-green-400">OpenAI</span>
-								<span className="text-zinc-500 mx-1">/</span>
-								<span className="font-mono text-zinc-700 dark:text-zinc-300">
-									gpt-5.4-mini
-								</span>
-							</Badge>
-							<Badge variant="outline">
 								<span className="text-orange-600 dark:text-orange-400">Anthropic</span>
 								<span className="text-zinc-500 mx-1">/</span>
 								<span className="font-mono text-zinc-700 dark:text-zinc-300">
-									claude-haiku-4-5
+									claude-opus-4-8
+								</span>
+							</Badge>
+							<Badge variant="outline">
+								<span className="text-blue-600 dark:text-blue-400">Google</span>
+								<span className="text-zinc-500 mx-1">/</span>
+								<span className="font-mono text-zinc-700 dark:text-zinc-300">
+									gemini-3.5-flash
 								</span>
 							</Badge>
 						</div>
@@ -350,7 +350,7 @@ export function ModelArena() {
 								<span className="text-purple-600 dark:text-purple-400">Groq</span>
 								<span className="text-zinc-500 mx-1">/</span>
 								<span className="font-mono text-zinc-700 dark:text-zinc-300">
-									gpt-oss-120b
+									openai/gpt-oss-120b
 								</span>
 							</Badge>
 						</div>

@@ -1,6 +1,7 @@
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { ApiEnv } from '../../api/context';
 
-const router = createRouter();
+const router = new Hono<ApiEnv>();
 
 router.get('/', (c) => {
 	return c.json({

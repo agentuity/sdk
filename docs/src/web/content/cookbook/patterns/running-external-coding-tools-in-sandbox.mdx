@@ -1,0 +1,223 @@
+---
+title: Run External Coding Tools in Sandbox
+short_title: Sandbox Coding Tools
+description: Run a formatter, linter, test command, or agent CLI in a disposable Sandbox workflow
+---
+
+Use Sandbox when your app owns the command and wants a bounded result: write files, run an external coding tool, inspect stdout/stderr, and let the one-shot sandbox disappear after the command exits.
+
+Use [Coder](/services/coder) instead when the work should be a managed session with Hub history, replay, skills, agents, reconnects, and human review.
+
+```bash
+npm install @agentuity/sandbox @agentuity/telemetry
+```
+
+## The Pattern
+
+This example runs Biome as an external coding tool. It writes a tiny TypeScript project into a one-shot sandbox, lets Biome rewrite the source, runs `bun test`, and prints a diff plus final source between result markers.
+
+The script has three moving pieces:
+
+- `command.files` seeds the workspace before the command starts.
+- the shell command runs the tool and verification command.
+- result markers make the useful part of stdout easy for your app to extract.
+
+```typescript title="scripts/sandbox-biome.ts"
+import { Buffer } from 'node:buffer';
+import { SandboxClient } from '@agentuity/sandbox';
+import { logger } from '@agentuity/telemetry';
+
+const BIOME_VERSION = '2.4.16';
+
+const command = [
+  'set -eu',
+  'printf "__WORKSPACE__\\n"',
+  'pwd',
+  'printf "__FILES_BEFORE__\\n"',
+  'find . -maxdepth 2 -type f | sort',
+  'cp src/math.ts /tmp/math.before.ts',
+  `bunx --bun @biomejs/biome@${BIOME_VERSION} check --write src/math.ts src/math.test.ts`,
+  'bun test',
+  'printf "\\n__AGENTUITY_RESULT_START__\\n"',
+  'printf "diff src/math.ts before/after:\\n"',
+  'if diff -u /tmp/math.before.ts src/math.ts; then printf "no source changes\\n"; fi',
+  'printf "\\nfinal src/math.ts:\\n"',
+  'sed -n "1,120p" src/math.ts',
+  'printf "\\n__AGENTUITY_RESULT_END__\\n"',
+].join('\n');
+
+const client = new SandboxClient();
+
+const result = await client.run({
+  runtime: 'bun:1',
+  network: { enabled: true },
+  timeout: { execution: '5m' },
+  command: {
+    exec: ['sh', '-lc', command],
+    files: [
+      {
+        path: 'package.json',
+        content: Buffer.from(
+          JSON.stringify(
+            {
+              type: 'module',
+              scripts: { test: 'bun test' },
+              devDependencies: { '@types/bun': 'latest' },
+            },
+            null,
+            2
+          )
+        ),
+      },
+      {
+        path: 'biome.json',
+        content: Buffer.from(
+          JSON.stringify(
+            {
+              formatter: { indentStyle: 'tab' },
+              javascript: {
+                formatter: {
+                  quoteStyle: 'single',
+                  semicolons: 'always',
+                },
+              },
+            },
+            null,
+            2
+          )
+        ),
+      },
+      {
+        path: 'src/math.ts',
+        content: Buffer.from(
+          [
+            'export function total(values: readonly number[]): number{',
+            'return values.reduce((sum,value)=>sum+value,0)',
+            '}',
+            '',
+          ].join('\n')
+        ),
+      },
+      {
+        path: 'src/math.test.ts',
+        content: Buffer.from(
+          [
+            "import { expect, test } from 'bun:test';",
+            "import { total } from './math.ts';",
+            '',
+            "test('totals values', () => {",
+            '  expect(total([2, 3, 5])).toBe(10);',
+            '});',
+            '',
+          ].join('\n')
+        ),
+      },
+    ],
+  },
+});
+
+const hasResultMarkers = result.stdout?.includes('__AGENTUITY_RESULT_START__') === true;
+
+logger.info('sandbox coding tool result', {
+  sandboxId: result.sandboxId,
+  exitCode: result.exitCode,
+  hasResultMarkers,
+  stdout: result.stdout,
+  stderr: result.stderr,
+});
+
+if (result.exitCode !== 0 || !hasResultMarkers) {
+  throw new Error('Sandbox coding-tool workflow did not produce the expected result markers.');
+}
+```
+
+Expected output excerpt. Exact tool timings and runtime versions can vary.
+
+```text
+Checked 2 files in 6ms. Fixed 2 files.
+bun test v1.3.14
+
+src/math.test.ts:
+(pass) totals values
+
+ 1 pass
+ 0 fail
+
+__AGENTUITY_RESULT_START__
+diff src/math.ts before/after:
+--- /tmp/math.before.ts
++++ src/math.ts
+@@ -1,3 +1,3 @@
+-export function total(values: readonly number[]): number{
+-return values.reduce((sum,value)=>sum+value,0)
++export function total(values: readonly number[]): number {
++	return values.reduce((sum, value) => sum + value, 0);
+ }
+__AGENTUITY_RESULT_END__
+```
+
+`client.run()` creates a one-shot sandbox, captures stdout/stderr, and destroys the sandbox after the command exits. Keep the `sandboxId` for logs and debugging, not for follow-up file reads.
+
+## Check a Coding-Agent Runtime First
+
+If the external tool is a coding-agent CLI, validate the runtime and binary before sending real work. Runtime availability proves the image exists. Provider credentials and model access are separate checks.
+
+```typescript
+import { SandboxClient } from '@agentuity/sandbox';
+import { logger } from '@agentuity/telemetry';
+
+const client = new SandboxClient();
+
+const result = await client.run({
+  runtime: 'opencode:latest',
+  network: { enabled: true },
+  timeout: { execution: '2m' },
+  command: {
+    exec: [
+      'sh',
+      '-lc',
+      [
+        'pwd',
+        'which opencode',
+        'opencode --version',
+        'opencode run --help | sed -n "1,80p"',
+      ].join(' && '),
+    ],
+  },
+});
+
+logger.info('opencode runtime check', {
+  exitCode: result.exitCode,
+  stdout: result.stdout,
+  stderr: result.stderr,
+});
+```
+
+When you run a headless coding-agent command, parse its event output and fail on structured error events. A process exit code alone is not always enough to prove success.
+
+## When to switch to `create()`
+
+Use `client.create()` instead of `client.run()` when the workflow needs:
+
+- multiple commands against the same filesystem
+- a background server or agent daemon
+- file reads after the command finishes
+- pause/resume or checkpoints
+- snapshots for reuse
+
+Wrap interactive sandboxes in `try`/`finally` and call `sandbox.destroy()` when the workflow is done.
+
+## Key Points
+
+- Use `command.files` for the files a one-shot command needs before it starts.
+- Set `network.enabled: true` when the tool needs to download packages or call a provider.
+- Print explicit result markers when stdout contains installer logs or tool chatter.
+- Check `exitCode`, stdout/stderr, and the app-level contract you asked the tool to satisfy.
+- Use [Coder](/services/coder) when the task needs session state, replay, skills, or human review.
+
+## See Also
+
+- [Coding agents in sandboxes](/services/sandbox/coding-agents): validate coding-agent runtimes and parse agent event output
+- [Using the Sandbox API](/services/sandbox/sdk-usage): file I/O, jobs, pause/resume, and snapshots
+- [Ephemeral workflows](/services/sandbox/ephemeral-workflows): use one-shot sandboxes for bounded validation tasks
+- [Building Coding Agents](/build/agents/coding-agent): choose Coder, Sandbox, or app-owned workflows

@@ -32,8 +32,8 @@ Skills activate automatically based on conversation context. No slash commands n
 |-------|----------------|--------|
 | **agentuity-project** | Deploying, hosting, or creating projects | Project structure, framework migration, `agentuity deploy` |
 | **agentuity-cloud** | Working with cloud infrastructure | Platform services overview (DB, storage, queues, sandboxes, etc.) |
-| **agentuity-backend** | Using Agentuity backend packages | `@agentuity/runtime`, `@agentuity/schema`, `@agentuity/drizzle`, `@agentuity/postgres` |
-| **agentuity-frontend** | Using Agentuity frontend packages | `hc()` client patterns, `@agentuity/auth`, `@agentuity/frontend`, `@agentuity/react` compatibility |
+| **agentuity-backend** | Using Agentuity backend packages | `@agentuity/core`, `@agentuity/schema`, service clients, and relational database helpers when explicitly needed |
+| **agentuity-frontend** | v2 migration support for frontend packages | Hono client (`hc()`), `@agentuity/auth`, `@agentuity/frontend`, and `@agentuity/react` migration guidance for v2 apps |
 | **agentuity-ops** | Running Agentuity CLI commands | CLI reference, cloud service management, deployments |
 
 ### Example Interactions
@@ -48,7 +48,7 @@ Skills activate automatically based on conversation context. No slash commands n
 
 **Build with the SDK:**
 > "Create a React frontend that calls my agent"
-> `agentuity-frontend` activates with `hc()` client guidance, `@agentuity/frontend` utilities, and `@agentuity/react` compatibility notes
+> `agentuity-frontend` activates with v2-migration guidance for `hc()` client patterns, `@agentuity/auth`, `@agentuity/frontend`, and `@agentuity/react`. None of these are v3 packages; see [Migration](/migration) for moving to v3.
 
 ## Session Hook
 
@@ -81,4 +81,4 @@ claude plugin validate /path/to/sdk/packages/claude-code
 
 - [OpenCode Plugin](/reference/cli/opencode-plugin): Alternative plugin for OpenCode with a multi-agent team
 - [AI Commands](/reference/cli/ai-commands): Other AI-related CLI commands
-- [Creating Agents](/agents/creating-agents): Build your first agent
+- [Agents](/build/agents): Structure model-backed workflows in current Agentuity apps

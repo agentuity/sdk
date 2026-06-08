@@ -1,25 +1,24 @@
 /**
- * Standalone invoke script for Hello Agent
+ * Standalone run script for Hello World
  *
- * Uses ctx.invoke() with agent.run() pattern (SDK 0.1.14+)
+ * Uses the same plain function module as the API route, keeping the sandbox
+ * demo and route behavior aligned.
  *
  * Usage: bun run src/run/hello.ts '{"name":"World"}'
  */
-import { createAgentContext } from '@agentuity/runtime';
-import helloAgent from '../agent/hello/agent';
+import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
+import hello from '../agent/hello/agent';
 
 const input = JSON.parse(process.argv[2] ?? '{"name":"World"}');
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 
 try {
 	ctx.logger.info('Processing greeting', { name: input.name });
-	const result = await ctx.invoke(() => helloAgent.run(input));
+	const result = await hello.run(input);
 
-	console.log('---OUTPUT---');
-	console.log(result);
-	console.log('---OUTPUT---');
+	writeSandboxOutput(result);
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
+	process.exitCode = 1;
 }

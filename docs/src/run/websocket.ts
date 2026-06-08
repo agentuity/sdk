@@ -1,10 +1,11 @@
 /**
  * Standalone run script for WebSocket demo
  *
- * Protocol simulation for the WebSocket Explorer demo
+ * Simulates the browser/server message flow behind the live WebSocket route.
  *
  * Usage: bun run src/run/websocket.ts '{}'
  */
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 
 try {
 	const messages: string[] = [];
@@ -92,23 +93,20 @@ try {
 	await Bun.sleep(100);
 	server.stop();
 
-	console.log('---OUTPUT---');
-	console.log('WebSocket Echo Demo');
-	console.log('===================');
-	console.log('');
-	for (const msg of messages) {
-		console.log(msg);
-	}
-	console.log('');
-	console.log(`Client received ${clientMessages.length} messages:`);
-	for (const msg of clientMessages) {
-		console.log(`  ${msg}`);
-	}
-	console.log('');
-	console.log('This simulates the protocol flow behind websocket() route handlers');
-	console.log('---OUTPUT---');
+	writeSandboxOutput(
+		[
+			'WebSocket Echo Demo',
+			'===================',
+			'',
+			...messages,
+			'',
+			`Client received ${clientMessages.length} messages:`,
+			...clientMessages.map((msg) => `  ${msg}`),
+			'',
+			'This simulates the protocol flow behind the WebSocket route',
+		].join('\n')
+	);
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
+	process.exitCode = 1;
 }

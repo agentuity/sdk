@@ -1,12 +1,13 @@
 /**
  * Standalone run script for the Schedules demo
  *
- * Uses ScheduleClient to create a real managed schedule, inspect it,
- * then delete it in cleanup.
+ * Creates a real managed schedule, reports the next delivery, then deletes the
+ * schedule in cleanup.
  *
  * Usage: bun run src/run/schedule.ts '{"expression":"* * * * *"}'
  */
 import { ScheduleClient } from '@agentuity/schedule';
+import { writeSandboxOutput } from '../lib/sandbox-output-writer';
 
 const DEFAULT_DESTINATION_URL = 'https://agentuity.dev/api/hello';
 const DEFAULT_EXPRESSION = '* * * * *';
@@ -36,6 +37,7 @@ try {
 	const input = parseInput();
 	const name = `${input.namePrefix}-${Date.now()}`;
 
+	// Use a caller-provided destination so the demo does not assume one framework.
 	const { schedule, destinations } = await schedules.create({
 		name,
 		description: 'SDK Explorer schedules demo',
@@ -73,7 +75,5 @@ try {
 		}
 	}
 
-	console.log('---OUTPUT---');
-	console.log(output.join('\n'));
-	console.log('---OUTPUT---');
+	writeSandboxOutput(output.join('\n'));
 }

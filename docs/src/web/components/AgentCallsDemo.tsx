@@ -183,7 +183,7 @@ export function AgentCallsDemo() {
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg shadow-2xl flex flex-col gap-4 overflow-hidden p-4">
 				{/* Hint text */}
 				<p className="text-zinc-500 text-sm m-0">
-					Select a pattern and operation, then click Run to see agent invocation in action.
+					Select a call shape and operation, then click Run to see agent calls in action.
 				</p>
 
 				{/* Pattern selector */}
@@ -276,7 +276,7 @@ export function AgentCallsDemo() {
 							{'taskId' in result && (
 								<div className="space-y-2">
 									<div className="text-zinc-700 dark:text-zinc-300">
-										Response returned immediately, agent runs in background
+										Response returned immediately, work continues in the background
 									</div>
 									<div className="text-zinc-500 text-sm">
 										Task ID:{' '}
@@ -293,7 +293,7 @@ export function AgentCallsDemo() {
 									{result.steps.map((step) => (
 										<div key={step.step} className="flex items-center gap-2 text-sm">
 											<span className="text-zinc-500 w-28 shrink-0">
-												Agent {step.step} ({step.operation}):
+												Step {step.step} ({step.operation}):
 											</span>
 											<span className="text-cyan-800 dark:text-cyan-400 font-mono">
 												{step.result}

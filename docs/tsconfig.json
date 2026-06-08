@@ -25,6 +25,12 @@
 			"@middleware/*": ["./src/middleware/*"]
 		}
 	},
-	"include": ["src/**/*", "app.ts"],
-	"exclude": ["src/web/public/pagefind"]
+	"include": [
+		"src/**/*",
+		"app.ts",
+		"server.ts",
+		"scripts/dev.ts",
+		"scripts/prepare-start-output.ts"
+	],
+	"exclude": ["src/web/public/pagefind", "src/web/status"]
 }

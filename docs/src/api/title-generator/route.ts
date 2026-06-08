@@ -1,8 +1,8 @@
-import { validator, type Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
 import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { Hono } from 'hono';
+import { getModel } from '../../lib/models';
 
 // Schema for conversation message
 export const ConversationMessageSchema = z.object({
@@ -16,6 +16,7 @@ export const TitleGeneratorRequestSchema = z.object({
 });
 
 type ConversationMessage = z.infer<typeof ConversationMessageSchema>;
+const TITLE_MODEL = 'anthropic/claude-opus-4-8';
 
 function sanitizeTitle(input: string): string {
 	if (!input) return '';
@@ -61,12 +62,16 @@ function formatHistory(messages: ConversationMessage[]): string {
 		.join('\n');
 }
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 
 	// POST /api/title-generator
-	.post('/', validator({ input: TitleGeneratorRequestSchema }), async (c) => {
+	.post('/', async (c) => {
 		try {
-			const { conversationHistory } = c.req.valid('json');
+			const parsed = TitleGeneratorRequestSchema.safeParse(await c.req.json());
+			if (!parsed.success) {
+				return c.json({ error: 'Invalid title generation request' }, 400);
+			}
+			const { conversationHistory } = parsed.data;
 
 			if (conversationHistory.length === 0) {
 				return c.json({ title: 'New chat' });
@@ -86,7 +91,7 @@ Conversation:
 ${historyText}`;
 
 			const response = await generateText({
-				model: openai('gpt-5.4-mini'),
+				model: getModel(TITLE_MODEL),
 				prompt,
 				system:
 					'You are a title generator for chat sessions. Generate concise, descriptive titles only. Output only the title text, nothing else.',

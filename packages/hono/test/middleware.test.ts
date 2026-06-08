@@ -1,6 +1,7 @@
 import { describe, expect, test, beforeEach } from 'bun:test';
 import { Hono } from 'hono';
 import { agentuity, getServices, getTelemetry, reset, resetServices } from '../src/index.ts';
+import type { Logger, Services } from '../src/index.ts';
 
 describe('@agentuity/hono', () => {
 	beforeEach(() => {
@@ -101,6 +102,29 @@ describe('@agentuity/hono', () => {
 
 			await app.fetch(new Request('http://localhost/'));
 			expect(sawKv).toBe(true);
+		});
+
+		test('mounts cleanly on a typed Hono app', async () => {
+			type Variables = Pick<Services, 'kv'> & {
+				logger: Logger;
+			};
+
+			const app = new Hono<{ Variables: Variables }>();
+			app.use('*', agentuity());
+
+			app.get('/typed', (c) => {
+				return c.json({
+					hasKeyValue: c.var.kv !== undefined,
+					hasLogger: c.var.logger !== undefined,
+				});
+			});
+
+			const res = await app.fetch(new Request('http://localhost/typed'));
+			expect(res.status).toBe(200);
+			await expect(res.json()).resolves.toEqual({
+				hasKeyValue: true,
+				hasLogger: true,
+			});
 		});
 	});
 

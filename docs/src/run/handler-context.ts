@@ -1,74 +1,69 @@
 /**
- * Standalone run script for Handler Context demo
+ * Standalone run script for Route Context demo
  *
- * NOTE: Intentionally separate from src/agent/handler-context/agent.ts.
- * Exploratory demo showing ctx object, agent is more structured.
+ * NOTE: This demo is intentionally route-adjacent rather than route-bound.
+ * The live Explorer uses Hono request handlers; this script focuses on the
+ * same service and logging concepts in a sandbox-friendly shape.
  * See src/run/AGENTS.md for architecture details.
  *
- * Demonstrates: Key AgentContext properties and methods
- * This exercises the ctx object to show what's available inside handlers.
+ * Shows request-adjacent concepts: logging, injected services, app-owned state,
+ * and background helpers.
  *
  * Usage: bun run src/run/handler-context.ts '{}'
  */
-import { createAgentContext, getAgentContext } from '@agentuity/runtime';
+import { getDemoContext, runWithDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 
-const standaloneCtx = createAgentContext();
+const standaloneCtx = getDemoContext();
+const stateByVisitorId = new Map<string, { lastSeenAt: string; visits: number }>();
 
-// Wrap in invoke() - inside the callback, use getAgentContext() to get the
-// context with real IDs (the outer standaloneCtx still has "pending" IDs)
-await standaloneCtx.invoke(async () => {
+await runWithDemoContext(standaloneCtx, async () => {
 	try {
-		// Get the actual context from AsyncLocalStorage (has real sessionId/threadId)
-		const ctx = getAgentContext();
+		const ctx = getDemoContext();
+		const visitorId = `demo_${crypto.randomUUID()}`;
+		const output: string[] = [''];
 
-		console.log('---OUTPUT---');
-		console.log('');
-
-		// Identifiers
-		console.log('Identifiers:');
-		console.log(`  sessionId: ${ctx.sessionId}`);
-		console.log(`  threadId: ${ctx.thread.id}`);
-		console.log('');
-
-		// Logger demonstration
-		console.log('Logger (writes to trace, shown above):');
-		ctx.logger.info('Processing request', { userId: 'user-123' });
-		ctx.logger.debug('Debug details', { threadId: ctx.thread.id });
+		output.push('Route logging:');
+		ctx.logger.info('Context inspected', { visitorId });
+		ctx.logger.debug('Service surface checked', { visitorId });
 		ctx.logger.warn('Example warning log');
 		ctx.logger.error('Example error log');
-		console.log('  ctx.logger.info(), .debug(), .warn(), .error() available');
-		console.log('');
+		output.push('  Hono routes read the logger from c.var.logger');
+		output.push('');
 
-		// Storage access demonstration
-		console.log('Storage & Services:');
-		console.log('  ctx.kv - Key-Value storage');
-		console.log('  ctx.vector - Vector storage');
-		console.log('  ctx.stream - Durable stream management');
-		console.log('  Bun.s3 - S3-compatible object storage (Bun built-in)');
-		console.log('');
+		output.push('Services available to route code:');
+		output.push('  c.var.kv - Key-Value storage');
+		output.push('  c.var.vector - Vector storage');
+		output.push('  c.var.stream - Durable stream management');
+		output.push('  c.var.queue - Queue publishing');
+		output.push('');
 
-		// Thread state demonstration
-		console.log('Thread State (persists across requests):');
-		await ctx.thread.state.set('demo-key', { value: 'test' });
-		const stored = await ctx.thread.state.get('demo-key');
-		console.log(`  set("demo-key", {value: "test"})`);
-		console.log(`  get("demo-key") -> ${JSON.stringify(stored)}`);
-		await ctx.thread.state.delete('demo-key');
-		console.log('  delete("demo-key") - cleaned up');
-		console.log('');
+		const previous = stateByVisitorId.get(visitorId);
+		const next = {
+			lastSeenAt: new Date().toISOString(),
+			visits: (previous?.visits ?? 0) + 1,
+		};
+		stateByVisitorId.set(visitorId, next);
 
-		// Session state demonstration
-		console.log('Session State (per-request only):');
-		const timestamp = new Date().toISOString();
-		ctx.session.state.set('request-time', timestamp);
-		const requestTime = ctx.session.state.get('request-time');
-		console.log(`  set("request-time", "${timestamp}")`);
-		console.log(`  get("request-time") -> ${requestTime}`);
-		console.log('---OUTPUT---');
+		output.push('App-owned state boundary:');
+		output.push(`  visitorId: ${visitorId}`);
+		output.push(`  previous visits: ${previous?.visits ?? 0}`);
+		output.push(`  current visits: ${next.visits}`);
+		output.push('  in a real route, keep the id in a cookie and the record in KV or your DB');
+		output.push('');
+
+		output.push('Background helper:');
+		const backgroundTask = new Promise<void>((resolve) => {
+			setTimeout(() => {
+				output.push('  background task completed');
+				resolve();
+			}, 25);
+		});
+		ctx.waitUntil(backgroundTask);
+		await backgroundTask;
+		writeSandboxOutput(output.join('\n'));
 	} catch (error) {
 		process.exitCode = 1;
-		console.log('---OUTPUT---');
-		console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-		console.log('---OUTPUT---');
+		writeSandboxError(error);
 	}
 });

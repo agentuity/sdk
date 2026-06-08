@@ -18,6 +18,7 @@ Use `listConnectableSessions()` when you want to show only sessions that still h
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 async function main(): Promise<void> {
   const client = new CoderClient();
@@ -26,7 +27,7 @@ async function main(): Promise<void> {
     // listConnectableSessions filters out history-only sessions so your picker starts from resumable candidates
     const { sessions } = await client.listConnectableSessions({ limit: 20 }); // [!code highlight]
 
-    console.log(
+    logger.info(
       JSON.stringify(
         sessions.map((session) => ({
           sessionId: session.sessionId,
@@ -42,8 +43,8 @@ async function main(): Promise<void> {
     );
   } catch (error) {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
-    console.error('Failed to list reconnectable sessions');
-    console.error(message);
+    logger.error('Failed to list reconnectable sessions');
+    logger.error(message);
     process.exitCode = 1;
   }
 }
@@ -59,6 +60,7 @@ Once a user picks a session, use `prepareSessionForRemoteAttach()` to check whet
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 const sessionId = process.argv[2];
 
@@ -81,14 +83,14 @@ async function main(): Promise<void> {
 
     if (session.historyOnly) {
       // The live runtime is gone, hydrate from replay or a read-only view instead
-      console.log('Session is history-only. Use replay or session detail instead of re-attaching.');
+      logger.info('Session is history-only. Use replay or session detail instead of re-attaching.');
       return;
     }
 
     if (session.runtimeAvailable) {
       // Attaching before the runtime is up fails; this check confirms it's ready
-      console.log('Session is attachable.');
-      console.log(
+      logger.info('Session is attachable.');
+      logger.info(
         JSON.stringify(
           {
             sessionId: session.sessionId,
@@ -105,8 +107,8 @@ async function main(): Promise<void> {
 
     // wakeAvailable is false, so prepareSessionForRemoteAttach returned immediately
     // without polling, typical for provisioning-bucket sessions that aren't yet wakeable
-    console.log('Session is not attachable yet.');
-    console.log(
+    logger.info('Session is not attachable yet.');
+    logger.info(
       JSON.stringify(
         {
           sessionId: session.sessionId,
@@ -122,8 +124,8 @@ async function main(): Promise<void> {
     );
   } catch (error) {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
-    console.error('Failed to prepare the session for remote attach');
-    console.error(message);
+    logger.error('Failed to prepare the session for remote attach');
+    logger.error(message);
     process.exitCode = 1;
   }
 }
@@ -131,7 +133,7 @@ async function main(): Promise<void> {
 void main();
 ```
 
-## What to Look For
+## What to look for
 
 The two methods solve different parts of the reconnect story:
 

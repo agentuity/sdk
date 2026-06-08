@@ -1,0 +1,275 @@
+---
+title: Agents
+description: Structure model-backed workflows as plain server functions called from routes, workers, schedules, and scripts
+---
+
+When a request, job, or script needs a model-backed decision loop, put that work in a plain server-side function. The caller owns the trigger; the agent function owns validation, context reads, model calls, tool calls, and state writes.
+
+Because agents are app code, they use the same dependencies as the rest of the app: your framework logger, OpenTelemetry setup, database client or ORM, model SDK, and any Agentuity service client that fits the workflow.
+
+## The Minimal Shape
+
+Start with a plain typed function. It accepts validated input, returns typed output, and does not call `createAgent()`.
+
+```bash
+npm install @agentuity/aigateway @agentuity/keyvalue zod
+```
+
+```typescript
+import { AIGatewayClient } from '@agentuity/aigateway';
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { z } from 'zod';
+
+const outputSchema = z.object({
+  priority: z.enum(['low', 'medium', 'high']).describe('Urgency level'),
+  summary: z.string().describe('One-sentence summary of the issue'),
+});
+
+type TriageResult = z.infer<typeof outputSchema>;
+
+const kv = new KeyValueClient();
+const gateway = new AIGatewayClient();
+const TRIAGE_MODEL = 'googleai/gemini-3.5-flash';
+
+export async function triageMessage(
+  customerId: string,
+  message: string
+): Promise<TriageResult> {
+  const previous = await kv.get<TriageResult>('support-triage', customerId);
+
+  const { data } = await gateway.completeStructured({ // [!code highlight]
+    model: TRIAGE_MODEL,
+    messages: [
+      {
+        role: 'system',
+        content: 'Classify support messages for a product engineering team.',
+      },
+      {
+        role: 'user',
+        content: [
+          `Customer message: ${message}`,
+          previous.exists ? `Previous summary: ${previous.data.summary}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n\n'),
+      },
+    ],
+    response_schema: { name: 'triage_result', schema: outputSchema }, // [!code highlight]
+  });
+
+  const output = outputSchema.parse(data);
+
+  await kv.set('support-triage', customerId, output, { // [!code highlight]
+    ttl: 60 * 60 * 24 * 30, // 30 days
+  });
+
+  return output;
+}
+```
+
+Then keep the route thin:
+
+```typescript title="app/api/triage/route.ts"
+import { triageMessage } from '@/lib/triage';
+import { z } from 'zod';
+
+const inputSchema = z.object({
+  customerId: z.string(),
+  message: z.string(),
+});
+
+export async function POST(request: Request): Promise<Response> {
+  const body: unknown = await request.json();
+  const { customerId, message } = inputSchema.parse(body); // [!code highlight]
+  const result = await triageMessage(customerId, message); // [!code highlight]
+  return Response.json(result);
+}
+```
+
+## Complete Self-Contained Example
+
+This is the full file version: one module, schemas, agent function, and route handler together. Use this shape for smaller features before splitting.
+
+```bash
+npm install @agentuity/aigateway @agentuity/keyvalue zod
+```
+
+```typescript title="app/api/triage/route.ts"
+import { AIGatewayClient } from '@agentuity/aigateway';
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { z } from 'zod';
+
+// Zod validates app data and gives the gateway a structured-output schema
+const inputSchema = z.object({
+  customerId: z.string(),
+  message: z.string(),
+});
+
+const outputSchema = z.object({
+  priority: z.enum(['low', 'medium', 'high']).describe('Urgency level'),
+  summary: z.string().describe('One-sentence summary of the issue'),
+  nextAction: z.string().describe('Recommended next step for the team'),
+});
+
+type TriageInput = z.infer<typeof inputSchema>;
+type TriageResult = z.infer<typeof outputSchema>;
+
+// Module-level client: initialized once, reused across requests
+const kv = new KeyValueClient();
+const gateway = new AIGatewayClient();
+const TRIAGE_MODEL = 'googleai/gemini-3.5-flash';
+
+async function runSupportTriage(input: TriageInput): Promise<TriageResult> {
+  const previous = await kv.get<TriageResult>('support-triage', input.customerId);
+
+  const { data } = await gateway.completeStructured({
+    model: TRIAGE_MODEL,
+    messages: [
+      {
+        role: 'system',
+        content: 'Classify support messages for a product engineering team.',
+      },
+      {
+        role: 'user',
+        content: [
+          `Customer message: ${input.message}`,
+          previous.exists ? `Previous summary: ${previous.data.summary}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n\n'),
+      },
+    ],
+    response_schema: { name: 'triage_result', schema: outputSchema },
+  });
+
+  const output = outputSchema.parse(data);
+
+  await kv.set('support-triage', input.customerId, output, {
+    ttl: 60 * 60 * 24 * 30,
+  });
+
+  return output;
+}
+
+export async function POST(request: Request): Promise<Response> {
+  const body: unknown = await request.json();
+  const input = inputSchema.parse(body);
+  const result = await runSupportTriage(input);
+  return Response.json(result);
+}
+```
+
+What each layer does:
+
+- The route owns HTTP parsing and response formatting
+- `runSupportTriage` owns the model call, context read, and state write
+- `KeyValueClient` stores context by namespace (`'support-triage'`) and key (customer ID)
+- `response_schema` asks the gateway for provider-agnostic structured output; Zod validates the parsed data before storage
+- `previous.exists` is the type-safe way to access `previous.data`
+
+<Callout type="tip" title="Configure models by task">
+Keep the model ID in configuration so you can change extraction, classification, review, and reasoning workflows independently. Direct Gateway calls use the Agentuity project credential; use [AI Gateway](/services/ai-gateway#model-catalog) or your provider's catalog to pick the exact model ID.
+</Callout>
+
+## Split the Route from the Work
+
+Once the function is stable, move it to a shared module. The same function can then run from a route, a queue consumer, a schedule, or a test, without duplicating any logic.
+
+```typescript title="lib/triage.ts"
+export async function triageMessage(body: unknown): Promise<TriageResult> {
+  const input = inputSchema.parse(body);  // validates at the boundary
+  return runSupportTriage(input);
+}
+```
+
+```typescript title="app/api/triage/route.ts"
+import { triageMessage } from '@/lib/triage';
+
+export async function POST(request: Request): Promise<Response> {
+  const body: unknown = await request.json();
+  const result = await triageMessage(body);
+  return Response.json(result);
+}
+```
+
+Unit tests call `triageMessage()` directly with plain objects, so you do not need to build a `Request`.
+
+## Migration Boundary
+
+The current Agentuity shape is a normal app where routes, schedules, queues, and scripts call plain server-side functions. If you are copying code from previous SDK versions, use [Migration](/migration) first when you see the older patterns below.
+
+| Concern | Current Agentuity app | Previous SDK versions |
+|---|---|---|
+| Agent entry point | Plain `async function` | `createAgent()` |
+| File location | Anywhere in your project | `src/agent/*` |
+| Storage access | `new KeyValueClient()` or `c.var.kv` in Hono | `ctx.kv` |
+| Calling an agent | Call the function directly | `agent.run(input)` |
+| Route ownership | You own it | Runtime-managed |
+
+See [Migrating Runtime Apps to Frameworks](/migration/runtime-to-frameworks) when an existing app still has runtime-managed agents.
+
+## Use Hono Middleware for Shared Clients
+
+In a Hono app, `@agentuity/hono` initializes all service clients once and injects them via `c.var`. Use this when most routes in the app need the same clients or logger.
+
+```bash
+npm install hono @agentuity/hono zod
+```
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { agentuity } from '@agentuity/hono';
+import type { Services, Logger } from '@agentuity/hono';
+import { z } from 'zod';
+
+type Variables = Pick<Services, 'kv'> & { logger: Logger };
+
+const app = new Hono<{ Variables: Variables }>();
+
+app.use('*', agentuity()); // initializes kv, logger, and other clients once // [!code highlight]
+
+app.post('/api/triage', async (c) => {
+  const body: unknown = await c.req.json();
+  const input = z.object({ customerId: z.string(), message: z.string() }).parse(body);
+
+  const previous = await c.var.kv.get<{ summary: string }>('support-triage', input.customerId); // [!code highlight]
+  c.var.logger.info('triage requested', { customerId: input.customerId });
+
+  return c.json({
+    previousSummary: previous.exists ? previous.data.summary : null,
+  });
+});
+
+export default app;
+```
+
+Use `c.var.logger` only inside Hono route handlers. For code outside a Hono context, import `logger` from `@agentuity/telemetry` directly.
+
+Direct clients (`new KeyValueClient()`) are the portable default and work in Next.js, React Router, TanStack Start, Nuxt, SvelteKit, Astro, scripts, and workers. Hono middleware is the better choice when you are already in a Hono app and want a single initialization point.
+
+## Choose This Shape
+
+| Use this shape for | Consider something else when |
+|---|---|
+| Classifying, routing, summarizing, drafting, or reviewing input | The work is pure CRUD with no model decision |
+| Workflows that read and write durable context between requests | The state belongs inside a database transaction |
+| Logic that may later run from queues, schedules, or scripts | You need a long-running sandbox or Coder session |
+| Features that need unit tests around the model call | The logic is too simple to warrant a separate function |
+
+## Best Practices
+
+- **Separate parsing from work.** Parse and validate at the route boundary. Pass typed values into the agent function, not raw `Request` bodies.
+- **Instantiate clients at module scope.** `new KeyValueClient()` at the top of the file, not inside the handler. One instance per process.
+- **Check `result.exists` before reading `result.data`.** `KeyValueClient.get<T>` returns a discriminated union: `data` is only present when `exists` is `true`.
+- **Use Zod `.describe()` on output schema fields.** Field descriptions are passed to the model and improve structured output consistency for enums and formatted strings.
+- **Keep agent functions framework-free.** Don't import Hono or Next.js internals into the function that does model work. That keeps it testable and portable.
+- **Log with the right logger.** Use `c.var.logger` in Hono route handlers when `@agentuity/hono` is mounted, and `logger` from `@agentuity/telemetry` in shared Agentuity examples. If the app already standardizes on another server logger, keep that boundary consistent. Avoid `console.log` for app diagnostics that need structured fields.
+
+## Next Steps
+
+- [Chat and Streaming](/build/agents/chat-and-streaming): return model output as it is generated, rather than waiting for a complete response
+- [Tool Calling](/build/agents/tool-calling): let a model call bounded app functions and act on results
+- [State and Memory](/build/agents/state-and-memory): store and retrieve conversation context across requests
+- [Background Work](/build/apps-and-apis/background-work): move slow model or export work out of the request handler
+- [Evals and Testing](/services/observability/evals-and-testing): score agent outputs with judge tests and traces
+- [Key-Value Storage](/services/storage/key-value): full reference for `KeyValueClient` namespaces, TTLs, and search

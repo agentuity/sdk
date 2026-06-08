@@ -1,8 +1,8 @@
 /**
- * Message Queue Agent
+ * Message queue Explorer demo
  *
  * Demonstrates queue operations for the publish side of message queues.
- * Agents use ctx.queue for creating queues and publishing messages.
+ * This local demo uses its injected context to create queues and publish messages.
  * Consume-side operations (receive, ack, nack, DLQ) use the server API
  * client directly — see src/api/queue/route.ts.
  *
@@ -12,7 +12,7 @@
  *
  * Docs: https://agentuity.dev/services/queues
  */
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 
 const DEFAULT_QUEUE_NAME = 'explorer-demo';
@@ -89,7 +89,7 @@ const InputSchema = s.union(
 	})
 );
 
-const agent = createAgent('queue', {
+const agent = defineDemoAgent('queue', {
 	description: 'Demonstrates message queue publish operations',
 	schema: {
 		input: InputSchema,

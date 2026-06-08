@@ -1,5 +1,5 @@
 /**
- * Key-Value Storage Agent
+ * Key-Value Storage Explorer demo
  *
  * Demonstrates KV storage for simple key-based data access. KV is ideal when
  * you know the exact key you're looking for - like user sessions, config values,
@@ -14,7 +14,7 @@
  *
  * Docs: https://agentuity.dev/services/storage/key-value
  */
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 
 // Sample data for seeding - demonstrates different value types (string, object, array)
@@ -43,7 +43,7 @@ const InputSchema = s.union(
 	})
 );
 
-const agent = createAgent('kv', {
+const agent = defineDemoAgent('kv', {
 	description: 'Demonstrates Key-Value storage read operations',
 	schema: {
 		input: InputSchema,

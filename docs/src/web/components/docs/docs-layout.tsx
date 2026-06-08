@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
+import { Link, Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -12,19 +12,13 @@ import {
 	SidebarTrigger,
 } from '../ui';
 import { AppSidebar } from './app-sidebar';
+import { getFrontmatterForRoute } from './generated/frontmatter-data';
 import { HeaderLinks } from './header-links';
-import { getFrontmatterForRoute } from './mdx-page';
 import { ModeToggle } from './mode-toggle';
 import { findBreadcrumbChain } from './nav-data';
 import { SearchDialog } from './search-dialog';
 
-function HeaderBreadcrumb({
-	currentPage,
-	onNavigate,
-}: {
-	currentPage: string;
-	onNavigate: (path: string) => void;
-}) {
+function HeaderBreadcrumb({ currentPage }: { currentPage: string }) {
 	const chain =
 		currentPage === 'home' ? [{ title: 'Home', url: '/' }] : findBreadcrumbChain(currentPage);
 
@@ -42,17 +36,8 @@ function HeaderBreadcrumb({
 								{isLast ? (
 									<BreadcrumbPage>{crumb.title}</BreadcrumbPage>
 								) : (
-									<BreadcrumbLink
-										href={crumb.url ?? '#'}
-										onClick={(e) => {
-											e.preventDefault();
-											if (crumb.url) {
-												const path = crumb.url === '/' ? 'home' : crumb.url.slice(1);
-												onNavigate(path);
-											}
-										}}
-									>
-										{crumb.title}
+									<BreadcrumbLink asChild>
+										<Link to={crumb.url ?? '#'}>{crumb.title}</Link>
 									</BreadcrumbLink>
 								)}
 							</BreadcrumbItem>
@@ -105,10 +90,12 @@ export function DocsLayout() {
 		[navigate]
 	);
 
-	const openAISearch = React.useCallback(() => {
-		setSearchInitialMode('ai');
+	const openSearch = React.useCallback((mode: 'search' | 'ai') => {
+		setSearchInitialMode(mode);
 		setSearchOpen(true);
 	}, []);
+
+	const openAISearch = React.useCallback(() => openSearch('ai'), [openSearch]);
 
 	const handleSearchOpenChange = React.useCallback((open: boolean) => {
 		setSearchOpen(open);
@@ -118,39 +105,38 @@ export function DocsLayout() {
 	// Keyboard shortcut for search
 	React.useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+			if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)) {
 				e.preventDefault();
-				setSearchInitialMode('search');
-				setSearchOpen(true);
+				if (searchOpen || document.querySelector('[data-agentuity-search-dialog]')) {
+					return;
+				}
+
+				openSearch('search');
 			}
 		};
 
-		window.addEventListener('keydown', handleKeyDown);
-		return () => window.removeEventListener('keydown', handleKeyDown);
-	}, []);
+		window.addEventListener('keydown', handleKeyDown, { capture: true });
+		return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+	}, [searchOpen, openSearch]);
 
 	return (
 		<SidebarProvider className="min-h-0! h-full">
 			<title>{pageTitle}</title>
 			<AppSidebar
 				currentPage={currentPage}
-				onNavigate={handleNavigate}
-				onOpenSearch={() => {
-					setSearchInitialMode('search');
-					setSearchOpen(true);
-				}}
+				onOpenSearch={() => openSearch('search')}
 				onOpenAISearch={openAISearch}
 			/>
 			<SidebarInset className="flex flex-col">
 				<header className="bg-background sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b px-4">
 					<SidebarTrigger />
-					<HeaderBreadcrumb currentPage={currentPage} onNavigate={handleNavigate} />
+					<HeaderBreadcrumb currentPage={currentPage} />
 					<div className="flex-1" />
 					<HeaderLinks />
 					<ModeToggle />
 				</header>
 
-				<main ref={mainRef} className="flex-1 overflow-y-auto">
+				<main id="docs-main-scroll" ref={mainRef} className="flex-1 overflow-y-auto">
 					<Outlet />
 				</main>
 			</SidebarInset>

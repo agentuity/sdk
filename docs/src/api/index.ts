@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+import type { ApiEnv } from './context';
 
 import agentCalls from './agent-calls/route';
 import agentPulse from './agent-pulse/route';
@@ -26,7 +26,7 @@ import vectorStorage from './vector-storage/route';
 import webrtc from './webrtc/route';
 import websocket from './websocket/route';
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 	.route('/agent-calls', agentCalls)
 	.route('/agent-pulse', agentPulse)
 	.route('/ai-gateway', aiGateway)

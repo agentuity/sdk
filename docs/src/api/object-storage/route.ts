@@ -1,5 +1,5 @@
 /**
- * Object Storage Route - File operations using Bun S3 API.
+ * Object Storage Route - File operations using @agentuity/storage.
  *
  * GET /                  - Returns metadata about available operations
  * POST /seed             - Seeds sample files into sdk-explorer bucket
@@ -7,17 +7,42 @@
  * GET /list              - Lists all files in sdk-explorer bucket
  * POST /presign/:filename - Generates presigned URL for temporary access
  */
-import { type Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
 import { s3 } from 'bun';
+import type { S3ClientLike } from '@agentuity/storage';
+import { bucketConfigFromEnv, createS3Client } from '@agentuity/storage';
 import objectstoreAgent from '../../agent/objectstore/agent';
 import { Hono } from 'hono';
 
-const router = new Hono<Env>()
+function createStorage(): S3ClientLike {
+	return createS3Client(bucketConfigFromEnv());
+}
+
+function isMissingObjectError(error: unknown): boolean {
+	return (
+		typeof error === 'object' &&
+		error !== null &&
+		'code' in error &&
+		(error.code === 'NoSuchKey' || error.code === 'NotFound')
+	);
+}
+
+async function objectExists(storage: S3ClientLike, key: string): Promise<boolean> {
+	try {
+		await storage.stat(key);
+		return true;
+	} catch (error) {
+		if (isMissingObjectError(error)) return false;
+		throw error;
+	}
+}
+
+const router = new Hono<ApiEnv>()
 
 	.get('/', (c) => {
 		return c.json({
 			name: 'Object Storage Demo',
-			description: 'File storage using Bun S3 API',
+			description: 'File storage using @agentuity/storage',
 			operations: ['download', 'list', 'presign', 'seed'],
 			bucket: 'sdk-explorer',
 		});
@@ -33,14 +58,15 @@ const router = new Hono<Env>()
 		const key = `sdk-explorer/${filename}`;
 
 		try {
-			const file = s3.file(key);
+			const storage = createStorage();
 
-			if (!(await file.exists())) {
+			if (!(await objectExists(storage, key))) {
 				return c.json({ error: 'File not found' }, 404);
 			}
 
+			const file = storage.file(key);
 			const data = await file.arrayBuffer();
-			const stat = await file.stat();
+			const stat = await storage.stat(key);
 
 			return c.body(data, {
 				headers: {
@@ -63,13 +89,14 @@ const router = new Hono<Env>()
 
 	.get('/list', async (c) => {
 		try {
+			const storage = createStorage();
 			const prefix = 'sdk-explorer/';
-			const objects = await s3.list({ prefix, maxKeys: 100 });
+			const objects = await storage.list({ prefix, maxKeys: 100 });
 
 			const files =
-				objects.contents?.map((obj) => ({
+				objects.contents.map((obj) => ({
 					key: obj.key,
-					filename: obj.key?.replace(prefix, '') || obj.key,
+					filename: obj.key.replace(prefix, '') || obj.key,
 					size: obj.size,
 					lastModified: obj.lastModified,
 				})) || [];
@@ -80,6 +107,13 @@ const router = new Hono<Env>()
 				files,
 			});
 		} catch (error) {
+			if (isMissingObjectError(error)) {
+				return c.json({
+					success: true,
+					count: 0,
+					files: [],
+				});
+			}
 			c.var.logger?.error('List failed', { error });
 			return c.json(
 				{
@@ -103,6 +137,8 @@ const router = new Hono<Env>()
 		const expiresIn = Math.min(Math.max(rawExpires, 60), 86400);
 
 		try {
+			// `@agentuity/storage` mirrors Bun's object APIs but does not expose
+			// presign yet, so this route keeps Bun's presign helper for the URL.
 			const url = s3.presign(key, {
 				expiresIn,
 				method: 'GET',

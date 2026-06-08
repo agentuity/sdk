@@ -23,6 +23,7 @@
 		"threads",
 		"user",
 		"vector",
-		"webhooks"
+		"webhooks",
+		"workflows"
 	]
 }

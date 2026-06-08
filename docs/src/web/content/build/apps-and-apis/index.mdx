@@ -1,0 +1,75 @@
+---
+title: Apps and APIs
+description: Build web apps, backend APIs, static sites, and background work on Agentuity
+---
+
+import { FileCode2, Globe2, Rows3, Server } from 'lucide-react';
+
+Start here when the thing you are deploying is an app, API, static site, worker route, or service boundary. Agentuity packages the project you already own. Keep the framework conventions, logging, and app data layer; add service clients where server-side code needs Agentuity infrastructure.
+
+<Cards>
+  <CardLink
+    href="/build/apps-and-apis/web-apps"
+    title="Web Apps"
+    description="Use Agentuity services from framework routes and server functions"
+    icon={<Globe2 />}
+  />
+  <CardLink
+    href="/build/apps-and-apis/backend-apis"
+    title="Backend APIs"
+    description="Deploy backend-only HTTP services with Hono or another Node server"
+    icon={<Server />}
+  />
+  <CardLink
+    href="/build/apps-and-apis/static-sites"
+    title="Static Sites"
+    description="Deploy plain HTML, static framework output, and SPA bundles"
+    icon={<FileCode2 />}
+  />
+  <CardLink
+    href="/build/apps-and-apis/background-work"
+    title="Background Work"
+    description="Use queues, status records, and worker routes for slow work"
+    icon={<Rows3 />}
+  />
+</Cards>
+
+## Choose the App Shape
+
+| App shape | Use when | Start with |
+| --- | --- | --- |
+| Web app | The app has pages, browser UI, and server routes or server functions. | [Web Apps](/build/apps-and-apis/web-apps) |
+| Backend API | The app exposes JSON endpoints, webhooks, or an internal service API. | [Backend APIs](/build/apps-and-apis/backend-apis) |
+| Static site | The app is plain HTML, a docs site, or a static SPA bundle. | [Static Sites](/build/apps-and-apis/static-sites) |
+| Background work | A request starts work that needs retries, status, or durable output. | [Background Work](/build/apps-and-apis/background-work) |
+
+## Minimal Backend Shape
+
+A deployable app can be a plain HTTP server. This Hono example has no agent-specific wrapper:
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+
+const app = new Hono();
+
+app.get('/health', (c) => {
+  return c.json({ healthy: true, uptime: process.uptime() });
+});
+
+app.post('/echo', async (c) => {
+  const body: unknown = await c.req.json();
+  return c.json({ echo: body, receivedAt: new Date().toISOString() });
+});
+
+export default app;
+```
+
+Add service clients only where the app needs them. A route can call `KeyValueClient`, a worker can publish to `QueueClient`, and a script can call `SandboxClient` with the same project credentials. Keep your app database, ORM, and framework logger where they already fit.
+
+## Next Steps
+
+Use these pages after you choose the HTTP, static, or background-work shape.
+
+- [Frameworks](/frameworks): use framework-native route files and server functions
+- [Services](/services): pick the client package for storage, queues, tasks, schedules, sandbox, Coder, and observability
+- [Deploy Framework Apps](/deploy-operate/deploy-framework-apps): inspect `agentuity build` output and `launch.json`

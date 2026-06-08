@@ -3,16 +3,15 @@ import {
 	Rocket,
 	Download,
 	Zap,
-	Bot,
-	Route as RouteIcon,
 	Server,
-	Monitor,
 	Play,
 	BookOpen,
-	Users,
 	Code,
 	Terminal,
 	Package,
+	Bot,
+	Globe,
+	Layers,
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { Cards, CardLink } from '../components/docs/cards';
@@ -38,8 +37,9 @@ function HomePage() {
 				>
 					Agentuity
 				</a>{' '}
-				is the full-stack cloud platform built for AI agents, with built-in storage, databases,
-				sandboxes, observability, and more.
+				is the cloud platform for deploying apps, APIs, static sites, background work, and
+				agents. Keep your framework conventions and add built-in, agent-native services where
+				they help.
 			</p>
 			<p className="text-lg text-zinc-600 dark:text-zinc-400 mb-10">
 				Start with a guide, explore interactive demos, or dive into the reference docs.
@@ -49,11 +49,11 @@ function HomePage() {
 				<Alert variant="tip" className="transition-colors hover:border-cyan-500/50">
 					<Play className="size-4" />
 					<AlertTitle className="group-hover:text-cyan-700 dark:group-hover:text-cyan-500 transition-colors">
-						Try the SDK in Your Browser
+						Try the SDK in your browser
 					</AlertTitle>
 					<AlertDescription>
-						The SDK Explorer has live, interactive demos for agents, storage, streaming, and
-						more. No setup required.
+						The SDK Explorer has live, interactive demos for app routes, services, streaming,
+						and more. No setup required.
 					</AlertDescription>
 				</Alert>
 			</Link>
@@ -77,7 +77,7 @@ function HomePage() {
 				<CardLink
 					href="/get-started/quickstart"
 					title="Quickstart"
-					description="Build and deploy your first agent in minutes"
+					description="Create, run, and deploy your first app"
 					icon={<Zap />}
 				/>
 			</Cards>
@@ -87,69 +87,81 @@ function HomePage() {
 			</h2>
 			<Cards className="lg:grid-cols-2">
 				<CardLink
-					href="/agents"
-					title="Agents"
-					description="Define handlers, validate input, manage state, and stream responses"
-					icon={<Bot />}
+					href="/frameworks"
+					title="Frameworks"
+					description="Start from Next.js, Nuxt, Hono, SvelteKit, Astro, or another app shape"
+					icon={<Code />}
 				/>
 				<CardLink
-					href="/routes"
-					title="Routes"
-					description="Expose APIs, schedule cron jobs, and handle real-time connections"
-					icon={<RouteIcon />}
+					href="/build/apps-and-apis"
+					title="Apps and APIs"
+					description="Build web apps, backend APIs, static sites, and background work"
+					icon={<Server />}
+				/>
+				<CardLink
+					href="/build/agents"
+					title="Agents"
+					description="Build model-backed app code for chat, tools, state, and coding work"
+					icon={<Bot />}
 				/>
 				<CardLink
 					href="/services"
 					title="Services"
-					description="Persist data, send emails, run background jobs, and execute sandboxed code"
-					icon={<Server />}
-				/>
-				<CardLink
-					href="/frontend"
-					title="Frontend"
-					description="Connect your React app to agents with type-safe hooks and auth"
-					icon={<Monitor />}
+					description="Add app infrastructure from routes, workers, scripts, and agents"
+					icon={<Layers />}
 				/>
 			</Cards>
 
 			<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-2">
 				Explore Further
 			</h2>
-			<Cards className="lg:grid-cols-2">
+			<Cards>
 				<CardLink
 					href="/cookbook"
 					title="Cookbook"
-					description="Step-by-step guides for RAG, chat history, background tasks, and more"
+					description="Recipes for common app, service, and agent patterns"
 					icon={<BookOpen />}
 				/>
 				<CardLink
-					href="/community"
-					title="Community"
-					description="Open-source examples and third-party integrations"
-					icon={<Users />}
+					href="/deploy-operate"
+					title="Deploy & Operate"
+					description="Run local development, build deployable output, and manage environment values"
+					icon={<Terminal />}
+				/>
+				<CardLink
+					href="/migration"
+					title="Migration"
+					description="Move apps from previous SDK versions into the current app shape"
+					icon={<BookOpen />}
 				/>
 			</Cards>
 
 			<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-2">
 				Find What You Need
 			</h2>
-			<Cards>
+			<Cards className="lg:grid-cols-2">
 				<CardLink
 					href="/reference/sdk-reference"
 					title="SDK Reference"
-					description="Method signatures for agents, routes, and every service API"
+					description="Package APIs, schemas, Coder, and shared SDK surfaces"
 					icon={<Code />}
 				/>
 				<CardLink
 					href="/reference/cli"
 					title="CLI Reference"
-					description="Commands for dev, deploy, cloud storage, and sandbox management"
+					description="Commands for local development, deploy, auth, storage, and diagnostics"
 					icon={<Terminal />}
 				/>
 				<CardLink
+					href="/reference/api"
+					title="API Reference"
+					description="REST endpoints for non-TypeScript callers and platform integrations"
+					icon={<Globe />}
+				/>
+				<CardLink
 					href="/reference/standalone-packages"
-					title="Standalone Packages"
-					description="Use Agentuity packages outside the runtime"
+					title="Service Clients"
+					description="Install and configure Agentuity client packages in server-side code"
 					icon={<Package />}
 				/>
 			</Cards>

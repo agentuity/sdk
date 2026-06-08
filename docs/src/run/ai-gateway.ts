@@ -1,18 +1,13 @@
 /**
  * Standalone run script for AI Gateway demo
  *
- * Route pattern demo - no corresponding agent exists.
- * See src/run/AGENTS.md for architecture details.
- *
- * Demonstrates: calling AI providers through Agentuity gateway
- * No API keys needed - uses AGENTUITY_SDK_KEY via gateway
+ * Compares supported provider models through Agentuity's AI Gateway.
  *
  * Usage: bun run src/run/ai-gateway.ts '{"prompt":"Tell me a joke"}'
  */
-import { createAgentContext } from '@agentuity/runtime';
-import { anthropic } from '@ai-sdk/anthropic';
-import { openai } from '@ai-sdk/openai';
-import { generateText } from 'ai';
+import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
+import { AIGatewayClient } from '@agentuity/aigateway';
 
 interface Input {
 	prompt?: string;
@@ -28,38 +23,41 @@ function parseJSON<T>(text: string, fallback: T): T {
 
 const input: Input = parseJSON<Input>(process.argv[2] ?? '{}', {});
 const prompt = input.prompt ?? 'Explain AI agents in 1 sentence.';
+const OPENAI_MODEL = 'openai/gpt-5.4-mini';
+const ANTHROPIC_MODEL = 'anthropic/claude-opus-4-8';
 
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 
 try {
-	// Call both in parallel for speed
-	ctx.logger.info('Calling OpenAI and Anthropic in parallel...');
+	// Parallel calls make provider differences visible without stacking latency.
+	ctx.logger.info('Calling OpenAI and Anthropic through AI Gateway in parallel...');
+	const gateway = new AIGatewayClient();
 
-	const [openaiResult, claudeResult] = await Promise.all([
-		generateText({
-			model: openai('gpt-5.4-nano'),
-			prompt,
+	const [openaiResult, anthropicResult] = await Promise.all([
+		gateway.completeText({
+			model: OPENAI_MODEL,
+			messages: [{ role: 'user', content: prompt }],
 		}),
-		generateText({
-			model: anthropic('claude-haiku-4-5'),
-			prompt,
+		gateway.completeText({
+			model: ANTHROPIC_MODEL,
+			messages: [{ role: 'user', content: prompt }],
 		}),
 	]);
 
 	ctx.logger.info('Both completed');
 
-	console.log('---OUTPUT---');
-	console.log(`Prompt: "${prompt}"`);
-	console.log('');
-	console.log('OpenAI (gpt-5.4-nano):');
-	console.log(openaiResult.text);
-	console.log('');
-	console.log('Anthropic (claude-haiku-4-5):');
-	console.log(claudeResult.text);
-	console.log('---OUTPUT---');
+	writeSandboxOutput(
+		[
+			`Prompt: "${prompt}"`,
+			'',
+			`OpenAI (${OPENAI_MODEL}):`,
+			openaiResult.text,
+			'',
+			`Anthropic (${ANTHROPIC_MODEL}):`,
+			anthropicResult.text,
+		].join('\n')
+	);
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
 	process.exitCode = 1;
 }

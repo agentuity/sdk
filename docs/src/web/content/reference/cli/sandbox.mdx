@@ -65,10 +65,10 @@ agentuity cloud ssh sbx_abc123xyz --show
 ```
 
 <Callout type="warning" title="SSH Key Required">
-Before you can SSH into a sandbox, you must add your SSH public key to your Agentuity account. See [SSH Key Management](/reference/cli/getting-started#ssh-key-management) for setup instructions.
+Before you can SSH into a sandbox, you must add your SSH public key to your Agentuity account. See [SSH Access](/reference/cli/debugging#ssh-access) for setup instructions.
 </Callout>
 
-## One-shot Execution
+## One-Shot Execution
 
 Run a single command in a new sandbox that's automatically destroyed afterward.
 
@@ -80,6 +80,10 @@ agentuity cloud sandbox run [options] -- <command>
 
 | Option | Description |
 |--------|-------------|
+| `--dir <path>` | Project directory, defaults to the current directory |
+| `--region <region>` | Cloud region |
+| `--name <name>` | Sandbox name |
+| `--description <text>` | Sandbox description |
 | `--memory <size>` | Memory limit (e.g., `512Mi`, `1Gi`) |
 | `--cpu <millicores>` | CPU limit (e.g., `500m`, `1000m`) |
 | `--disk <size>` | Disk limit |
@@ -126,12 +130,15 @@ agentuity cloud sandbox create [options]
 
 | Option | Description |
 |--------|-------------|
+| `--dir <path>` | Project directory, defaults to the current directory |
+| `--region <region>` | Cloud region |
 | `--memory <size>` | Memory limit |
 | `--cpu <millicores>` | CPU limit |
 | `--disk <size>` | Disk limit |
 | `--network` | Enable outbound network |
 | `--snapshot <id-or-tag>` | Create from snapshot |
 | `--idle-timeout <duration>` | Auto-destroy after idle (e.g., `1h`) |
+| `--paused-timeout <duration>` | Maximum paused time before termination (e.g., `24h`) |
 | `--runtime <runtime>` | Runtime name (e.g., `bun:1`, `python:3.14`) |
 | `--runtime-id <id>` | Runtime ID (e.g., `srt_xxx`) |
 | `--name <name>` | Sandbox name |
@@ -144,6 +151,8 @@ agentuity cloud sandbox create [options]
 | `--scope <scope>` | Permission scope for service access (repeatable) |
 | `--project-id <id>` | Associate with project |
 | `--org-id <id>` | Use a specific organization |
+| `--wait` | Wait until the sandbox is ready before returning |
+| `--wait-ms <milliseconds>` | Maximum wait time when `--wait` is used |
 
 ```bash
 # Create with defaults
@@ -219,6 +228,12 @@ agentuity cloud sandbox get <sandbox-id>
 
 Shows sandbox status, creation time, resource usage, and execution count.
 
+| Option | Description |
+|--------|-------------|
+| `--wait-for-status <status>` | Wait until the sandbox reaches a target status |
+| `--wait-ms <milliseconds>` | Maximum wait time when waiting for a status |
+| `--json` | JSON output |
+
 ### Delete Sandbox
 
 ```bash
@@ -291,12 +306,12 @@ agentuity cloud sandbox get sbx_abc123
 
 ```bash
 # Create sandbox with port 3000. The URL is returned immediately.
-agentuity cloud sandbox create --port 3000 --name my-api
+agentuity cloud sandbox create --runtime bun:1 --port 3000 --name my-api
 # ✓ created sandbox sbx_abc123 in 1200ms
 # ℹ url: https://my-api-abc123.agentuity.cloud
 
 # Upload server code
-agentuity cloud sandbox fs cp ./server.js sbx_abc123:/home/agentuity/
+agentuity cloud sandbox fs cp ./server.js sbx_abc123:/home/agentuity/server.js
 
 # Start the server
 agentuity cloud sandbox exec sbx_abc123 -- bun run /home/agentuity/server.js
@@ -304,6 +319,8 @@ agentuity cloud sandbox exec sbx_abc123 -- bun run /home/agentuity/server.js
 # Test from anywhere using the URL from create
 curl https://my-api-abc123.agentuity.cloud/api/health
 ```
+
+List runtimes with `agentuity cloud sandbox runtime list` before choosing `--runtime`. The default runtime may not include Bun or Node.js.
 
 ## File Operations
 
@@ -337,7 +354,7 @@ agentuity cloud sandbox fs cp -r ./src sbx_abc123:/workspace/src
 # Upload to a path with non-existent parent directories (auto-created)
 agentuity cloud sandbox fs cp ./config.json sbx_abc123:/home/agentuity/app/config/settings.json
 
-# Strict mode — fail if target directory doesn't exist
+# Strict mode: fail if target directory doesn't exist
 agentuity cloud sandbox fs cp --strict ./file.txt sbx_abc123:/home/agentuity/must-exist/file.txt
 ```
 
@@ -795,7 +812,7 @@ agentuity cloud sandbox fs cp sbx_def456:/workspace/output.csv ./results.csv
 agentuity cloud sandbox delete sbx_def456
 ```
 
-### Quick One-shot Testing
+### Quick One-Shot Testing
 
 ```bash
 # Test Python code
@@ -888,7 +905,7 @@ agentuity cloud sandbox job create <sandbox-id> -- <command>
 
 ```bash
 # Create a background job
-agentuity cloud sandbox job create sbx_abc123 -- bun run build
+agentuity cloud sandbox job create sbx_abc123 -- npm run build
 
 # Run npm install in background
 agentuity cloud sandbox job create sbx_abc123 -- npm install

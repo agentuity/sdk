@@ -1,10 +1,12 @@
 import * as React from 'react';
-import { ChevronRight, SearchIcon, SparklesIcon } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import { ChevronRight, ExternalLink, SearchIcon, SparklesIcon } from 'lucide-react';
 import {
 	Collapsible,
 	CollapsibleContent,
 	Sidebar,
 	SidebarContent,
+	SidebarFooter,
 	SidebarGroup,
 	SidebarHeader,
 	SidebarMenu,
@@ -16,11 +18,13 @@ import {
 	SidebarRail,
 } from '../ui';
 import { cn } from '../../lib/utils';
+import { DOCS_VERSIONS } from '../../lib/docs-versions';
 import { navData, hasActiveChild, type NavItem, type NavSection } from './nav-data';
+import { SearchKeyboardShortcut } from './keyboard-shortcut';
+import { DocsVersionPicker } from './docs-version-picker';
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 	currentPage: string;
-	onNavigate: (page: string) => void;
 	onOpenSearch: () => void;
 	onOpenAISearch: () => void;
 }
@@ -55,12 +59,10 @@ function RecursiveNavItem({
 	item,
 	depth,
 	currentUrl,
-	onNavigate,
 }: {
 	item: NavItem;
 	depth: number;
 	currentUrl: string;
-	onNavigate: (page: string) => void;
 }) {
 	const hasChildren = item.items && item.items.length > 0;
 	const isActive = item.url === currentUrl;
@@ -75,20 +77,13 @@ function RecursiveNavItem({
 	}, [hasActiveDescendant, isActive, hasChildren]);
 
 	const handleClick = (e: React.MouseEvent) => {
-		e.preventDefault();
 		if (hasChildren) {
 			if (item.url) {
-				// Always navigate to the item's URL
-				onNavigate(item.url === '/' ? 'home' : item.url.slice(1));
-				// Ensure children are expanded when navigating
 				setOpen(true);
 			} else {
-				// No URL — just toggle (e.g. grouping header with no page)
+				e.preventDefault();
 				setOpen((prev) => !prev);
 			}
-		} else if (item.url) {
-			// Leaf node - just navigate
-			onNavigate(item.url === '/' ? 'home' : item.url.slice(1));
 		}
 	};
 
@@ -105,9 +100,9 @@ function RecursiveNavItem({
 			return (
 				<SidebarMenuItem>
 					<SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
-						<a href={item.url || '#'} onClick={handleClick}>
+						<Link to={item.url || '#'}>
 							<span>{item.title}</span>
-						</a>
+						</Link>
 					</SidebarMenuButton>
 				</SidebarMenuItem>
 			);
@@ -116,9 +111,9 @@ function RecursiveNavItem({
 		return (
 			<SidebarMenuSubItem>
 				<SidebarMenuSubButton asChild isActive={isActive}>
-					<a href={item.url || '#'} onClick={handleClick}>
+					<Link to={item.url || '#'}>
 						<span>{item.title}</span>
-					</a>
+					</Link>
 				</SidebarMenuSubButton>
 			</SidebarMenuSubItem>
 		);
@@ -130,13 +125,25 @@ function RecursiveNavItem({
 		return (
 			<Collapsible asChild open={open} className="group/collapsible">
 				<SidebarMenuItem>
-					<SidebarMenuButton tooltip={item.title} isActive={isActive} onClick={handleClick}>
-						<span>{item.title}</span>
-						<ChevronRight
-							onClick={handleChevronClick}
-							className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
-						/>
-					</SidebarMenuButton>
+					{item.url ? (
+						<SidebarMenuButton asChild tooltip={item.title} isActive={isActive}>
+							<Link to={item.url} onClick={handleClick}>
+								<span>{item.title}</span>
+								<ChevronRight
+									onClick={handleChevronClick}
+									className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+								/>
+							</Link>
+						</SidebarMenuButton>
+					) : (
+						<SidebarMenuButton tooltip={item.title} isActive={isActive} onClick={handleClick}>
+							<span>{item.title}</span>
+							<ChevronRight
+								onClick={handleChevronClick}
+								className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+							/>
+						</SidebarMenuButton>
+					)}
 					<CollapsibleContent>
 						<SidebarMenuSub>
 							{item.items!.map((child) => (
@@ -145,7 +152,6 @@ function RecursiveNavItem({
 									item={child}
 									depth={depth + 1}
 									currentUrl={currentUrl}
-									onNavigate={onNavigate}
 								/>
 							))}
 						</SidebarMenuSub>
@@ -167,16 +173,29 @@ function RecursiveNavItem({
 					isActive={isActive}
 					className={cn(hasActiveDescendant && 'text-sidebar-accent-foreground')}
 				>
-					<a href={item.url || '#'} onClick={handleClick}>
-						<span>{item.title}</span>
-						<ChevronRight
-							onClick={handleChevronClick}
-							className={cn(
-								'ml-auto size-4 transition-transform duration-200',
-								open && 'rotate-90'
-							)}
-						/>
-					</a>
+					{item.url ? (
+						<Link to={item.url} onClick={handleClick}>
+							<span>{item.title}</span>
+							<ChevronRight
+								onClick={handleChevronClick}
+								className={cn(
+									'ml-auto size-4 transition-transform duration-200',
+									open && 'rotate-90'
+								)}
+							/>
+						</Link>
+					) : (
+						<button type="button" onClick={handleClick}>
+							<span>{item.title}</span>
+							<ChevronRight
+								onClick={handleChevronClick}
+								className={cn(
+									'ml-auto size-4 transition-transform duration-200',
+									open && 'rotate-90'
+								)}
+							/>
+						</button>
+					)}
 				</SidebarMenuSubButton>
 				<CollapsibleContent>
 					<SidebarMenuSub>
@@ -186,7 +205,6 @@ function RecursiveNavItem({
 								item={child}
 								depth={depth + 1}
 								currentUrl={currentUrl}
-								onNavigate={onNavigate}
 							/>
 						))}
 					</SidebarMenuSub>
@@ -197,15 +215,7 @@ function RecursiveNavItem({
 }
 
 // Navigation menu with recursive sections
-function NavMain({
-	sections,
-	currentUrl,
-	onNavigate,
-}: {
-	sections: NavSection[];
-	currentUrl: string;
-	onNavigate: (page: string) => void;
-}) {
+function NavMain({ sections, currentUrl }: { sections: NavSection[]; currentUrl: string }) {
 	return (
 		<SidebarGroup>
 			<SidebarMenu>
@@ -230,17 +240,9 @@ function NavMain({
 									isActive={isActive || hasActiveDescendant}
 									tooltip={section.title}
 								>
-									<a
-										href={section.url || '#'}
-										onClick={(e) => {
-											e.preventDefault();
-											onNavigate(
-												section.url === '/' ? 'home' : (section.url || '').slice(1)
-											);
-										}}
-									>
+									<Link to={section.url || '#'}>
 										<span>{section.title}</span>
-									</a>
+									</Link>
 								</SidebarMenuButton>
 							</SidebarMenuItem>
 						);
@@ -253,7 +255,6 @@ function NavMain({
 							item={sectionAsItem}
 							depth={0}
 							currentUrl={currentUrl}
-							onNavigate={onNavigate}
 						/>
 					);
 				})}
@@ -264,7 +265,6 @@ function NavMain({
 
 export function AppSidebar({
 	currentPage,
-	onNavigate,
 	onOpenSearch,
 	onOpenAISearch,
 	...props
@@ -277,22 +277,17 @@ export function AppSidebar({
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton asChild size="lg">
-							<a
-								href="/"
-								onClick={(e) => {
-									e.preventDefault();
-									onNavigate('home');
-								}}
-								aria-label="Go to home"
-							>
+							<Link to="/" aria-label="Go to home">
 								<div className="flex aspect-square size-6 mr-1 items-center justify-center">
 									<AgentuityLogo className="size-6" />
 								</div>
 								<span className="font-normal text-sm">Agentuity</span>
-							</a>
+							</Link>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
+
+				<DocsVersionPicker />
 
 				<div className="flex items-center gap-1.5">
 					<button
@@ -302,17 +297,7 @@ export function AppSidebar({
 					>
 						<SearchIcon className="size-4" />
 						<span className="flex-1 text-left">Search</span>
-						<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar px-1.5 font-mono text-xs font-medium text-sidebar-foreground/70">
-							<span>
-								{typeof navigator !== 'undefined' &&
-								/Mac|iPhone|iPad|iPod/.test(navigator.userAgent) ? (
-									<span className="text-sm">⌘</span>
-								) : (
-									'Ctrl '
-								)}
-							</span>
-							K
-						</kbd>
+						<SearchKeyboardShortcut />
 					</button>
 					<button
 						type="button"
@@ -326,8 +311,24 @@ export function AppSidebar({
 			</SidebarHeader>
 
 			<SidebarContent>
-				<NavMain sections={navData} currentUrl={currentUrl} onNavigate={onNavigate} />
+				<NavMain sections={navData} currentUrl={currentUrl} />
 			</SidebarContent>
+
+			<SidebarFooter className="border-t border-sidebar-border/70 pt-2 group-data-[collapsible=icon]:hidden">
+				<a
+					href={DOCS_VERSIONS.v2.url}
+					target="_blank"
+					rel="noopener noreferrer"
+					aria-label="Open v2 docs for older Agentuity apps"
+					className="group flex items-center gap-1.5 rounded-md px-2 py-2 text-xs leading-5 text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+				>
+					<span className="min-w-0 truncate">
+						Using an older app?{' '}
+						<span className="font-medium text-sidebar-foreground">Open v2 docs</span>
+					</span>
+					<ExternalLink className="size-3 shrink-0 text-sidebar-foreground/55 group-hover:text-sidebar-foreground/80" />
+				</a>
+			</SidebarFooter>
 
 			<SidebarRail />
 		</Sidebar>

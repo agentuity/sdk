@@ -1,22 +1,5 @@
 {
 	"title": "SDK Reference",
 	"sort": "title",
-	"pages": [
-		"application-entry",
-		"agents",
-		"schema",
-		"context-api",
-		"router",
-		"communication",
-		"storage",
-		"queue-service",
-		"task-service",
-		"email-service",
-		"schedule-service",
-		"sandbox-service",
-		"coder",
-		"observability",
-		"events",
-		"advanced"
-	]
+	"pages": ["schema", "communication", "coder"]
 }

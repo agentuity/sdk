@@ -1,68 +1,56 @@
 /**
  * Standalone run script for Durable Streams demo
  *
- * Route pattern demo - no corresponding agent exists.
- * See src/run/AGENTS.md for architecture details.
- *
- * Demonstrates: Creating a durable stream with LLM-generated content
- * Streams AI-generated text into a durable stream and shows the shareable URL.
- * Streams expire after 30 days by default unless you set ttl: null or 0.
+ * Writes generated text into a durable stream and returns the shareable URL.
+ * The stream keeps the completed output available after the request ends.
  *
  * Usage: bun run src/run/durable-stream.ts
  */
-import { createAgentContext } from '@agentuity/runtime';
-import { openai } from '@ai-sdk/openai';
-import { streamText } from 'ai';
+import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
+import { AIGatewayClient } from '@agentuity/aigateway';
 
-const ctx = createAgentContext();
+const ctx = getDemoContext();
+const MODEL = 'openai/gpt-5.4-mini';
+const PROMPT =
+	'Write two short sentences that explain why durable streams are useful for generated reports.';
 
 try {
 	ctx.logger.info('Creating durable stream with LLM content');
 
-	// Create a durable stream
+	// Name streams by purpose plus run id so demo runs do not collide.
 	const streamName = `demo-${Date.now()}`;
 	const stream = await ctx.stream.create(streamName, {
 		contentType: 'text/plain',
-		metadata: { created: new Date().toISOString() },
+		metadata: { created: new Date().toISOString(), model: MODEL },
 	});
 
-	console.log('---OUTPUT---');
-	console.log(`Stream created: ${streamName}`);
-	console.log(`Stream ID: ${stream.id}`);
-	console.log('');
-
-	// Generate content with LLM and write to stream
-	const { textStream } = streamText({
-		model: openai('gpt-5.4-nano'),
-		prompt: 'Write a 3-paragraph summary of what Agentuity is.',
+	const gateway = new AIGatewayClient();
+	const result = await gateway.completeText({
+		model: MODEL,
+		messages: [{ role: 'user', content: PROMPT }],
 	});
 
-	let fullText = '';
-	let chunkCount = 0;
-	for await (const chunk of textStream) {
-		await stream.write(chunk);
-		fullText += chunk;
-		chunkCount++;
-	}
-
-	// Close the stream
+	await stream.write(result.text);
 	await stream.close();
 
-	console.log('Content written:');
-	console.log(fullText);
-	console.log('');
-	console.log(`[Wrote ${chunkCount} text chunks]`);
-	console.log('');
-	console.log('Stream closed');
-	console.log('');
-
-	// The URL remains available until the stream expires
-	console.log('Public URL (shareable):');
-	console.log(`  ${stream.url}`);
-	console.log('---OUTPUT---');
+	writeSandboxOutput(
+		[
+			`Stream created: ${streamName}`,
+			`Stream ID: ${stream.id}`,
+			'',
+			'Content written:',
+			result.text,
+			'',
+			`Bytes written: ${stream.bytesWritten}`,
+			'',
+			'Stream closed',
+			'',
+			'Public URL (shareable):',
+			`  ${stream.url}`,
+		].join('\n')
+	);
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
 	process.exitCode = 1;
 }

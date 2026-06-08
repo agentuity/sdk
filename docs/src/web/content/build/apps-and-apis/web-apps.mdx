@@ -1,0 +1,91 @@
+---
+title: Web Apps
+description: Use Agentuity services from framework routes, server functions, and browser-facing apps
+---
+
+Build the UI with the framework you already chose. Put Agentuity service clients in server-only code, then call those routes from the browser with normal `fetch`.
+
+## Server Route
+
+This example uses a Next.js route handler, but the boundary is the same in other frameworks: validate the request, call the service from server code, and return a Web `Response`.
+
+```typescript title="app/api/preferences/route.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+interface Preference {
+  readonly theme: 'light' | 'dark';
+}
+
+const kv = new KeyValueClient();
+
+function isPreference(value: unknown): value is Preference {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'theme' in value &&
+    (value.theme === 'light' || value.theme === 'dark')
+  );
+}
+
+export async function POST(request: Request): Promise<Response> {
+  const body: unknown = await request.json();
+
+  if (!isPreference(body)) {
+    return Response.json({ error: 'theme must be light or dark' }, { status: 400 });
+  }
+
+  await kv.set('preferences', 'current-user', body, {
+    ttl: 60 * 60 * 24 * 30,
+  });
+
+  return Response.json({ saved: true });
+}
+
+export async function GET(): Promise<Response> {
+  const result = await kv.get<Preference>('preferences', 'current-user');
+
+  return Response.json({
+    preference: result.exists ? result.data : { theme: 'light' },
+  });
+}
+```
+
+`KeyValueClient` reads project credentials from the environment that `agentuity dev` and `agentuity deploy` provide. Keep that client out of browser components and browser bundles.
+
+## Browser Call
+
+Call the route through the same origin. The browser never receives `AGENTUITY_SDK_KEY`.
+
+```typescript title="src/preferences.ts"
+export async function saveTheme(theme: 'light' | 'dark'): Promise<void> {
+  const response = await fetch('/api/preferences', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ theme }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Preference save failed: ${response.status}`);
+  }
+}
+```
+
+## Framework-Specific Setup
+
+| Framework | Server boundary |
+| --- | --- |
+| Next.js | `app/api/**/route.ts` |
+| Nuxt | `server/api/*.ts` |
+| React Router | resource routes with `loader` and `action` |
+| SvelteKit | `+server.ts` routes and server actions |
+| Astro | `src/pages/api/*.ts` endpoints |
+| TanStack Start | server routes and server functions |
+| Vite + React | a server boundary such as `server.ts` |
+
+See [Frameworks](/frameworks): choose the route shape for your framework before adding service clients.
+
+## Related Docs
+
+- [Backend APIs](/build/apps-and-apis/backend-apis): deploy an API without a browser UI
+- [Static Sites](/build/apps-and-apis/static-sites): deploy static output and add a server boundary only when secrets are needed
+- [Services](/services): choose the client package for app state, files, queues, AI Gateway, sandbox, and observability

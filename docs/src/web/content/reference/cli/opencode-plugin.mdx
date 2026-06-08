@@ -51,7 +51,7 @@ The Expert agent can route deeper Agentuity questions to hidden specialist subag
 
 | Agent | Focus |
 |-------|-------|
-| **Expert Backend** | Runtime, agents, schemas, Drizzle, Postgres, storage |
+| **Expert Backend** | Core SDK packages, schemas, service clients, and relational database helpers |
 | **Expert Frontend** | React hooks, auth, browser integrations, frontend utilities |
 | **Expert Ops** | CLI, cloud services, deployments, sandboxes |
 
@@ -175,7 +175,7 @@ For headless execution:
 agentuity ai opencode run "/agentuity-cadence Build the feature"
 ```
 
-## Tmux Integration
+## `tmux` Integration
 
 When running inside tmux, the plugin can spawn agent work into separate panes for a visible multi-agent layout.
 
@@ -323,5 +323,5 @@ OPENCODE_DB_PATH=/path/to/opencode.db agentuity ai opencode dashboard
 ## Next Steps
 
 - [AI Commands](/reference/cli/ai-commands): Other AI-related CLI commands
-- [Local Development](/reference/cli/development): Run agents locally
-- [Creating Agents](/agents/creating-agents): Build your first agent
+- [Local Development](/reference/cli/development): Run Agentuity projects locally
+- [Agents](/build/agents): Structure model-backed workflows in current Agentuity apps

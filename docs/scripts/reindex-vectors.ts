@@ -7,7 +7,7 @@
  * Requirements:
  *   - Dev server running (`bun run dev`)
  *   - AGENT_BEARER_TOKEN env var set
- *   - OPENAI_API_KEY configured on the server (for embeddings)
+ *   - Agentuity project credentials configured on the server
  *
  * Usage:
  *   AGENT_BEARER_TOKEN=<token> bun run reindex
@@ -65,15 +65,17 @@ async function sendBatch(
 	batchNum: number,
 	totalBatches: number
 ): Promise<{ ok: boolean; stats?: any; error?: string }> {
+	const mode = batchNum === 1 ? 'full' : 'incremental';
 	const payload = {
 		repo: 'agentuity/sdk',
 		commit: 'manual-reindex',
+		mode,
 		changed,
 		removed: [],
 	};
 
 	console.log(
-		`[${batchNum}/${totalBatches}] Sending ${changed.length} files: ${changed.map((f) => f.path).join(', ')}`
+		`[${batchNum}/${totalBatches}] Sending ${changed.length} files (${mode}): ${changed.map((f) => f.path).join(', ')}`
 	);
 
 	const res = await fetch(ENDPOINT, {

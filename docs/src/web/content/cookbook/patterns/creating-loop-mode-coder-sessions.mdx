@@ -12,6 +12,7 @@ Create the session with `workflowMode: 'loop'`, then call `getLoopState()` to re
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 async function main(): Promise<void> {
   const client = new CoderClient();
@@ -35,7 +36,7 @@ async function main(): Promise<void> {
     const session = await client.getSession(created.sessionId);
     const loopState = await client.getLoopState(created.sessionId); // [!code highlight]
 
-    console.log(
+    logger.info(
       JSON.stringify(
         {
           session: {
@@ -52,8 +53,8 @@ async function main(): Promise<void> {
     );
   } catch (error) {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
-    console.error('Failed to create or inspect the loop-mode session');
-    console.error(message);
+    logger.error('Failed to create or inspect the loop-mode session');
+    logger.error(message);
     process.exitCode = 1;
   }
 }
@@ -88,7 +89,7 @@ void main();
 }
 ```
 
-## What to Inspect
+## What to inspect
 
 `getSession()` returns the session's lifecycle state. `getLoopState()` returns the workflow state inside a loop-mode run. When you read loop state, the fields that usually matter:
 
@@ -97,19 +98,18 @@ void main();
 - `goal`: the high-level goal you gave the loop
 - `autoContinue` and `allowDetached`: whether the loop can advance and keep running without a manual step or an attached client
 
-## Polling a Loop to Completion
+## Checking Loop Progress
 
-For headless, unattended runs, configure the loop with `autoContinue: true` and `allowDetached: true`, then poll `getLoopState()` until the loop reaches a terminal status. This lets your app dispatch the work and check back at a controlled interval rather than staying connected.
+For headless, unattended runs, configure the loop with `autoContinue: true` and `allowDetached: true`. Then have your UI refresh, worker, or scheduler call `getLoopState()` until the loop reaches a terminal status.
 
-For polling, treat `completed`, `cancelled`, and `blocked` as terminal statuses. The status `awaiting_input` is a non-terminal pause: the loop stopped and is waiting for external input before it can continue. All other statuses from `CoderLoopStatusSchema` (`idle`, `starting`, `running`, `paused`) indicate the loop is still in progress.
+For status checks, treat `completed`, `cancelled`, and `blocked` as terminal statuses. The status `awaiting_input` is a non-terminal pause: the loop stopped and is waiting for external input before it can continue. All other statuses from `CoderLoopStatusSchema` (`idle`, `starting`, `running`, `paused`) indicate the loop is still in progress.
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 import type { CoderLoopStatus } from '@agentuity/coder';
 
 const TERMINAL: ReadonlySet<CoderLoopStatus> = new Set(['completed', 'cancelled', 'blocked']);
-const POLL_MS = 5_000;
-const MAX_WAIT_MS = 10 * 60 * 1_000; // 10-minute wall-clock ceiling
 
 async function main(): Promise<void> {
   const client = new CoderClient();
@@ -126,49 +126,35 @@ async function main(): Promise<void> {
     tags: ['deps', 'audit'],
   });
 
-  console.log('Session created:', created.sessionId);
+  logger.info('Session created:', created.sessionId);
 
-  const deadline = Date.now() + MAX_WAIT_MS;
+  const { loop } = await client.getLoopState(created.sessionId);
 
-  while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
-
-    const { loop } = await client.getLoopState(created.sessionId);
-
-    if (!loop) {
-      // Loop state isn't initialized yet; the session is still starting
-      continue;
-    }
-
-    const { status, iteration, maxIterations } = loop;
-    console.log(`iteration ${iteration}/${maxIterations ?? '?'}: ${status}`);
-
-    if (TERMINAL.has(status)) {
-      console.log('Loop finished with status:', status);
-      if (loop.summary) {
-        console.log('Summary:', loop.summary);
-      }
-      return;
-    }
-
-    if (status === 'awaiting_input') {
-      // The loop paused and is waiting for external input; your app would handle this
-      // by prompting the user or sending a response through the Hub WebSocket or REST API
-      console.log('Loop is awaiting input. Exiting poll loop.');
-      return;
-    }
+  if (!loop) {
+    logger.info('Loop state is still initializing.');
+    return;
   }
 
-  console.error('Timed out waiting for loop to complete.');
-  process.exitCode = 1;
+  const { status, iteration, maxIterations } = loop;
+  logger.info(`iteration ${iteration}/${maxIterations ?? '?'}: ${status}`);
+
+  if (TERMINAL.has(status)) {
+    logger.info('Loop finished with status:', status);
+    if (loop.summary) logger.info('Summary:', loop.summary);
+    return;
+  }
+
+  if (status === 'awaiting_input') {
+    logger.info('Loop is waiting for input from your app or a connected client.');
+  }
 }
 
 void main();
 ```
 
-`getLoopState()` exposes `loop.summary` and `loop.nextAction` as the loop progresses, so your UI or downstream step can poll for them without holding a live controller socket.
+Run the status check from the part of your app that already owns retries and user notifications. `getLoopState()` exposes `loop.summary` and `loop.nextAction` as the loop progresses, so your UI or downstream step can display progress without holding a live controller socket.
 
-## When to Use This Pattern
+## When to use this pattern
 
 Use loop mode when your app needs explicit iteration-aware workflow state, not just a long-running session.
 

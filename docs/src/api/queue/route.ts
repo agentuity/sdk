@@ -1,12 +1,12 @@
 /**
  * Queue Route - Message queue lifecycle operations.
  *
- * Agent-side (publish, setup) goes through the queue agent.
+ * Demo publish/setup operations go through the local Explorer module.
  * Consume-side (receive, ack, nack, DLQ) uses APIClient directly,
  * matching the pattern in src/api/sandbox/route.ts.
  *
- * POST /publish     - Publish a message via the agent
- * POST /setup       - Create or ensure the demo queue via the agent
+ * POST /publish     - Publish a message via the Explorer module
+ * POST /setup       - Create or ensure the demo queue via the Explorer module
  * POST /reset       - Delete and recreate the demo queue
  * GET  /status      - Queue stats (message count, DLQ count)
  * GET  /receive     - Receive next message
@@ -16,7 +16,7 @@
  * POST /dlq/:id     - Replay a DLQ message
  */
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
 import type { IssuesType, Logger } from '@agentuity/server';
 import {
 	APIClient,
@@ -49,6 +49,7 @@ function createQueueClient(logger: Logger) {
 
 // Per-request context set by middleware
 type QueueVars = { queueName: string; queueClient: APIClient };
+type QueueEnv = ApiEnv & { Variables: ApiEnv['Variables'] & QueueVars };
 
 function isMissingQueueError(error: unknown): boolean {
 	const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
@@ -69,7 +70,7 @@ function isEmptyReceiveValidationError(error: InstanceType<typeof ValidationOutp
 	);
 }
 
-const router = new Hono<Env & { Variables: QueueVars }>()
+const router = new Hono<QueueEnv>()
 
 	// Derive queue name and client once per request
 	.use(async (c, next) => {
@@ -78,7 +79,7 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 		await next();
 	})
 
-	// --- Agent-side operations ---
+	// --- Explorer module operations ---
 
 	.post('/setup', async (c) => {
 		try {
@@ -95,7 +96,7 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 			await deleteQueue(c.var.queueClient, c.var.queueName).catch((err) => {
 				if (!isMissingQueueError(err)) throw err;
 			});
-			// Use APIClient directly — the agent's ctx.queue caches queue names
+			// Use APIClient directly: the Explorer module's ctx.queue caches queue names
 			// and would short-circuit createQueue after a delete.
 			const queue = await createQueue(c.var.queueClient, {
 				name: c.var.queueName,

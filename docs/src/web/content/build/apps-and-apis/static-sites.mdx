@@ -1,0 +1,70 @@
+---
+title: Static Sites
+description: Deploy plain HTML, static framework output, and SPA bundles on Agentuity
+---
+
+Use a static site when the app has no server-side secrets or service calls at request time. Agentuity can package plain `index.html` projects and static output from frameworks such as Vite, Docusaurus, VitePress, Eleventy, Gatsby, and similar build tools.
+
+## Plain HTML
+
+A bare static site can start with only an `index.html` file.
+
+```html title="index.html"
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Status</title>
+  </head>
+  <body>
+    <main>
+      <h1>Status</h1>
+      <p>The site is deployed on Agentuity.</p>
+    </main>
+  </body>
+</html>
+```
+
+Then link and package the project:
+
+```bash
+agentuity project import --validate-only
+agentuity project import
+agentuity build
+```
+
+The static build path serves files and falls back to `index.html` for SPA routes.
+
+## Static Framework Output
+
+For static generators and SPAs, keep the framework's normal build command:
+
+```json title="package.json"
+{
+  "scripts": {
+    "build": "vite build",
+    "deploy": "agentuity deploy"
+  }
+}
+```
+
+If the project has no start command, Agentuity injects a small static file server into the packaged output. Inspect `.agentuity/launch.json` after `agentuity build` when you want to verify the generated command.
+
+<Callout type="warning" title="Keep secrets out of static sites">
+Browser code cannot safely hold `AGENTUITY_SDK_KEY`, provider keys, database URLs, or bucket credentials. When a static site needs Agentuity services, add a server boundary and call that route from the browser.
+</Callout>
+
+## When to add a server boundary
+
+| Need | Use |
+| --- | --- |
+| call Agentuity services from the UI | [Web Apps](/build/apps-and-apis/web-apps) with a server route |
+| accept webhooks or JSON requests | [Backend APIs](/build/apps-and-apis/backend-apis) |
+| run work after a user action | [Background Work](/build/apps-and-apis/background-work) |
+| only serve HTML, CSS, JS, images, and fonts | static site deploy |
+
+## Related Docs
+
+- [Vite + React](/frameworks/vite-react): pair a SPA with a server boundary for secrets and services
+- [Deploy Framework Apps](/deploy-operate/deploy-framework-apps): inspect static assets, launch metadata, and packaged output

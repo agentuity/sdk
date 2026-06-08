@@ -1,9 +1,8 @@
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import mdx from '@mdx-js/rollup';
-import { tanstackRouter } from '@tanstack/router-plugin/vite';
+import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import { defineConfig } from 'vite';
-import { join } from 'node:path';
 import remarkGfm from 'remark-gfm';
 import remarkFrontmatter from 'remark-frontmatter';
 import remarkMdxFrontmatter from 'remark-mdx-frontmatter';
@@ -23,51 +22,66 @@ export default defineConfig({
 	root: '.',
 	publicDir: 'src/web/public',
 	plugins: [
-		// TanStack Router for file-based routing
-		tanstackRouter({
-			target: 'react',
-			routesDirectory: './src/web/routes',
-			generatedRouteTree: './src/web/routeTree.gen.ts',
-			quoteStyle: 'single',
-			autoCodeSplitting: false,
+		tanstackStart({
+			srcDirectory: 'src/web',
+			router: {
+				routesDirectory: 'routes',
+				generatedRouteTree: 'routeTree.gen.ts',
+				quoteStyle: 'single',
+			},
 		}),
-		// MDX support with GitHub Flavored Markdown + Shiki syntax highlighting
-		mdx({
-			remarkPlugins: [
-				remarkFrontmatter,
-				remarkMdxFrontmatter,
-				remarkGfm,
-				[remarkCodeImport, { rootDir: process.cwd() }],
-			],
-			rehypePlugins: [
-				rehypeSlug,
-				rehypeExtractToc,
-				rehypeExtractTocExport,
-				[rehypeMermaid, { strategy: 'img-svg' }],
-				[
-					rehypePrettyCode,
-					{
-						theme: {
-							dark: 'github-dark',
-							light: 'github-light',
-						},
-						keepBackground: false,
-						transformers: [
-							transformerNotationHighlight(),
-							transformerNotationFocus(),
-							transformerNotationDiff(),
-						],
-					},
+		// MDX must run before React so Vite does not hand raw .mdx files to the JSX transform.
+		{
+			enforce: 'pre',
+			...mdx({
+				remarkPlugins: [
+					remarkFrontmatter,
+					remarkMdxFrontmatter,
+					remarkGfm,
+					[remarkCodeImport, { rootDir: process.cwd() }],
 				],
-			],
-			providerImportSource: '@mdx-js/react',
-		}),
+				rehypePlugins: [
+					rehypeSlug,
+					rehypeExtractToc,
+					rehypeExtractTocExport,
+					[rehypeMermaid, { strategy: 'img-svg' }],
+					[
+						rehypePrettyCode,
+						{
+							theme: {
+								dark: 'github-dark',
+								light: 'github-light',
+							},
+							keepBackground: false,
+							transformers: [
+								transformerNotationHighlight(),
+								transformerNotationFocus(),
+								transformerNotationDiff(),
+							],
+						},
+					],
+				],
+				providerImportSource: '@mdx-js/react',
+			}),
+		},
 		react(),
 		tailwindcss(),
 	],
+	server: {
+		proxy: {
+			'^/api(?:/|$)': {
+				target: 'http://127.0.0.1:3001',
+				changeOrigin: true,
+				ws: true,
+			},
+		},
+	},
+	ssr: {
+		external: ['bun'],
+	},
 	build: {
 		rollupOptions: {
-			input: join(__dirname, 'src/web/index.html'),
+			external: ['bun'],
 		},
 	},
 });

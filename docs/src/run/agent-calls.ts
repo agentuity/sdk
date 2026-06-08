@@ -1,15 +1,16 @@
 /**
- * Standalone invoke script for Agent Calls Demo
+ * Standalone script for the Agent Calls demo
  *
- * Demonstrates: agent.run() for invoking agents, ctx.waitUntil() for background tasks
- * Shows the standalone pattern for agent invocation.
+ * Mirrors direct, background, and chained call shapes in sandbox-friendly
+ * output. Public copy-paste code lives in src/web/code-examples.ts.
  *
  * Usage: bun run src/run/agent-calls.ts '{"name":"World"}'
  */
-import { createAgentContext, getAgentContext } from '@agentuity/runtime';
-import helloAgent from '../agent/hello/agent';
+import { getDemoContext, runWithDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
+import hello from '../agent/hello/agent';
 
-const standaloneCtx = createAgentContext();
+const standaloneCtx = getDemoContext();
 
 try {
 	const input: unknown = JSON.parse(process.argv[2] ?? '{}');
@@ -23,39 +24,35 @@ try {
 
 	standaloneCtx.logger.info('Agent calls demo');
 
-	// Must use invoke() to get proper execution context for waitUntil
-	await standaloneCtx.invoke(async () => {
-		const ctx = getAgentContext();
+	await runWithDemoContext(standaloneCtx, async () => {
+		const ctx = getDemoContext();
 
-		// agent.run() invokes the agent and waits for result
-		const greeting = await helloAgent.run({ name });
+		const greeting = await hello.run({ name });
 
-		// ctx.waitUntil() schedules background work that runs after main execution
 		let backgroundCompleted = false;
 		ctx.waitUntil(
 			(async () => {
-				// Simulate async work (analytics, cleanup, etc)
 				await new Promise((resolve) => setTimeout(resolve, 100));
 				backgroundCompleted = true;
 			})()
 		);
 
-		// Wait a moment for background task to complete (for demo purposes)
+		// Sandboxes print buffered output, so wait long enough to show the handoff.
 		await new Promise((resolve) => setTimeout(resolve, 150));
 
-		console.log('---OUTPUT---');
-		console.log('Agent Invocation (agent.run):');
-		console.log(`  Input: { name: "${name}" }`);
-		console.log(`  Result: ${JSON.stringify(greeting)}`);
-		console.log('');
-		console.log('Background Task (ctx.waitUntil):');
-		console.log('  Scheduled async work after main execution');
-		console.log(`  Status: ${backgroundCompleted ? 'completed' : 'still running'}`);
-		console.log('---OUTPUT---');
+		writeSandboxOutput(
+			[
+				'Direct work:',
+				`  Input: { name: "${name}" }`,
+				`  Result: ${JSON.stringify(greeting)}`,
+				'',
+				'Background task:',
+				'  Scheduled async work after main execution',
+				`  Status: ${backgroundCompleted ? 'completed' : 'still running'}`,
+			].join('\n')
+		);
 	});
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
 	process.exitCode = 1;
 }

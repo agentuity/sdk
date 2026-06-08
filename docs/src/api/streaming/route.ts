@@ -4,15 +4,17 @@
  * GET /         - Returns route info and demo prompt
  * POST /stream  - Streams AI response using stream() middleware
  */
-import { stream, type Env } from '@agentuity/runtime';
-import { streamText } from 'ai';
-import { getModel } from '../../lib/models';
+import { stream } from '../http';
+import type { ApiEnv } from '../context';
+import { streamAIGatewayText } from '../../lib/ai-gateway-stream';
 import { Hono } from 'hono';
+import { modelFromRequestBody } from '../request-body';
 
 // Fixed prompt for the demo - users choose the model
 const FIXED_PROMPT = 'What are AI agents and how do they work?';
+const DEFAULT_MODEL = 'anthropic/claude-opus-4-8';
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 
 	.get('/', (c) => {
 		return c.json({
@@ -26,20 +28,17 @@ const router = new Hono<Env>()
 		'/stream',
 		stream(async (c) => {
 			try {
-				const body = await c.req.json();
-				const model =
-					typeof (body as { model?: unknown }).model === 'string'
-						? (body as { model: string }).model
-						: 'gpt-5.4-mini';
+				const body: unknown = await c.req.json();
+				const model = modelFromRequestBody(body, DEFAULT_MODEL);
 
 				c.var.logger?.info('Raw stream started', {
 					prompt: FIXED_PROMPT.slice(0, 50),
 					model,
 				});
 
-				const { textStream } = streamText({
-					model: getModel(model),
-					prompt: FIXED_PROMPT,
+				const { textStream } = await streamAIGatewayText({
+					model,
+					messages: [{ role: 'user', content: FIXED_PROMPT }],
 				});
 
 				return textStream;

@@ -1,0 +1,122 @@
+---
+title: Sending Traces to Langfuse
+short_title: Langfuse Tracing
+description: Keep Langfuse as the trace backend for Agentuity app code
+---
+
+When [Langfuse](https://langfuse.com/docs/observability/sdk/overview) already owns LLM trace review for an Agentuity app, keep Langfuse as the trace backend. Start the Langfuse OpenTelemetry processor at app startup, then instrument the route, worker, or shared function that owns the model workflow.
+
+```bash
+npm install @langfuse/tracing @langfuse/otel @opentelemetry/sdk-node
+```
+
+```bash
+LANGFUSE_SECRET_KEY=sk-lf-...
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_BASE_URL=https://cloud.langfuse.com
+```
+
+## Start Langfuse Once
+
+Create an instrumentation module and import it before route modules that create observations. The Langfuse processor reads credentials from the environment.
+
+```typescript title="src/instrumentation/langfuse.ts"
+import { LangfuseSpanProcessor } from '@langfuse/otel';
+import { NodeSDK } from '@opentelemetry/sdk-node';
+
+export const sdk = new NodeSDK({
+  spanProcessors: [new LangfuseSpanProcessor()],
+});
+
+export function startLangfuseTelemetry(): void {
+  sdk.start();
+}
+
+export async function stopLangfuseTelemetry(): Promise<void> {
+  await sdk.shutdown();
+}
+```
+
+In a long-running server, start telemetry from the app entry point. In a short-lived script, call `stopLangfuseTelemetry()` before exit so pending spans flush.
+
+```typescript title="src/index.ts"
+import { startLangfuseTelemetry } from './instrumentation/langfuse';
+
+startLangfuseTelemetry();
+
+// Import and start your framework app after telemetry is registered.
+```
+
+## Trace an App Function
+
+Keep the function framework-free. A Hono route, Next.js route handler, queue consumer, or script can call it after parsing input at the boundary.
+
+```typescript title="src/lib/langfuse-support.ts"
+import { startActiveObservation } from '@langfuse/tracing';
+
+interface SupportAnswerInput {
+  readonly question: string;
+  readonly context: readonly string[];
+}
+
+interface SupportAnswer {
+  readonly answer: string;
+  readonly sources: readonly string[];
+  readonly escalated: boolean;
+}
+
+async function answerSupportQuestion(input: SupportAnswerInput): Promise<SupportAnswer> {
+  const importDoc = input.context.find((source) => source.includes('project import'));
+
+  return {
+    answer: importDoc
+      ? 'Run project import before deploy so Agentuity can link the existing app.'
+      : 'I need more context before I can answer that.',
+    sources: importDoc ? ['docs/import-existing-app'] : [],
+    escalated: input.question.toLowerCase().includes('billing'),
+  };
+}
+
+export async function answerWithLangfuseTrace(
+  input: SupportAnswerInput
+): Promise<SupportAnswer> {
+  return startActiveObservation('answer-support-question', async (span) => {
+    span.update({
+      input: {
+        question: input.question,
+        contextCount: input.context.length,
+      },
+    });
+
+    const output = await answerSupportQuestion(input);
+
+    span.update({
+      output,
+      metadata: {
+        sourceCount: output.sources.length,
+        escalated: output.escalated,
+      },
+    });
+
+    return output;
+  });
+}
+```
+
+## Keep Agentuity Paths Visible
+
+Langfuse receives the trace data. Agentuity still gives the app deploy packaging, `agentuity dev` environment wiring, service clients, AI Gateway routing, sessions, and deployment logs.
+
+| Need | Use |
+| --- | --- |
+| Langfuse trace review, prompt trace context, or hosted scoring tied to Langfuse data | Langfuse SDK and OpenTelemetry processor |
+| Agentuity-collected spans, logs, and Hono `c.var.tracer` | [`@agentuity/telemetry`](/services/observability/tracing#use-agentuity-telemetry-spans) or [`@agentuity/hono`](/frameworks/hono) |
+| Vendor-neutral route spans with a collector you already run | [OpenTelemetry route spans](/cookbook/patterns/opentelemetry-route-spans) |
+
+Langfuse v5 uses a default span filter for Langfuse and GenAI/LLM spans. If you need every framework, database, or queue span in Langfuse, configure the Langfuse span processor deliberately and inspect the resulting trace volume.
+
+## Next Steps
+
+- [Tracing](/services/observability/tracing): choose between app-owned OpenTelemetry and Agentuity telemetry spans
+- [Adding OpenTelemetry Spans to App Routes](/cookbook/patterns/opentelemetry-route-spans): keep standard OTel spans in app code
+- [Evals and Testing](/services/observability/evals-and-testing): connect traces to eval failures

@@ -31,6 +31,7 @@ import threadService from '../../packages/core/src/services/thread/api-reference
 import userService from '../../packages/core/src/services/user/api-reference.ts';
 import vectorService from '../../packages/core/src/services/vector/api-reference.ts';
 import webhooksService from '../../packages/core/src/services/webhook/api-reference.ts';
+import workflowsService from '../../packages/core/src/services/workflow/api-reference.ts';
 
 const services: Service[] = [
 	aiGatewayService,
@@ -55,6 +56,7 @@ const services: Service[] = [
 	userService,
 	vectorService,
 	webhooksService,
+	workflowsService,
 ];
 
 const ROOT_DIR = join(import.meta.dir, '..');
@@ -256,7 +258,7 @@ description: Direct HTTP access to Agentuity platform services
 
 {/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
 
-import { Activity, Box, BrainCircuit, Building, Clock, Cpu, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
+import { Activity, Box, BrainCircuit, Building, Clock, Cpu, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook, Workflow } from 'lucide-react';
 
 Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK or the CLI.
 
@@ -264,7 +266,7 @@ Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK
   <CardLink
     href="/reference/api/ai-gateway"
     title="AI Gateway"
-    description="List supported LLM models and run OpenAI-compatible chat completions"
+    description="List supported LLM models and run routed AI Gateway completions"
     icon={<Cpu className="size-5" />}
   />
   <CardLink
@@ -393,27 +395,68 @@ Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK
     description="Manage webhook endpoints, destinations, receipts, deliveries, and analytics"
     icon={<Webhook className="size-5" />}
   />
+  <CardLink
+    href="/reference/api/workflows"
+    title="Workflows"
+    description="Create and manage workflows that route events from sources to destinations"
+    icon={<Workflow className="size-5" />}
+  />
 </Cards>`;
 }
 
-function renderServiceRoute(service: Service): string {
+function routeDeclaration(routePath: string): string {
+	const singleLine = `export const Route = createFileRoute('/_docs/${routePath}')({`;
+	if (singleLine.length <= 100) {
+		return singleLine;
+	}
+	return `export const Route = createFileRoute(
+\t'/_docs/${routePath}'
+)({`;
+}
+
+function contentImport(mdxImportPath: string): string {
+	const singleLine = `import Content, { frontmatter, tableOfContents } from '${mdxImportPath}';`;
+	if (singleLine.length <= 100) {
+		return singleLine;
+	}
+	return `import Content, {
+\tfrontmatter,
+\ttableOfContents,
+} from '${mdxImportPath}';`;
+}
+
+function renderRouteFile(routePath: string, mdxImportPath: string, crumb: string): string {
 	return `import { createFileRoute } from '@tanstack/react-router';
 import { MDXPage } from '../../../../components/docs/mdx-page';
+import type { MDXModule } from '../../../../components/docs/mdx-page';
+${contentImport(mdxImportPath)}
 
-export const Route = createFileRoute('/_docs/reference/api/${service.slug}')({
-	component: () => <MDXPage route="reference/api/${service.slug}" />,
-	staticData: { crumb: '${service.name}' },
+const mdxModule = {
+\tdefault: Content,
+\tfrontmatter,
+\ttableOfContents,
+} satisfies MDXModule;
+
+${routeDeclaration(routePath)}
+\tcomponent: () => <MDXPage module={mdxModule} />,
+\tstaticData: { crumb: '${crumb.replace(/'/g, "\\'")}' },
 });`;
 }
 
-function renderApiIndexRoute(): string {
-	return `import { createFileRoute } from '@tanstack/react-router';
-import { MDXPage } from '../../../../components/docs/mdx-page';
+function renderServiceRoute(service: Service): string {
+	return renderRouteFile(
+		`reference/api/${service.slug}`,
+		`../../../../content/reference/api/${service.slug}.mdx`,
+		service.name
+	);
+}
 
-export const Route = createFileRoute('/_docs/reference/api/')({
-	component: () => <MDXPage route="reference/api" />,
-	staticData: { crumb: 'API Reference' },
-});`;
+function renderApiIndexRoute(): string {
+	return renderRouteFile(
+		'reference/api/',
+		'../../../../content/reference/api/index.mdx',
+		'REST API Reference'
+	);
 }
 
 async function main() {

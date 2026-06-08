@@ -1,53 +1,49 @@
 /**
  * Standalone run script for Object Storage demo
  *
- * NOTE: Intentionally separate from src/agent/objectstore/agent.ts.
- * Uses dynamic filenames with cleanup (delete) operations.
- * See src/run/AGENTS.md for architecture details.
- *
- * Demonstrates: Write → Read flow with Bun's S3 API
- * Credentials are auto-injected by Agentuity runtime.
+ * Uses @agentuity/storage so the sandbox matches the public example. The
+ * client reads linked bucket credentials from AWS_* environment variables.
  *
  * Usage: bun run src/run/objectstore.ts '{}'
  */
-import { createAgentContext } from '@agentuity/runtime';
-import { s3 } from 'bun';
+import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
+import { bucketConfigFromEnv, createS3Client } from '@agentuity/storage';
 
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 
-const filename = `demo-${Date.now()}.txt`;
+const key = `sdk-explorer/demo-${Date.now()}.txt`;
 const content = `Hello from Object Storage!\nTimestamp: ${new Date().toISOString()}`;
 
 try {
+	const storage = createS3Client(bucketConfigFromEnv());
+
 	ctx.logger.info('Writing file');
 
-	// Write a file
-	const file = s3.file(filename);
-	await file.write(content);
+	const bytesWritten = await storage.write(key, content, { type: 'text/plain' });
 
 	ctx.logger.info('Reading file');
 
-	// Read it back
+	const file = storage.file(key);
 	const readContent = await file.text();
-
-	// Check existence
-	const exists = await file.exists();
+	const stat = await storage.stat(key);
 
 	ctx.logger.info('Deleting file');
 
-	// Delete
-	await file.delete();
+	await storage.delete(key);
 
-	console.log('---OUTPUT---');
-	console.log(`Write: "${filename}"`);
-	console.log(`  Content: ${content.split('\n')[0]}...`);
-	console.log(`Read: "${filename}"`);
-	console.log(`  Content: ${readContent.split('\n')[0]}...`);
-	console.log(`Exists: ${exists}`);
-	console.log(`Deleted: "${filename}"`);
-	console.log('---OUTPUT---');
+	writeSandboxOutput(
+		[
+			`Write: "${key}"`,
+			`  Content: ${content.split('\n')[0]}...`,
+			`  Bytes written: ${bytesWritten}`,
+			`Read: "${key}"`,
+			`  Content: ${readContent.split('\n')[0]}...`,
+			`  Size: ${stat.size}`,
+			`Deleted: "${key}"`,
+		].join('\n')
+	);
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
+	process.exitCode = 1;
 }

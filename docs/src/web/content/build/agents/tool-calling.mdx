@@ -1,0 +1,391 @@
+---
+title: Tool Calling
+description: Let models call bounded app functions from framework routes
+---
+
+Tool calling lets a model request structured function results mid-generation. Your app runs the function, returns the result, and the model continues with that data. Use tools when the answer depends on live app state: a database record, an API response, or a typed action result.
+
+For chat-style tool loops that span requests, see [State and Memory](/build/agents/state-and-memory).
+
+## Choose the Right Loop
+
+Start with AI Gateway when the model call is normal app code and the model choice should stay configurable. Use provider SDKs when the provider-specific workflow is the feature.
+
+| Use | Good fit |
+|-----|----------|
+| [AI Gateway structured output](/services/ai-gateway#structured-output) | typed JSON output, provider-agnostic model routing, and app-owned validation |
+| [AI SDK](#ai-sdk) | automatic tool loops, AI SDK UI streams, or an app already built around AI SDK primitives |
+| [OpenAI Responses API](#openai-responses-api) | apps already on Responses with `previous_response_id` turn chaining or Responses-only tools |
+| [Anthropic Messages API](#anthropic-messages-api) | apps that need Anthropic `tool_use` block fidelity or provider-specific schema controls |
+
+## What belongs in a tool
+
+| Good fit | Avoid |
+|----------|-------|
+| Read one record from KV, Postgres, or an external API | Broad database scans with no query limit |
+| Write a small status update after user approval | Irreversible side effects without a decision gate |
+| Enqueue a job or create a task | Long-running work inside the request lifecycle |
+| Return a compact, typed result | Returning large files, full transcripts, or raw blobs |
+
+## AI SDK
+
+Use AI SDK when you want the library to own the tool loop. `generateText` calls your `execute` function, injects the result into the next turn, and continues until the model stops or `stopWhen` fires. All tools are validated with `inputSchema` before `execute` runs.
+
+```bash
+npm install ai@latest @ai-sdk/anthropic@latest @agentuity/keyvalue zod
+```
+
+```typescript title="app/api/orders/answer/route.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { anthropic } from '@ai-sdk/anthropic';
+import { generateText, stepCountIs, tool } from 'ai';
+import { z } from 'zod';
+
+const requestSchema = z.object({
+  orderId: z.string(),
+  question: z.string(),
+});
+
+interface OrderSummary {
+  readonly orderId: string;
+  readonly status: string;
+  readonly eta: string;
+}
+
+const kv = new KeyValueClient();
+const model = process.env.ANTHROPIC_MODEL;
+
+if (!model) {
+  throw new Error('Set ANTHROPIC_MODEL to the model this workflow should use.');
+}
+
+async function answerOrderQuestion(orderId: string, question: string): Promise<string> {
+  const { text } = await generateText({
+    model: anthropic(model),
+    system: 'Answer using only the order facts returned by tools.',
+    prompt: question,
+    tools: {
+      getOrder: tool({ // [!code highlight]
+        description: 'Read the current order summary for a given order ID.',
+        inputSchema: z.object({
+          id: z.string().describe('Order ID to look up'),
+        }),
+        execute: async ({ id }): Promise<OrderSummary> => { // [!code highlight]
+          const result = await kv.get<OrderSummary>('orders', id);
+          // DataResult is discriminated on `exists`
+          return result.exists
+            ? result.data
+            : { orderId: id, status: 'unknown', eta: 'unknown' };
+        },
+      }),
+    },
+    // Prevent infinite loops if the model keeps requesting tool results
+    stopWhen: stepCountIs(4), // [!code highlight]
+  });
+
+  // Keep a short audit trail for support debugging
+  await kv.set('order-support', orderId, { question, answer: text }, { ttl: 3600 });
+
+  return text;
+}
+
+export async function POST(request: Request): Promise<Response> {
+  const body: unknown = await request.json();
+  const input = requestSchema.parse(body);
+  const answer = await answerOrderQuestion(input.orderId, input.question);
+  return Response.json({ answer });
+}
+```
+
+This section uses the Anthropic AI SDK provider because AI SDK owns the loop. Under `agentuity dev`, `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` can route through AI Gateway from `AGENTUITY_SDK_KEY` when no provider key override is set. For structured JSON without an AI SDK loop, use [`AIGatewayClient.completeStructured()`](/services/ai-gateway#structured-output).
+
+<Callout type="info" title="stepCountIs counts model turns, not tool calls">
+  Each `generateText` iteration (whether or not it makes a tool call) is one step. `stepCountIs(4)` stops after four turns regardless of how many individual tool calls occurred in those turns.
+</Callout>
+
+### Require Approval for Risky Tools
+
+Use `needsApproval` when the model can propose an action but your app should gate execution on a user decision. When `needsApproval` returns `true`, `execute` is skipped and the pending tool call is surfaced in the result.
+
+```typescript
+import { tool } from 'ai';
+import { z } from 'zod';
+
+const refundOrder = tool({
+  description: 'Issue a refund for an order. Requires user approval for amounts above $100.',
+  inputSchema: z.object({
+    orderId: z.string(),
+    amount: z.number().describe('Refund amount in USD'),
+  }),
+  // Skip execution and surface the call for approval when amount is large
+  needsApproval: async ({ amount }) => amount > 100, // [!code highlight]
+  execute: async ({ orderId, amount }) => {
+    // Only runs after your app approves the pending tool call
+    return { orderId, amount, status: 'refunded' };
+  },
+});
+```
+
+Pending tool calls appear in the model result's content. Store the pending action in your app state, collect the user's decision, then send the approval response back through your chat or workflow loop.
+
+<Callout type="warning" title="Make approvals replay-safe">
+  Store pending tool calls with a stable ID and execute the side effect once. If the approval route is retried, read the stored decision before calling the external API again.
+</Callout>
+
+## OpenAI Responses API
+
+Use this pattern when your app is already on the Responses API and you want to chain turns using `previous_response_id`. The Responses API accumulates conversation state server-side so you only need to send new input items in follow-up requests.
+
+```bash
+npm install openai @agentuity/keyvalue zod
+```
+
+The Responses API returns `function_call` items in `response.output`. Run your tool, then send a `function_call_output` item with the matching `call_id` in a follow-up request. Pass `previous_response_id` to reuse the model's prior turn state.
+
+```typescript title="app/api/orders/openai-answer/route.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+import OpenAI from 'openai';
+import type {
+  FunctionTool,
+  ResponseFunctionToolCall,
+  ResponseOutputItem,
+} from 'openai/resources/responses/responses';
+import { z } from 'zod';
+
+const orderToolInputSchema = z.object({
+  id: z.string(),
+});
+
+interface OrderSummary {
+  readonly orderId: string;
+  readonly status: string;
+  readonly eta: string;
+}
+
+const kv = new KeyValueClient();
+const openai = new OpenAI();
+const model = process.env.OPENAI_MODEL;
+
+if (!model) {
+  throw new Error('Set OPENAI_MODEL to the model this workflow should use.');
+}
+
+// strict: true requires additionalProperties: false and all properties in required[]
+const getOrderTool: FunctionTool = {
+  type: 'function',
+  name: 'get_order',
+  description: 'Read the current order summary for a support workflow.',
+  strict: true,
+  parameters: {
+    type: 'object',
+    properties: {
+      id: { type: 'string', description: 'Order ID' },
+    },
+    required: ['id'],
+    additionalProperties: false,
+  },
+};
+
+async function readOrderSummary(id: string): Promise<OrderSummary> {
+  const result = await kv.get<OrderSummary>('orders', id);
+  return result.exists
+    ? result.data
+    : { orderId: id, status: 'unknown', eta: 'unknown' };
+}
+
+function isOrderToolCall(item: ResponseOutputItem): item is ResponseFunctionToolCall {
+  return item.type === 'function_call' && item.name === 'get_order';
+}
+
+export async function answerWithOpenAI(question: string): Promise<string> {
+  const response = await openai.responses.create({
+    model,
+    input: question,
+    tools: [getOrderTool],
+  });
+
+  const toolCall = response.output.find(isOrderToolCall); // [!code highlight]
+  if (!toolCall) {
+    return response.output_text;
+  }
+
+  const parsedInput = orderToolInputSchema.parse(JSON.parse(toolCall.arguments));
+  const order = await readOrderSummary(parsedInput.id);
+
+  // previous_response_id tells the API to reuse the conversation state from
+  // the first turn so we only need to send the new function_call_output item
+  const finalResponse = await openai.responses.create({
+    model,
+    previous_response_id: response.id, // reuse model state from the tool-call turn // [!code highlight]
+    input: [
+      {
+        type: 'function_call_output', // [!code highlight]
+        call_id: toolCall.call_id,
+        output: JSON.stringify(order),
+      },
+    ],
+    tools: [getOrderTool],
+  });
+
+  return finalResponse.output_text;
+}
+```
+
+<Callout type="warning" title="Loop manually for multiple tool calls">
+  This example handles one tool call per turn. If the model emits multiple `function_call` items, iterate `response.output`, collect all `function_call_output` items, and send them together in the follow-up request. Use the same `previous_response_id` for all results from a single turn.
+</Callout>
+
+## Anthropic Messages API
+
+Use this pattern when your app uses the Anthropic SDK directly and needs `tool_use` block fidelity, such as when you log tool calls for auditing or need `strict: true` schema enforcement on every invocation.
+
+```bash
+npm install @anthropic-ai/sdk @agentuity/keyvalue zod
+```
+
+The Messages API returns `tool_use` blocks when the model wants to call a tool (`stop_reason: 'tool_use'`). Continue the conversation by appending the prior assistant message and a new user message whose content is the `tool_result` block.
+
+```typescript title="app/api/orders/anthropic-answer/route.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+import Anthropic from '@anthropic-ai/sdk';
+import type {
+  ContentBlock,
+  TextBlockParam,
+  Tool,
+  ToolUseBlock,
+  ToolUseBlockParam,
+} from '@anthropic-ai/sdk/resources/messages';
+import { z } from 'zod';
+
+const orderToolInputSchema = z.object({
+  id: z.string(),
+});
+
+interface OrderSummary {
+  readonly orderId: string;
+  readonly status: string;
+  readonly eta: string;
+}
+
+const kv = new KeyValueClient();
+const anthropic = new Anthropic();
+const model = process.env.ANTHROPIC_MODEL;
+
+if (!model) {
+  throw new Error('Set ANTHROPIC_MODEL to the model this workflow should use.');
+}
+
+// input_schema (not parameters) is the Anthropic field name for the JSON Schema
+// strict: true enforces schema conformance on Anthropic Tool calls
+const getOrderTool: Tool = {
+  name: 'get_order',
+  description: 'Read the current order summary for a support workflow.',
+  input_schema: { // [!code highlight]
+    type: 'object',
+    properties: {
+      id: { type: 'string', description: 'Order ID' },
+    },
+    required: ['id'],
+  },
+  strict: true,
+};
+
+async function readOrderSummary(id: string): Promise<OrderSummary> {
+  const result = await kv.get<OrderSummary>('orders', id);
+  return result.exists
+    ? result.data
+    : { orderId: id, status: 'unknown', eta: 'unknown' };
+}
+
+function isOrderToolUse(block: ContentBlock): block is ToolUseBlock {
+  return block.type === 'tool_use' && block.name === 'get_order';
+}
+
+function textFromContent(blocks: readonly ContentBlock[]): string {
+  return blocks
+    .filter((b): b is Extract<ContentBlock, { type: 'text' }> => b.type === 'text')
+    .map((b) => b.text)
+    .join('\n');
+}
+
+// The follow-up message must echo back the full assistant content (including
+// tool_use blocks) so Anthropic can match tool_result to the correct call
+function toAssistantContent(
+  blocks: readonly ContentBlock[]
+): Array<TextBlockParam | ToolUseBlockParam> {
+  const content: Array<TextBlockParam | ToolUseBlockParam> = [];
+  for (const block of blocks) {
+    if (block.type === 'text') content.push({ type: 'text', text: block.text });
+    if (block.type === 'tool_use') {
+      content.push({ type: 'tool_use', id: block.id, name: block.name, input: block.input });
+    }
+  }
+  return content;
+}
+
+export async function answerWithAnthropic(question: string): Promise<string> {
+  const message = await anthropic.messages.create({
+    model,
+    max_tokens: 1024,
+    system: 'Answer using only the order facts returned by tools.',
+    messages: [{ role: 'user', content: question }],
+    tools: [getOrderTool],
+  });
+
+  const toolUse = message.content.find(isOrderToolUse);
+  if (!toolUse) {
+    return textFromContent(message.content);
+  }
+
+  const parsedInput = orderToolInputSchema.parse(toolUse.input);
+  const order = await readOrderSummary(parsedInput.id);
+
+  const finalMessage = await anthropic.messages.create({
+    model,
+    max_tokens: 1024,
+    system: 'Answer using only the order facts returned by tools.',
+    messages: [
+      { role: 'user', content: question },
+      // Echo back the full assistant content so Anthropic can match tool_result IDs
+      { role: 'assistant', content: toAssistantContent(message.content) }, // [!code highlight]
+      {
+        role: 'user',
+        // tool_result must be the first (or only) content block in this user turn
+        content: [
+          {
+            type: 'tool_result', // [!code highlight]
+            tool_use_id: toolUse.id,
+            content: JSON.stringify(order),
+          },
+        ],
+      },
+    ],
+    tools: [getOrderTool],
+  });
+
+  return textFromContent(finalMessage.content);
+}
+```
+
+<Callout type="warning" title="Loop until stop_reason is not tool_use">
+  This example handles one tool call. For multi-tool or multi-turn loops, keep calling `anthropic.messages.create` and appending the assistant and `tool_result` messages until `message.stop_reason !== 'tool_use'`.
+</Callout>
+
+## Common Gotchas
+
+| Symptom | Check |
+|---------|-------|
+| Model keeps calling the same tool | Cap the loop with `stopWhen: stepCountIs(N)` or an equivalent sentinel in your provider loop |
+| Tool input is missing required fields | Add `.describe()` hints on each schema field and validate before executing any side effect |
+| OpenAI loop loses context after a tool call | Pass `previous_response_id` from the prior response, or accumulate all output items into the next `input` array |
+| Anthropic loop returns another `tool_use` block | Keep looping until `stop_reason !== 'tool_use'`; never drop the assistant message between turns |
+| Tool output is too large | Store the full result in KV or Streams and return a compact pointer (ID or summary) |
+| `needsApproval` skipping execution unexpectedly | `needsApproval` returning `true` means approval is required, not granted; check your approval response flow |
+
+## Next Steps
+
+- [State and Memory](/build/agents/state-and-memory): persist tool results and pending approvals across requests
+- [Background Work](/build/apps-and-apis/background-work): enqueue tool actions that should outlive the HTTP request
+- [Key-Value Storage](/services/storage/key-value): keep compact state by namespace and key
+- [Queues](/services/queues): run approved side effects outside the request lifecycle
+- [AI Gateway](/services/ai-gateway): route LLM requests through Agentuity for observability and cost tracking

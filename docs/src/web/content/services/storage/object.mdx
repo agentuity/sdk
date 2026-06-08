@@ -1,215 +1,293 @@
 ---
 title: Object Storage (S3)
 short_title: Object
-description: Durable file storage using Bun's native S3 APIs
+description: Store files and binary data with S3-compatible clients
 ---
 
-Object storage provides durable file storage for documents, images, media, and binary content using [Bun's native S3 APIs](https://bun.sh/docs/runtime/s3).
+Use object storage for files, images, documents, media, backups, and other data that belongs outside your database. Agentuity exposes storage buckets through S3-compatible credentials, and `@agentuity/storage` gives Bun and Node.js server code the same small client surface.
 
-## When to Use Object Storage
+```typescript
+import { bucketConfigFromEnv, createS3Client } from '@agentuity/storage';
 
-| Storage Type | Best For |
-|--------------|----------|
-| **Object (S3)** | Files, images, documents, media, backups |
-| [Key-Value](/services/storage/key-value) | Fast lookups, caching, configuration |
-| [Vector](/services/storage/vector) | Semantic search, embeddings, RAG |
-| [Database](/services/database) | Structured data, complex queries, transactions |
-| [Durable Streams](/services/storage/durable-streams) | Large exports, audit logs |
+const storage = createS3Client(bucketConfigFromEnv());
+
+await storage.write(
+  'reports/monthly-summary.json',
+  JSON.stringify({ month: '2026-04', total: 42817 }),
+  {
+    type: 'application/json',
+  }
+);
+
+const file = storage.file('reports/monthly-summary.json');
+const summary = JSON.parse(await file.text()) as { month: string; total: number };
+```
+
+`storage.file()` creates a lazy file reference. Network work starts when you read, write, check metadata, delete, or stream the file.
+
+<Callout type="info" title="Use the package unless you need Bun-only APIs">
+`@agentuity/storage` uses Bun's S3 client under Bun and the AWS SDK under Node.js. Use Bun's native `S3Client` directly when you need Bun-only helpers such as `presign()`.
+</Callout>
 
 ## Setup
 
-Object storage requires a storage bucket linked to your project.
-
-### New Projects
-
-When you run `agentuity project create`, the CLI prompts you to create or select a storage bucket. If you opt in, the bucket is linked and credentials are written to `.env` automatically.
-
-### Existing Projects
-
-For projects that don't have a bucket yet:
-
-1. Create a bucket using the CLI or by signing in to the [Agentuity web app](https://app.agentuity.com/sign-in):
+Object storage requires a storage bucket linked to your project. Create the bucket once, then link it into each project that should use it.
 
 ```bash
-agentuity cloud storage create
+agentuity cloud storage create --name app-uploads
+agentuity project add storage app-uploads
 ```
 
-2. Link it to your project:
+`agentuity project add storage` links an existing bucket to the current project and writes S3 credentials to `.env`.
+
+The credentials written to `.env` are:
+
+- `AWS_ENDPOINT`
+- `AWS_BUCKET`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_REGION` (optional)
+
+Leave `AWS_ENDPOINT` exactly as the CLI writes it. `@agentuity/storage` accepts both
+shared-host and bucket-scoped Agentuity endpoints from `bucketConfigFromEnv()`.
+
+<Callout type="warning" title="Keep S3 credentials on the server">
+Do not expose bucket credentials to browser code. Create presigned URLs from a server route when a browser needs direct upload or download access.
+</Callout>
+
+## Runtime-Specific Imports
+
+Use `@agentuity/storage` when you want the same object-storage code to run under Bun or Node.js.
 
 ```bash
-agentuity project add storage
+npm install @agentuity/storage
 ```
 
-`agentuity project add storage` links the bucket and writes credentials to `.env`. `agentuity cloud storage create` also writes credentials if run from a project directory.
-
-The credentials written to `.env`:
-
-- `S3_ACCESS_KEY_ID`
-- `S3_SECRET_ACCESS_KEY`
-- `S3_BUCKET`
-- `S3_ENDPOINT`
-
-<Callout type="warning" title="Dev Mode Credentials">
-`agentuity dev` reads S3 credentials from `.env`. If you see `ERR_S3_MISSING_CREDENTIALS`, run `agentuity project add storage` to link a bucket and write the credentials.
-
-After cloning a project where `.env` is not checked in, run `agentuity project add storage` to re-link the bucket. Alternatively, if the project has been deployed before, run `agentuity cloud env pull` to restore all project environment variables from the cloud.
-</Callout>
-
-<Callout type="info" title="Cloud Deployment">
-When deployed to Agentuity Cloud, S3 credentials for linked buckets are available automatically.
-</Callout>
-
-## Quick Start
+The bare import picks the backend from package export conditions. Use the explicit subpaths when you need to pin the runtime:
 
 ```typescript
-import { s3 } from 'bun';
+import { createS3Client } from '@agentuity/storage';
+import { createS3Client as createBunS3Client } from '@agentuity/storage/bun';
+import { createS3Client as createNodeS3Client } from '@agentuity/storage/node';
+```
 
-// Create a file reference
-const file = s3.file('documents/report.pdf');
+For Node.js routes, use the Node backend explicitly:
 
-// Write content
-await file.write('Hello, World!');
-await file.write(JSON.stringify({ createdAt: new Date().toISOString() }), {
+```typescript
+import { bucketConfigFromEnv, createS3Client } from '@agentuity/storage/node';
+
+const storage = createS3Client(bucketConfigFromEnv());
+
+await storage.write('reports/monthly-summary.json', JSON.stringify({ total: 42817 }), {
   type: 'application/json',
 });
+```
 
-// Read content
-const text = await file.text();
-const json = await file.json();
-const bytes = await file.bytes();
+## When to use object storage
 
-// Check existence and delete
-if (await file.exists()) {
-  await file.delete();
+| Need | Use |
+|------|-----|
+| files or binary data | [Object Storage](/services/storage/object) |
+| exact key lookup | [Key-Value](/services/storage/key-value) |
+| semantic search or RAG retrieval | [Vector](/services/storage/vector) |
+| generated output readable by URL | [Durable Streams](/services/storage/durable-streams) |
+| relational joins or transactions | [Database](/services/database) |
+
+## Read, Write, and Delete
+
+Use the storage client with bucket credentials from the environment.
+
+```typescript
+import { bucketConfigFromEnv, createS3Client } from '@agentuity/storage';
+
+const storage = createS3Client(bucketConfigFromEnv());
+
+const response = await fetch('https://example.com/avatar.png');
+await storage.write('users/user_123/avatar.png', response.body ?? await response.arrayBuffer(), {
+  type: 'image/png',
+});
+
+const avatar = storage.file('users/user_123/avatar.png');
+try {
+  const bytes = await avatar.arrayBuffer();
+  const contentType = avatar.type;
+  // bytes is ArrayBuffer; contentType is the stored MIME type
+  void bytes;
+  void contentType;
+} catch (error) {
+  // Object not found or storage service error.
+  throw error;
+}
+
+await storage.delete('users/user_123/avatar.png');
+```
+
+For large files, pass a stream instead of holding the whole payload in memory:
+
+```typescript
+import { bucketConfigFromEnv, createS3Client } from '@agentuity/storage';
+
+const storage = createS3Client(bucketConfigFromEnv());
+
+const stream = new Blob(['account_id,total\n', 'acct_123,42817\n']).stream();
+
+await storage.write('exports/large-report.csv', stream, {
+  type: 'text/csv',
+});
+```
+
+<Callout type="info" title="Use Bun's writer for multipart controls">
+`@agentuity/storage` accepts streams but does not expose multipart tuning options. If you need `partSize` or `queueSize`, use Bun's `S3Client` directly and keep non-final multipart parts at 5 MB or larger.
+</Callout>
+
+## Framework Route Uploads
+
+In framework apps, keep the storage client in a server-only route or server module. This example writes text content from a Next.js route handler without exposing bucket credentials to the browser.
+
+```bash
+npm install @agentuity/storage zod
+```
+
+```typescript title="app/api/reports/route.ts"
+import { bucketConfigFromEnv, createS3Client } from '@agentuity/storage/node';
+import { z } from 'zod';
+
+const storage = createS3Client(bucketConfigFromEnv());
+
+const reportSchema = z.object({
+  key: z.string().min(1),
+  content: z.string(),
+});
+
+export async function POST(request: Request): Promise<Response> {
+  const input = reportSchema.parse(await request.json());
+
+  await storage.write(input.key, input.content, {
+    type: 'text/plain',
+  });
+
+  return Response.json({ key: input.key });
 }
 ```
 
-## Using in Agents
-
-```typescript
-import { createAgent } from '@agentuity/runtime';
-import { s } from '@agentuity/schema';
-import { s3 } from 'bun';
-
-const agent = createAgent('FileProcessor', {
-  schema: {
-    input: s.object({ userId: s.string() }),
-    output: s.object({
-      data: s.unknown().optional(),
-      error: s.string().optional(),
-    }),
-  },
-  handler: async (ctx, input) => {
-    const file = s3.file(`uploads/${input.userId}/data.json`);
-
-    if (!(await file.exists())) {
-      return { error: 'File not found' };
-    }
-
-    const data = await file.json();
-    ctx.logger.info('File loaded', { userId: input.userId });
-    return { data };
-  },
-});
-```
-
-## Using in Routes
-
-```typescript
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import { s3 } from 'bun';
-
-const router = new Hono<Env>();
-
-// File upload
-router.post('/upload/:filename', async (c) => {
-  const filename = c.req.param('filename');
-  const file = s3.file(`uploads/${filename}`);
-
-  const buffer = await c.req.arrayBuffer();
-  await file.write(new Uint8Array(buffer), {
-    type: c.req.header('content-type') || 'application/octet-stream',
-  });
-
-  return c.json({ success: true, url: file.presign({ expiresIn: 3600 }) });
-});
-
-// File download (redirects to S3)
-router.get('/download/:filename', async (c) => {
-  const file = s3.file(`uploads/${c.req.param('filename')}`);
-  if (!(await file.exists())) {
-    return c.json({ error: 'Not found' }, 404);
-  }
-  return new Response(file);
-});
-
-export default router;
-```
-
-<Callout type="tip" title="Efficient Downloads">
-Passing an `S3File` to `new Response()` returns a 302 redirect to a presigned URL, so clients download directly from S3.
-</Callout>
+Use the explicit `/node` import for Node.js framework routes. In Bun-native routes, the bare `@agentuity/storage` import or `/bun` subpath can use Bun's S3 backend.
 
 ## Presigned URLs
 
-Generate time-limited URLs for direct client access:
+Generate presigned URLs from Bun server code when clients should upload or download directly. Bun's S3 API can read the `AWS_*` values written by `agentuity project add storage`, so a linked Agentuity bucket works without extra mapping.
 
 ```typescript
-import { s3 } from 'bun';
+import { S3Client } from 'bun';
 
-// Download URL (default: GET, 24 hours)
-const downloadUrl = s3.presign('uploads/document.pdf', {
-  expiresIn: 3600,
+const s3 = new S3Client();
+
+const downloadUrl = s3.presign('reports/monthly-summary.json', {
+  method: 'GET',
+  expiresIn: 60 * 15,
 });
 
-// Upload URL
-const uploadUrl = s3.presign('uploads/new-file.pdf', {
+const uploadUrl = s3.presign('uploads/invoice.pdf', {
   method: 'PUT',
-  expiresIn: 900,
+  expiresIn: 60 * 10,
   type: 'application/pdf',
 });
 ```
 
+`presign()` is synchronous. It signs a URL from local credentials and does not call S3.
+
+For browser uploads, configure CORS on the bucket or the browser will reject the direct `PUT`. Allow the origin that hosts your app, the `PUT` method, and the headers your upload sends, especially `Content-Type`. Keep the presigned route server-side so bucket credentials never leave your app.
+
+## Uploads from a Hono Route
+
+Keep browser uploads direct to S3 by returning a short-lived upload URL from your backend.
+
+```typescript title="src/index.ts"
+import { S3Client } from 'bun';
+import { Hono } from 'hono';
+import { z } from 'zod';
+
+const s3 = new S3Client();
+
+const uploadRequestSchema = z.object({
+  filename: z.string(),
+  contentType: z.string(),
+});
+
+const app = new Hono();
+
+app.post('/api/uploads/presign', async (c) => {
+  const body: unknown = await c.req.json();
+  const input = uploadRequestSchema.parse(body);
+  const key = `uploads/${crypto.randomUUID()}-${input.filename}`;
+
+  const url = s3.presign(key, {
+    method: 'PUT',
+    expiresIn: 60 * 10,
+    type: input.contentType,
+  });
+
+  return c.json({ key, url });
+});
+
+app.get('/api/uploads/download', async (c) => {
+  const key = c.req.query('key');
+
+  if (!key) {
+    return c.json({ error: 'Missing key' }, 400);
+  }
+
+  const file = s3.file(key);
+
+  if (!(await file.exists())) {
+    return c.json({ error: 'File not found' }, 404);
+  }
+
+  const url = file.presign({
+    method: 'GET',
+    expiresIn: 60 * 10,
+  });
+
+  return c.redirect(url);
+});
+
+export default app;
+```
+
+The download route returns a short-lived redirect. The file does not flow through your route process.
+
 ## Custom S3 Clients
 
-For multiple buckets or external S3-compatible services:
+Use `S3Client` when you need Bun-only helpers, a specific bucket, an external S3-compatible service, or explicit credentials.
 
 ```typescript
 import { S3Client } from 'bun';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
+
   if (!value) {
     throw new Error(`${name} is required`);
   }
+
   return value;
 }
 
-// Cloudflare R2
-const r2 = new S3Client({
-  accessKeyId: requireEnv('R2_ACCESS_KEY'),
-  secretAccessKey: requireEnv('R2_SECRET_KEY'),
-  bucket: 'my-bucket',
-  endpoint: `https://${requireEnv('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com`,
+const uploads = new S3Client({
+  bucket: requireEnv('S3_BUCKET'),
+  endpoint: requireEnv('S3_ENDPOINT'),
+  accessKeyId: requireEnv('S3_ACCESS_KEY_ID'),
+  secretAccessKey: requireEnv('S3_SECRET_ACCESS_KEY'),
+  region: process.env.S3_REGION ?? 'us-east-1',
 });
 
-// AWS S3
-const aws = new S3Client({
-  accessKeyId: requireEnv('AWS_ACCESS_KEY_ID'),
-  secretAccessKey: requireEnv('AWS_SECRET_ACCESS_KEY'),
-  bucket: 'my-bucket',
-  region: 'us-east-1',
-});
+await uploads.write('healthcheck.txt', 'ok', { type: 'text/plain' });
 ```
 
-## Bun S3 Documentation
-
-For complete API documentation including streaming, multipart uploads, file metadata, listing objects, and partial reads, see the [Bun S3 documentation](https://bun.sh/docs/runtime/s3).
+For Agentuity-managed buckets, `new S3Client()` can read the linked `AWS_*` values from the environment. For other providers, pass that provider's bucket, endpoint, and credentials explicitly.
 
 ## Next Steps
 
-- [Key-Value Storage](/services/storage/key-value): Fast caching and configuration
-- [Database](/services/database): Relational data with Bun's SQL support
-- [Vector Storage](/services/storage/vector): Semantic search and embeddings
-- [Durable Streams](/services/storage/durable-streams): Streaming large data exports
+- [Key-Value Storage](/services/storage/key-value): store exact-key cache and state
+- [Durable Streams](/services/storage/durable-streams): write generated output that remains accessible by URL
+- [Database](/services/database): store relational data with SQL and transactions
+- [Object Storage API Reference](/reference/api/object-storage): inspect REST fields and presign endpoints

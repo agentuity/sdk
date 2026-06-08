@@ -22,6 +22,7 @@ Use this after `getSession()` shows a live runtime. A newly created session may 
 
 ```typescript
 import { subscribeToCoderHub } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 const sessionId = process.argv[2];
 if (!sessionId) {
@@ -53,10 +54,10 @@ try {
 
     if (message.type === 'broadcast') {
       // Broadcast carries the event name and the payload the session emitted
-      console.log('Broadcast event:', message.event);
+      logger.info('Broadcast event:', message.event);
     } else if (message.type === 'presence') {
       // Presence fires when a participant joins or leaves the session
-      console.log('Presence:', message.event);
+      logger.info('Presence:', message.event);
     }
   }
 } finally {
@@ -72,6 +73,7 @@ The client handles the WebSocket handshake and heartbeat for you. Break out of t
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 const sessionId = process.argv[2];
 if (!sessionId) {
@@ -92,7 +94,7 @@ while (true) {
 
   for (const ev of events) {
     // Each event carries: id, event (name), category, agent, taskId, occurredAt, payload
-    console.log(`[${ev.occurredAt}] ${ev.category ?? '-'} / ${ev.event} (agent: ${ev.agent ?? 'none'})`);
+    logger.info(`[${ev.occurredAt}] ${ev.category ?? '-'} / ${ev.event} (agent: ${ev.agent ?? 'none'})`);
   }
 
   fetched += events.length;
@@ -112,6 +114,7 @@ When a client attaches to a session that is already running, it needs to catch u
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 const sessionId = process.argv[2];
 if (!sessionId) {
@@ -124,12 +127,12 @@ const replay = await client.getReplay(sessionId);
 // The replay payload is the accumulated hydration stream for this session
 // A late-joining client consumes it to match the Hub's current state before
 // switching over to the live subscription for new events
-console.log(`Rehydrated replay for session ${replay.sessionId}`);
+logger.info(`Rehydrated replay for session ${replay.sessionId}`);
 ```
 
 Frame `getReplay` as hydration, not narrative review. A newly attached client calls it once so its local state matches the Hub's accumulated stream, then it switches to `subscribeToCoderHub` for the live feed going forward.
 
-## When to Use Each
+## When to use each
 
 | Mechanism | When to use |
 |-----------|-------------|

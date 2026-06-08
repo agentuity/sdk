@@ -292,7 +292,7 @@ export async function getMessageByOffset(
  * @param params - Optional filtering and pagination parameters
  * @param params.limit - Maximum number of messages to return (1-1000)
  * @param params.offset - Starting offset for pagination
- * @param params.state - Filter by message state (pending, processing, completed, failed, dead)
+ * @param params.state - Filter by message state (pending, leased, delivered, failed, dead)
  * @returns Object containing messages array and optional total count
  * @throws {QueueValidationError} If validation fails
  * @throws {QueueNotFoundError} If the queue does not exist
@@ -459,7 +459,7 @@ export async function replayMessage(
  * Consume messages from a queue starting at an offset.
  *
  * Retrieves messages for log-style consumption, starting from the specified
- * offset. Unlike receive/ack flow, this does not mark messages as processing.
+ * offset. Unlike receive/ack flow, this does not lease messages.
  * Ideal for event sourcing or fan-out patterns where multiple consumers
  * read the same messages.
  *
@@ -606,7 +606,7 @@ export async function getQueueTail(
  * Receive the next available message from a queue.
  *
  * Atomically retrieves and locks the next pending message for processing.
- * The message state transitions to "processing" and must be acknowledged
+ * The message state transitions to "leased" and must be acknowledged
  * (ack) or negative-acknowledged (nack) when done. Supports long polling
  * with an optional timeout.
  *
@@ -662,7 +662,7 @@ export async function receiveMessage(
 /**
  * Acknowledge successful processing of a message.
  *
- * Marks a message as successfully processed (completed state).
+ * Marks a message as successfully processed (`delivered` state).
  * Should be called after successfully processing a message received
  * via receiveMessage. The message will not be redelivered.
  *

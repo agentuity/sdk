@@ -27,12 +27,10 @@ function estimateTokens(text: string): number {
 }
 
 const MODELS = [
-	{ value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini', provider: 'OpenAI' },
-	{ value: 'gpt-5-mini', label: 'GPT-5 Mini', provider: 'OpenAI' },
-	{ value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', provider: 'Anthropic' },
-	{ value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', provider: 'Anthropic' },
-	{ value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite', provider: 'Google' },
-	{ value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', provider: 'Groq' },
+	{ value: 'anthropic/claude-opus-4-8', label: 'Claude Opus 4.8', provider: 'Anthropic' },
+	{ value: 'googleai/gemini-3.5-flash', label: 'Gemini 3.5 Flash', provider: 'Google' },
+	{ value: 'openai/gpt-5.5', label: 'GPT-5.5', provider: 'OpenAI' },
+	{ value: 'groq/openai/gpt-oss-120b', label: 'GPT OSS 120B', provider: 'Groq' },
 ];
 
 function getProviderColor(provider: string): string {
@@ -55,7 +53,7 @@ const FIXED_PROMPT = 'What are AI agents and how do they work?';
 
 export function StreamingDemo() {
 	const [model, setModel] = usePersistentDemoState<string>('streaming', 'model', {
-		defaultValue: 'gpt-5.4-mini',
+		defaultValue: 'anthropic/claude-opus-4-8',
 		storage: 'session',
 	});
 	const [state, setState] = useState<StreamState>({

@@ -1,190 +1,140 @@
 ---
-title: Using Claude Agent SDK with Agentuity
-short_title: Claude Agent SDK
-description: Build conversational code intelligence agents with Claude Agent SDK and Agentuity sandboxes
+title: Claude Agent SDK
+description: Run multi-turn Claude Agent sessions from a framework route with key-value session storage
 ---
 
-[Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/overview) handles conversations and tool use: reading files, writing code, running multi-turn analysis. Agentuity adds the deployment runtime, [sandboxes](/services/sandbox/sdk-usage) for safe code execution, and [thread state](/agents/state-management) for conversation history. You write the agent logic, Agentuity handles the infrastructure.
+The [Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/typescript) wraps Claude with file tools, sub-agents, and durable session IDs. Drop it into a framework route when you want Claude to read files, write code, or run multi-turn analysis with conversation history.
 
-## The Integration Pattern
+```bash
+npm install hono @anthropic-ai/claude-agent-sdk @agentuity/keyvalue arktype
+```
 
-Wrap a Claude Agent SDK `query()` call inside Agentuity's [`createAgent()`](/agents/creating-agents). Claude handles the LLM interaction and file tools. Agentuity provides schema validation, thread-isolated state, and sandbox execution.
+## Run a Single Turn
 
-Define schemas and create the agent handler:
+`query()` returns an async iterator of SDK messages. Drain the iterator to get the final result message; it carries the assistant text plus the session ID.
 
-```typescript title="src/agent/claude-code/index.ts"
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { createAgent } from '@agentuity/runtime';
-import { s } from '@agentuity/schema';
+```typescript title="src/lib/code-assist.ts"
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import type { SDKMessage, SDKResultMessage } from '@anthropic-ai/claude-agent-sdk';
 
-interface StoredMessage {
-  readonly role: 'user' | 'assistant';
-  readonly content: string;
+interface AssistResult {
+  readonly response: string;
+  readonly sessionId: string;
+  readonly costUsd?: number;
 }
 
-function buildPrompt(history: readonly StoredMessage[], prompt: string): string {
-  if (history.length === 0) {
-    return prompt;
+export async function runCodeAssist(prompt: string, sessionId?: string): Promise<AssistResult> {
+  const messages: SDKMessage[] = [];
+  for await (const message of query({
+    prompt,
+    options: sessionId ? { resume: sessionId } : undefined,
+  })) {
+    messages.push(message);
   }
 
-  const previousTurns = history
-    .map((message) => `${message.role}: ${message.content}`)
-    .join('\n');
+  const result = messages.find(
+    (message): message is SDKResultMessage => message.type === 'result'
+  );
 
-  return `${previousTurns}\nuser: ${prompt}`;
-}
-
-function getResultMessage(messages: readonly SDKMessage[]): SDKResultMessage | undefined {
-  return messages.find((message): message is SDKResultMessage => message.type === 'result');
-}
-
-const AgentInput = s.object({
-  prompt: s.string().describe('The user prompt to send to Claude'),
-});
-
-const AgentOutput = s.object({
-  response: s.string(),
-  sessionId: s.string(),
-  threadId: s.string(),
-  costUsd: s.number().optional(),
-});
-
-export default createAgent('claude-code', {
-  schema: { input: AgentInput, output: AgentOutput },
-  handler: async (ctx, { prompt }) => {
-    ctx.logger.info('Claude Agent invoked', { promptLength: prompt.length });
-
-    const workspaceDir = join(tmpdir(), 'claude-code-workspaces', ctx.thread.id);
-    initWorkspace(workspaceDir);
-
-    // Load conversation history from thread state
-    const history = (await ctx.thread.state.get<StoredMessage[]>('messages')) ?? []; // [!code highlight]
-    const fullPrompt = buildPrompt(history, prompt);
-
-    const systemPrompt = [
-      'You are a helpful code assistant running inside an Agentuity agent.',
-      'You have access to a workspace with sample TypeScript files.',
-      history.length > 0
-        ? `\nThis is a continuing conversation (${history.length} messages so far).`
-        : '',
-    ].join('\n');
-
-    // Claude Agent SDK manages the conversation loop and tool calls
-    const collectedMessages: SDKMessage[] = [];
-    const q = query({ // [!code highlight]
-      prompt: fullPrompt,
-      options: {
-        systemPrompt,
-        allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'Grep'], // [!code highlight]
-        permissionMode: 'dontAsk',
-        cwd: workspaceDir,
-        maxTurns: 10,
-      },
-    });
-
-    for await (const msg of q) {
-      collectedMessages.push(msg);
-    }
-
-    const resultMessage = getResultMessage(collectedMessages);
-    const responseText = resultMessage?.subtype === 'success'
-      ? resultMessage.result
-      : 'No response generated';
-
-    // Persist with a sliding window via thread state
-    await ctx.thread.state.push('messages', { role: 'user', content: prompt }, 20);
-    await ctx.thread.state.push('messages', { role: 'assistant', content: responseText }, 20);
-
-    return {
-      response: responseText,
-      sessionId: ctx.sessionId,
-      threadId: ctx.thread.id,
-      ...(resultMessage ? { costUsd: resultMessage.total_cost_usd } : {}),
-    };
-  },
-});
-```
-
-Claude Agent SDK iterates through an async generator of messages. `allowedTools` pre-approves the listed tools, and `permissionMode: 'dontAsk'` denies tools that were not pre-approved instead of prompting. Each query is bounded by `maxTurns`, and Agentuity's [`ctx.thread.state`](/agents/state-management) persists conversation history across requests with a 20-message sliding window.
-
-## Sandbox Execution
-
-When a user asks to run code, the agent ships workspace files to an Agentuity [sandbox](/services/sandbox/sdk-usage) for isolated execution. Claude handles the analysis, Agentuity handles the execution:
-
-```typescript title="src/agent/claude-code/index.ts"
-// Detect execution intent from the user's prompt
-const wantsExecution = /\b(run|execute|test|try)\b/i.test(prompt);
-
-if (wantsExecution) {
-  const workspaceFiles = collectWorkspaceFiles(workspaceDir);
-  const mainFile = pickMainFile(workspaceFiles, prompt, collectedMessages);
-
-  if (workspaceFiles.length > 0 && mainFile) {
-    ctx.logger.info('Executing in sandbox', { mainFile, fileCount: workspaceFiles.length });
-
-    const result = await ctx.sandbox.run({ // [!code highlight]
-      runtime: 'bun:1',
-      command: {
-        exec: ['bun', 'run', mainFile],
-        files: workspaceFiles, // [!code highlight]
-      },
-      resources: { memory: '500Mi', cpu: '500m' },
-    });
-
-    executionResult = {
-      stdout: result.stdout,
-      stderr: result.stderr !== result.stdout ? result.stderr : undefined,
-      exitCode: result.exitCode,
-    };
+  if (!result) {
+    throw new Error('No result message returned from query()');
   }
+
+  if (result.subtype !== 'success') {
+    throw new Error(result.errors.join('\n') || 'Claude Agent SDK returned an error result');
+  }
+
+  return {
+    response: result.result,
+    sessionId: result.session_id,
+    costUsd: result.total_cost_usd,
+  };
 }
 ```
 
-`ctx.sandbox.run()` creates an isolated environment with the Bun runtime, copies in the workspace files, and executes the specified file. Resources are capped so a single request cannot exhaust the sandbox. The exit code, stdout, and stderr come back as structured data.
+The `resume` option carries on a previous session by ID. The first call creates a session; subsequent calls reuse it for cheap multi-turn conversations.
 
-## Workspace Setup
+## Track Sessions per Conversation
 
-The agent seeds a per-thread temp directory with sample files so Claude has code to work with from the first message:
+Map your app's conversation IDs to Claude session IDs in [key-value storage](/services/storage/key-value). The route looks up the session before calling `query()` and stores the latest one after each response.
 
-```typescript title="src/agent/claude-code/index.ts"
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { type } from 'arktype';
+import { runCodeAssist } from './lib/code-assist';
+
+const SESSION_NAMESPACE = 'claude-sessions';
+
+const requestSchema = type({
+  conversationId: 'string',
+  prompt: 'string',
+});
+
+const kv = new KeyValueClient();
+const app = new Hono();
+
+app.post('/api/code-assist', async (c) => {
+  const body: unknown = await c.req.json();
+  const input = requestSchema(body);
+  if (input instanceof type.errors) {
+    return c.json({ error: 'conversationId and prompt are required' }, 400);
+  }
+
+  const stored = await kv.get<string>(SESSION_NAMESPACE, input.conversationId);
+  const previousSessionId = stored.exists ? stored.data : undefined;
+
+  const result = await runCodeAssist(input.prompt, previousSessionId);
+
+  await kv.set(SESSION_NAMESPACE, input.conversationId, result.sessionId, {
+    ttl: 60 * 60 * 24 * 30,
+  });
+
+  return c.json({
+    response: result.response,
+    conversationId: input.conversationId,
+    costUsd: result.costUsd,
+  });
+});
+
+export default app;
+```
+
+The Claude session lives on Anthropic's side; only the session ID lives in your KV. That keeps storage cheap and lets the SDK reuse cached state automatically.
+
+## Workspaces
+
+For agents that read or write files, give each conversation its own working directory. The SDK reads `cwd` from `query()` options.
+
+```typescript
+import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { SAMPLE_FILES } from './sample-files';
 
-function initWorkspace(workspaceDir: string): void {
-  if (!existsSync(workspaceDir)) {
-    mkdirSync(workspaceDir, { recursive: true });
-  }
-  for (const file of SAMPLE_FILES) {
-    const filePath = join(workspaceDir, file.name);
-    if (!existsSync(filePath)) {
-      writeFileSync(filePath, file.content);
-    }
-  }
+async function getWorkspace(conversationId: string): Promise<string> {
+  const dir = join(tmpdir(), 'claude-workspaces', conversationId);
+  await mkdir(dir, { recursive: true });
+  return dir;
 }
 
-// One workspace per thread, so concurrent conversations stay isolated
-const workspaceDir = join(tmpdir(), 'claude-code-workspaces', ctx.thread.id);
-initWorkspace(workspaceDir);
+const cwd = await getWorkspace(input.conversationId);
+
+for await (const message of query({
+  prompt: input.prompt,
+  options: { cwd, resume: previousSessionId },
+})) {
+  // ...
+}
 ```
 
-Each thread gets its own directory keyed by `ctx.thread.id`, keeping concurrent conversations isolated. Files that Claude writes or edits during the session persist within the workspace for follow-up turns.
+For deployed apps that need workspaces to outlive a process, write files to [object storage](/services/storage/object) instead of `tmpdir()` and stage them into the workspace each request.
 
-<Callout type="info" title="Authentication">
-This integration requires an `ANTHROPIC_API_KEY` in your `.env` file. The Claude Agent SDK authenticates directly with Anthropic, separate from the [AI Gateway](/agents/ai-gateway).
-</Callout>
+## When to reach for the Claude Agent SDK
 
-## Full Example
-
-[Claude Code Integration](https://github.com/agentuity/examples/tree/main/integrations/claude-code): complete project with chat frontend, API routes, and sample workspace files.
+Pick this SDK when you want Claude's full agent loop with file tools, planning, and multi-turn caching. Pick the [Anthropic SDK Messages API](/cookbook/patterns/autonomous-research) when you want full control over `tool_use` blocks. Pick [AI SDK](/build/agents) for one provider-agnostic surface.
 
 ## Next Steps
 
-- [Sandbox SDK Usage](/services/sandbox/sdk-usage): Full API for creating and managing sandboxes
-- [State Management](/agents/state-management): Request, thread, and global state scopes
-- [Streaming Responses](/agents/streaming-responses): Stream agent output to the frontend in real time
-- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): Test and validate agent outputs
+- [Agents](/build/agents): the plain-function pattern this page wraps
+- [Chat with History](/cookbook/patterns/chat-with-history): a similar conversation pattern, without an external SDK
+- [Sandbox SDK Usage](/services/sandbox/sdk-usage): isolate file-writing agents from the host

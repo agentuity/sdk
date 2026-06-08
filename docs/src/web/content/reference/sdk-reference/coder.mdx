@@ -4,22 +4,23 @@ short_title: Coder
 description: Manage AI coding sessions, workspaces, and skills with CoderClient
 ---
 
-Method reference for `CoderClient` from the standalone [`@agentuity/coder`](/reference/standalone-packages#coder) package. Coder is not a `ctx.*` service; the client is used from agents, scripts, or external apps.
+Method reference for `CoderClient` from the standalone [`@agentuity/coder`](/reference/standalone-packages#coder) package. Coder is not a `ctx.*` service; use the client from framework routes, scripts, workers, or external apps.
 
 <Callout type="info" title="Hub URL is discovered first">
 Coder has HTTP endpoints, but no single static base URL. `CoderClient` calls the Agentuity API to discover your org's Hub address, then routes session and workspace requests there. For concepts, session lifecycle, and workflows, see [Coder](/services/coder).
 </Callout>
 
-If you want practical examples before reading the full reference, see: [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk), [Choosing Built-In Agents for a Coder Session](/cookbook/patterns/choosing-built-in-agents-for-a-coder-session), [Attaching Skills to a Coder Session](/cookbook/patterns/attaching-skills-to-a-coder-session), [Using Workspaces to Reuse Repos, Skills, and Agent Selection](/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection), [Reconnecting to Existing Coder Sessions](/cookbook/patterns/preparing-coder-sessions-for-remote-attach), and [Creating Loop-Mode Coder Sessions](/cookbook/patterns/creating-loop-mode-coder-sessions).
+If you want practical examples before reading the full reference, see: [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk), [Choosing Coder Agents for a Session](/cookbook/patterns/choosing-built-in-agents-for-a-coder-session), [Attaching Skills to a Coder Session](/cookbook/patterns/attaching-skills-to-a-coder-session), [Using Workspaces to Reuse Repos, Skills, and Agent Selection](/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection), [Reconnecting to Existing Coder Sessions](/cookbook/patterns/preparing-coder-sessions-for-remote-attach), and [Creating Loop-Mode Coder Sessions](/cookbook/patterns/creating-loop-mode-coder-sessions).
 
 ## Install
 
 ```bash
-bun add @agentuity/coder
+npm install @agentuity/coder @agentuity/telemetry
 ```
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 const client = new CoderClient();
 ```
@@ -53,7 +54,7 @@ Resolve the active Coder base URL. This returns the explicit `url` when you set 
 ```typescript
 const client = new CoderClient();
 const url = await client.getUrl();
-console.log(url);
+logger.info('Coder Hub URL', url);
 ```
 
 ## Sessions
@@ -79,8 +80,23 @@ Create a new coder session.
 | `body.repo` | `CoderSessionRepositoryRef` | no | Primary repository to mount |
 | `body.repos` | `CoderSessionRepositoryRef[]` | no | Multiple repositories to mount |
 | `body.workspaceId` | `string` | no | Workspace to attach to the session |
-| `body.env` | `Record<string, string>` | no | Environment variables injected into the runtime |
-| `body.metadata` | `Record<string, string>` | no | Arbitrary metadata |
+| `body.projectId` | `string` | no | Project ID to associate with the session sandbox |
+| `body.runtime` | `string` | no | Runtime name for the session sandbox |
+| `body.runtimeId` | `string` | no | Runtime ID for the session sandbox |
+| `body.name` | `string` | no | Optional sandbox name |
+| `body.description` | `string` | no | Optional sandbox description |
+| `body.resources` | `SandboxResources` | no | Resource limits for the session sandbox |
+| `body.env` | `Record<string, string>` | no | Environment variables injected into the Coder session runtime |
+| `body.network` | `SandboxNetworkConfig` | no | Network configuration for the session sandbox |
+| `body.stream` | `SandboxStreamConfig` | no | Stream configuration for the session sandbox |
+| `body.timeout` | `SandboxTimeoutConfig` | no | Timeout configuration for the session sandbox |
+| `body.command` | `SandboxCommand` | no | Initial command to run in the session sandbox |
+| `body.files` | `FileToWrite[]` | no | Files to write to the session sandbox on creation |
+| `body.snapshot` | `string` | no | Snapshot ID or tag to restore the sandbox from |
+| `body.dependencies` | `string[]` | no | APT packages to install when creating the session sandbox |
+| `body.packages` | `string[]` | no | npm or Bun packages to install globally when creating the session sandbox |
+| `body.metadata` | `Record<string, unknown>` | no | Arbitrary metadata |
+| `body.scopes` | `string[]` | no | Permission scopes for automatic service access |
 
 **Returns:** `Promise<CoderCreateSessionResponse>`
 
@@ -90,7 +106,7 @@ const session = await client.createSession({
   workflowMode: 'standard',
   tags: ['auth', 'feature'],
 });
-console.log(session.sessionId);
+logger.info('Coder session created', session.sessionId);
 ```
 
 ### createAgentBuilderSession(body)
@@ -168,13 +184,13 @@ List sessions with optional filtering and pagination.
 ```typescript
 const { sessions, total } = await client.listSessions({ limit: 20 });
 for (const s of sessions) {
-  console.log(`${s.sessionId}: ${s.label} (${s.status})`);
+  logger.info(`${s.sessionId}: ${s.label} (${s.status})`);
 }
 ```
 
 ### listConnectableSessions(params?)
 
-List sessions the caller can currently connect to. Archived and history-only sessions are filtered out.
+List sandbox-backed sessions the caller can currently connect to. This filters out history-only sessions and keeps running sessions plus paused sessions that can be attached to or woken.
 
 **`params` fields (all optional):**
 
@@ -218,7 +234,7 @@ await client.resumeSession('codesess_abc123');
 
 ### prepareSessionForRemoteAttach(sessionId, options?)
 
-Ensure a paused remote session is attachable before opening a controller socket. If the session is history-only, returns immediately. If the session is wakeable and the runtime is unavailable, calls `resumeSession` and polls `getSession` until the runtime is back or the timeout elapses.
+Ensure a paused remote session is attachable before opening a controller socket. If the session is history-only, returns immediately. If the session is wakeable and the Coder runtime is unavailable, calls `resumeSession` and polls `getSession` until the Coder runtime is back or the timeout elapses.
 
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -294,7 +310,7 @@ Get loop-mode state for an autonomous session. Returns `null` loop when the sess
 ```typescript
 const { loop } = await client.getLoopState('codesess_abc123');
 if (loop) {
-  console.log(`Status: ${loop.status}, iteration ${loop.iteration}`);
+  logger.info(`Status: ${loop.status}, iteration ${loop.iteration}`);
 }
 ```
 
@@ -302,11 +318,11 @@ The loop state includes `status`, `iteration`, `maxIterations`, `goal`, `summary
 
 ## Workspaces
 
-Workspaces group repositories and skills into reusable configurations attachable to sessions.
+Workspaces group repositories, dependencies, setup scripts, prompt guidance, skills, and agent selections into reusable configurations attachable to sessions.
 
 ### createWorkspace(body)
 
-Create a reusable workspace definition. A workspace cannot be empty: include at least one repo, saved skill, skill bucket, or agent selection.
+Create a reusable workspace definition. A workspace cannot be empty: include at least one repo, dependency, setup script, system prompt, saved skill, skill bucket, or agent selection.
 
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -314,6 +330,10 @@ Create a reusable workspace definition. A workspace cannot be empty: include at 
 | `body.description` | `string` | no | Workspace description |
 | `body.scope` | `'user' \| 'org'` | no | Ownership scope |
 | `body.repos` | `CoderSessionRepositoryRef[]` | no | Repositories to include |
+| `body.dependencies` | `string[]` | no | APT package dependencies installed while preparing workspace snapshots |
+| `body.setupScript` | `string` | no | Shell script run while preparing workspace snapshots |
+| `body.systemPrompt` | `string` | no | Additional Lead agent prompt applied to sessions created from the workspace |
+| `body.systemPromptMode` | `'append' \| 'overwrite'` | no | How `systemPrompt` is applied to the Lead prompt. Defaults to `append` |
 | `body.savedSkillIds` | `string[]` | no | Saved skill IDs |
 | `body.skillBucketIds` | `string[]` | no | Skill bucket IDs |
 | `body.enabledAgents` | `string[]` | no | Built-in or custom agent roster to store on the workspace |
@@ -324,8 +344,73 @@ Create a reusable workspace definition. A workspace cannot be empty: include at 
 const workspace = await client.createWorkspace({
   name: 'Auth System',
   description: 'OAuth and session management',
+  dependencies: ['git'],
+  setupScript: 'corepack enable',
+  systemPrompt: 'Focus on authentication and session boundaries first.',
+  systemPromptMode: 'append',
   enabledAgents: ['builder', 'reviewer'],
 });
+```
+
+### updateWorkspace(workspaceId, body)
+
+Update a workspace definition. Include only the fields you want to change.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `workspaceId` | `string` | yes | Workspace identifier |
+| `body.name` | `string` | no | Workspace name |
+| `body.description` | `string` | no | Workspace description |
+| `body.scope` | `'user' \| 'org'` | no | Ownership scope |
+| `body.repos` | `CoderSessionRepositoryRef[]` | no | Repositories to store on the workspace |
+| `body.dependencies` | `string[]` | no | APT package dependencies installed while preparing workspace snapshots |
+| `body.setupScript` | `string` | no | Shell script run while preparing workspace snapshots |
+| `body.systemPrompt` | `string` | no | Additional Lead agent prompt applied to sessions created from the workspace |
+| `body.systemPromptMode` | `'append' \| 'overwrite'` | no | How `systemPrompt` is applied to the Lead prompt |
+| `body.savedSkillIds` | `string[]` | no | Saved skill IDs |
+| `body.skillBucketIds` | `string[]` | no | Skill bucket IDs |
+| `body.enabledAgents` | `string[]` | no | Built-in or custom agent roster to store on the workspace |
+
+**Returns:** `Promise<CoderWorkspaceDetail>`
+
+```typescript
+await client.updateWorkspace('ws_abc123', {
+  setupScript: 'corepack enable && bun install',
+  systemPromptMode: 'overwrite',
+});
+```
+
+### refreshWorkspaceSnapshot(workspaceId)
+
+Queue a rebuild of the prepared workspace state used by future sessions.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `workspaceId` | `string` | yes | Workspace identifier |
+
+**Returns:** `Promise<CoderWorkspaceDetail>`
+
+```typescript
+const workspace = await client.refreshWorkspaceSnapshot('ws_abc123');
+```
+
+### validateWorkspaceDependencies(dependencies)
+
+Validate APT package dependency specs before creating or updating a workspace.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `dependencies` | `string[]` | yes | Package specs to validate |
+
+**Returns:** `Promise<CoderWorkspaceDependencyValidationResponse>`
+
+```typescript
+const result = await client.validateWorkspaceDependencies(['git', 'nodejs']);
+if (result.invalid.length > 0) {
+  logger.warn('invalid workspace dependencies', {
+    packages: result.invalid.map((item) => item.package),
+  });
+}
 ```
 
 ### listWorkspaces()
@@ -444,6 +529,28 @@ List saved skills in the caller's library.
 
 **Returns:** `Promise<CoderSavedSkillListResponse>`
 
+### createCustomSkill(body)
+
+Create a custom `SKILL.md`-backed skill in the caller's library.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `body.skillId` | `string` | yes | Skill identifier |
+| `body.name` | `string` | yes | Skill name |
+| `body.description` | `string` | no | Skill description |
+| `body.content` | `string` | yes | `SKILL.md` content |
+
+**Returns:** `Promise<CoderSavedSkill>`
+
+```typescript
+const skill = await client.createCustomSkill({
+  skillId: 'release-checklist',
+  name: 'Release checklist',
+  description: 'Checks release notes and verification steps.',
+  content: '# Release checklist\n\nUse this when preparing release notes.',
+});
+```
+
 ### deleteSavedSkill(skillId)
 
 Delete a saved skill.
@@ -486,12 +593,12 @@ List GitHub accounts available via the caller's GitHub App installations. Sign i
 try {
   const { connected, accounts } = await client.listGitHubAccounts();
   if (!connected) {
-    console.log('Connect GitHub in the Agentuity Console first');
+    logger.info('Connect GitHub in the Agentuity Console first');
   } else {
-    console.log(accounts.map((account) => account.accountName));
+    logger.info('Connected GitHub accounts', accounts.map((account) => account.accountName));
   }
 } catch {
-  console.log('Sign in to Agentuity first, then call listGitHubAccounts() again');
+  logger.info('Sign in to Agentuity first, then call listGitHubAccounts() again');
 }
 ```
 

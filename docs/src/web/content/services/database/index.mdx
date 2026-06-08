@@ -1,160 +1,184 @@
 ---
 title: Database
-description: Managed Postgres storage with Agentuity database clients
+description: Use Agentuity-managed Postgres when your app needs relational data
 ---
 
-Store structured data with queries, joins, and transactions in a managed Postgres database. Inside an Agentuity project, the CLI writes the database connection string to `DATABASE_URL`; use `@agentuity/postgres` when you want automatic reconnects around Bun's SQL driver.
+Use database resources when your app needs SQL, joins, constraints, or transactions. Agentuity database resources are Postgres databases. In v3, app code uses normal Postgres clients and ORMs against `DATABASE_URL`.
 
-<Callout type="tip" title="Not inside an agent or route?">
-Use the [`@agentuity/db`](/reference/standalone-packages#database) standalone package to query an Agentuity-managed database by `database` and `orgId` from any Node.js or Bun app.
+<Callout type="info" title="Use service clients for service work">
+Use normal Postgres clients for relational data. For KV, vector, queues, tasks, schedules, email, webhooks, streams, and sandboxes, start from that service's dedicated package instead.
 </Callout>
 
-## When to Use Database Storage
-
-| Storage Type | Best For |
-|--------------|----------|
-| **Database** | Structured data, complex queries, transactions, relational data |
-| [Key-Value](/services/storage/key-value) | Fast lookups, caching, configuration |
-| [Vector](/services/storage/vector) | Semantic search, embeddings, RAG |
-| [Object (S3)](/services/storage/object) | Files, images, documents, media |
-| [Durable Streams](/services/storage/durable-streams) | Large exports, audit logs |
-
-<Callout type="info" title="DATABASE_URL Setup">
-When you create a database with `agentuity cloud db create` from a project, the `DATABASE_URL` is added to your local `.env` file. Deployed apps receive `DATABASE_URL` when the deployment is associated with that database resource; otherwise, set it as an environment variable before deploy.
+<Callout type="info" title="Deprecated helpers are not the v3 app path">
+`@agentuity/postgres` and `@agentuity/drizzle` are deprecated. Use `pg` or `drizzle-orm/node-postgres` directly against `DATABASE_URL` for new apps.
 </Callout>
 
-## Creating a Database
+## Create or Link a Database
 
 ```bash
-# Create with default settings
-agentuity cloud db create
-
-# Create with name and description
-agentuity cloud db create --name users_db --description "Primary user data store"
+agentuity cloud db create --name app_data
+agentuity project add database app_data
 ```
 
-## Quick Start
+Creating a database from a project, or linking an existing database to a project, writes `DATABASE_URL` to your local `.env`. If you do not need a specific name, omit `--name` and let the CLI generate one.
+
+Recover the connection string later with `--show-credentials`. The normal terminal output masks credentials.
 
 ```bash
-bun add @agentuity/postgres
+agentuity cloud db get app_data --show-credentials
 ```
 
-```typescript
-import { postgres } from '@agentuity/postgres';
+## Choose a Database Client
 
-const sql = postgres();
+| Need | Use |
+|------|-----|
+| schema-first TypeScript queries | `drizzle-orm/node-postgres` with `pg` |
+| direct SQL with parameter binding | `pg` |
+| app already uses Prisma, Kysely, Neon HTTP, or another Postgres client | keep that client and set `DATABASE_URL` |
+| trusted admin scripts that query by Agentuity resource name and org ID | `@agentuity/db` |
 
-// Query with automatic SQL injection protection
-const users = await sql`SELECT * FROM users WHERE active = ${true}`;
+If your app already uses Prisma, Kysely, Neon HTTP, or another Postgres client, keep that path and point it at `DATABASE_URL`. Use `DBClient` only for scripts and admin tools that should call the Agentuity database service API instead of opening a direct Postgres connection.
 
-// Insert data
-await sql`INSERT INTO users (name, email) VALUES (${'Alice'}, ${'alice@example.com'})`;
-
-// Update data
-await sql`UPDATE users SET active = ${false} WHERE id = ${userId}`;
-
-// Delete data
-await sql`DELETE FROM users WHERE id = ${userId}`;
-```
-
-<Callout type="warning" title="SQL Injection Prevention">
-Always use template literal parameters (`${value}`) for dynamic values. Never concatenate strings into queries.
+<Callout type="warning" title="DBClient is not the app query path">
+`DBClient` does not read `DATABASE_URL`, does not bind query parameters, and does not replace `pg`, Drizzle, Prisma, Kysely, or your framework's data layer. Use it only when a trusted script needs to address an Agentuity database resource by name and organization ID.
 </Callout>
 
-## Using in Agents
+## Connection Rules
 
-```typescript
-import { createAgent } from '@agentuity/runtime';
-import { postgres } from '@agentuity/postgres';
+Keep the database client at module scope so framework runtimes can reuse the pool between requests. Create one pool or ORM instance per server process, then import it into route handlers, server functions, queue consumers, schedules, or scripts.
 
-const sql = postgres();
+| Rule | Why it matters |
+|------|----------------|
+| read `DATABASE_URL` once at module load | fail fast when the project is not linked or the env is missing |
+| use parameter binding for request values | keep SQL text separate from untrusted input |
+| release pooled clients in `finally` | return connections to the pool after transactions |
+| use one transaction boundary per write workflow | keep related changes atomic and easier to reason about |
 
-const agent = createAgent('UserQuery', {
-  handler: async (ctx, input) => {
-    const users = await sql`
-      SELECT * FROM users
-      WHERE active = ${true}
-      AND created_at > ${input.since}
-      ORDER BY created_at DESC
-      LIMIT 10
-    `;
+## Use Drizzle with node-postgres
 
-    ctx.logger.info('Query results', { count: users.length });
-    return { users };
-  },
-});
+This is the portable Node/framework path for Drizzle queries against `DATABASE_URL`.
+
+```bash
+npm install drizzle-orm pg
+npm install -D drizzle-kit @types/pg
 ```
 
-## Using in Routes
-
 ```typescript
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import { postgres } from '@agentuity/postgres';
+import { eq } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { boolean, pgTable, serial, text } from 'drizzle-orm/pg-core';
+import { Pool } from 'pg';
 
-const router = new Hono<Env>();
-const sql = postgres();
-
-router.get('/users', async (c) => {
-  const limit = parseInt(c.req.query('limit') || '10');
-  const users = await sql`
-    SELECT id, name, email FROM users
-    ORDER BY created_at DESC
-    LIMIT ${limit}
-  `;
-  return c.json({ users });
+const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  active: boolean('active').notNull().default(true),
 });
 
-router.post('/users', async (c) => {
-  const body = await c.req.json();
-  const result = await sql`
-    INSERT INTO users (name, email)
-    VALUES (${body.name}, ${body.email})
-    RETURNING id, name, email
-  `;
-  return c.json({ user: result[0] }, 201);
-});
+const databaseUrl = process.env.DATABASE_URL;
 
-export default router;
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is required');
+}
+
+const db = drizzle(new Pool({ connectionString: databaseUrl }), { schema: { users } });
+
+const activeUsers = await db.select().from(users).where(eq(users.active, true));
 ```
 
-## Transactions
+Define larger schemas in a separate file and import them into your route or service module.
 
-Use transactions for operations that must succeed or fail together:
+## Use `pg` Directly
+
+Use `pg` when SQL is clearer than an ORM or when the app already has SQL statements you want to keep.
 
 ```typescript
-import { postgres } from '@agentuity/postgres';
+import { Pool } from 'pg';
 
-const sql = postgres();
+const databaseUrl = process.env.DATABASE_URL;
 
-const tx = await sql.begin();
-try {
-  await tx`UPDATE accounts SET balance = balance - ${amount} WHERE id = ${fromAccount}`;
-  await tx`UPDATE accounts SET balance = balance + ${amount} WHERE id = ${toAccount}`;
-  await tx`INSERT INTO transfers (from_id, to_id, amount) VALUES (${fromAccount}, ${toAccount}, ${amount})`;
-  await tx.commit();
-} catch (error) {
-  await tx.rollback();
-  throw error;
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is required');
+}
+
+export const pool = new Pool({ connectionString: databaseUrl });
+
+export async function findUserByEmail(email: string): Promise<{
+  readonly id: string;
+  readonly email: string;
+} | null> {
+  const { rows } = await pool.query<{ readonly id: string; readonly email: string }>(
+    'SELECT id, email FROM users WHERE email = $1 LIMIT 1',
+    [email],
+  );
+
+  return rows[0] ?? null;
 }
 ```
 
-## Managed Postgres
+The `$1` placeholder keeps the SQL statement separate from the request value. Use the same pattern for route params, form input, queue payloads, and model outputs.
 
-Agentuity database resources are managed Postgres databases. `agentuity cloud db create` writes `DATABASE_URL`, and `postgres()` reads it by default:
+## Query Through the Database Service API
 
-```typescript
-import { postgres } from '@agentuity/postgres';
+`DBClient` calls the Agentuity database service API by database name and org ID. Use it for trusted scripts that inspect tables, run administrative queries, or read query logs without opening a direct Postgres connection from the script.
 
-const sql = postgres();
-const users = await sql`SELECT * FROM users`;
+```bash
+npm install @agentuity/db
 ```
 
-For raw Bun SQL behavior outside the Agentuity wrapper, see the [Bun SQL docs](https://bun.sh/docs/runtime/sql).
+```typescript
+import { DBClient } from '@agentuity/db';
+
+const database = process.env.AGENTUITY_DB_DATABASE;
+const orgId = process.env.AGENTUITY_CLOUD_ORG_ID;
+
+if (!database || !orgId) {
+  throw new Error('AGENTUITY_DB_DATABASE and AGENTUITY_CLOUD_ORG_ID are required');
+}
+
+const db = new DBClient({ database, orgId });
+
+const result = await db.query('SELECT 1 AS ok');
+const tables = await db.tables();
+const logs = await db.logs({ limit: 50 });
+```
+
+`DBClient` does not read `DATABASE_URL`. Pass the Agentuity database resource name and organization ID explicitly.
+
+<Callout type="warning" title="No parameter binding">
+`DBClient.query(sql)` accepts a raw SQL string and does not bind parameters. Use it only for trusted SQL such as schema introspection or admin scripts. For application queries with dynamic values, use Drizzle, `pg`, or another parameterized Postgres client.
+</Callout>
+
+## Framework Routes
+
+Initialize the database client at module scope so framework routes can reuse it between requests.
+
+```typescript title="app/api/users/route.ts"
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import { users } from '@/src/db/schema';
+
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is required');
+}
+
+const db = drizzle(new Pool({ connectionString: databaseUrl }), { schema: { users } });
+
+export async function GET(): Promise<Response> {
+  const rows = await db.select({ id: users.id, email: users.email }).from(users).limit(20);
+
+  return Response.json({ users: rows });
+}
+```
+
+Database clients are direct clients. `@agentuity/hono` injects KV, vector, stream, queue, email, schedule, task, and sandbox clients, but it does not inject a database client.
 
 ## Next Steps
 
-- [Resilient Postgres Client](/services/database/postgres): Auto-reconnecting PostgreSQL client for serverless
-- [Drizzle ORM](/services/database/drizzle): Type-safe database access with Drizzle
-- [Key-Value Storage](/services/storage/key-value): Fast caching and session data
-- [Vector Storage](/services/storage/vector): Semantic search and embeddings
+- [Postgres Clients](/services/database/postgres): query Agentuity-managed Postgres with `pg`
+- [Drizzle ORM](/services/database/drizzle): define schemas and query with standard Drizzle
+- [Key-Value Storage](/services/storage/key-value): use exact-key storage for cache and session data
+- [Vector Storage](/services/storage/vector): use semantic search for retrieval and RAG
+- [Database API Reference](/reference/api/database): inspect the service API used by trusted admin scripts

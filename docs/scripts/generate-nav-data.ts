@@ -61,14 +61,14 @@ const SDK_EXPLORER: NavSection = {
 	hideItems: true,
 	items: [
 		{
-			title: 'Hello Agent',
+			title: 'Hello World',
 			url: '/explorer/hello',
-			description: 'Your first agent - send input, get output',
+			description: 'Send JSON to a server route and return a typed response',
 		},
 		{
-			title: 'Handler Context',
+			title: 'Route Context',
 			url: '/explorer/handler-context',
-			description: "See what's available inside your agent handler",
+			description: 'See request data, injected services, and app-owned state in a Hono route',
 		},
 		{
 			title: 'Chat',
@@ -93,7 +93,7 @@ const SDK_EXPLORER: NavSection = {
 		{
 			title: 'AI Gateway',
 			url: '/explorer/ai-gateway',
-			description: 'Use any AI provider with a single API key',
+			description: 'Route supported model calls through Agentuity',
 		},
 		{
 			title: 'Text Stream',
@@ -111,6 +111,12 @@ const SDK_EXPLORER: NavSection = {
 			description: 'Real-time bidirectional messaging over a persistent connection',
 		},
 		{
+			title: 'WebRTC Signaling',
+			url: '/explorer/webrtc',
+			description:
+				'Host the signaling route on Agentuity while browsers carry media peer-to-peer',
+		},
+		{
 			title: 'Durable Streams',
 			url: '/explorer/durable-stream',
 			description: 'Generate content and get a permanent, shareable URL',
@@ -118,7 +124,7 @@ const SDK_EXPLORER: NavSection = {
 		{
 			title: 'Agent Calls',
 			url: '/explorer/agent-calls',
-			description: 'Call agents from routes or other agents',
+			description: 'Call model-backed functions from routes, queues, schedules, or other agents',
 		},
 		{
 			title: 'Schedules',
