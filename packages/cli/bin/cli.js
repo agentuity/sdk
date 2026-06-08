@@ -1,12 +1,10 @@
-#!/usr/bin/env node
-
 /**
- * Published CLI entry point for `@agentuity/cli`.
+ * Published CLI JavaScript entry for `@agentuity/cli`.
  *
  * This file is intentionally tiny:
- *   - npm uses it as the `agentuity` binary (see package.json `bin`).
- *   - The shebang lets the kernel launch Node directly when users run
- *     `agentuity` from a shell on macOS/Linux.
+ *   - `bin/agentuity` (POSIX) and `bin/agentuity.cmd` (Windows) detect an
+ *     available runtime (bun or node) and exec this file with it.
+ *   - Direct invocation still works: `node bin/cli.js` or `bun bin/cli.js`.
  *   - It hands off to the compiled CLI at `dist/main.js`.
  *
  * The old `--version` fast-path that printed this package's version and

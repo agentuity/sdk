@@ -1,0 +1,27 @@
+#!/usr/bin/env sh
+set -eu
+
+# Resolve symlinks so this works when invoked via ~/.bun/bin/agentuity or
+# node_modules/.bin/agentuity (both are symlinks to this file).
+script="$0"
+while [ -L "$script" ]; do
+	target=$(readlink "$script" || true)
+	if [ -z "$target" ]; then
+		break
+	fi
+	case "$target" in
+	/*) script="$target" ;;
+	*) script=$(dirname "$script")/$target ;;
+	esac
+done
+dir=$(dirname "$script")
+
+if command -v bun >/dev/null 2>&1; then
+	exec bun "$dir/cli.js" "$@"
+fi
+if command -v node >/dev/null 2>&1; then
+	exec node "$dir/cli.js" "$@"
+fi
+
+echo "agentuity: need bun or node on PATH" >&2
+exit 1

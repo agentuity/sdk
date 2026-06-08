@@ -20,8 +20,8 @@ env:
    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 # All jobs install BOTH Bun and Node 24 because the CLI is intentionally
-# runtime-agnostic. Smoke tests that exercise the built `bin/cli.js`
-# artifact are matrixed across `[bun, node]` so a regression in either
+# runtime-agnostic. Smoke tests that exercise the built `bin/agentuity`
+# launcher (and direct `bin/cli.js` invocation) are matrixed across `[bun, node]` so a regression in either
 # runtime trips CI.
 
 jobs:
@@ -358,11 +358,8 @@ jobs:
               persist-credentials: false
 
          - name: Setup Node.js
-           # The agentuity CLI shim (bin/cli.js) has #!/usr/bin/env node
-           # and refuses to run on Node <24. The runner image ships with
-           # Node 20, so we have to bump it explicitly. The framework
-           # demos call the binary via node_modules/.bin/agentuity which
-           # the workspace install lays down for the test apps.
+           # Framework demos invoke the CLI via node_modules/.bin/agentuity.
+           # The launcher picks node when bun is absent; Node 24+ is required.
            uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
            with:
               node-version: '24'

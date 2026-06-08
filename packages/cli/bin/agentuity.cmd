@@ -1,0 +1,15 @@
+@ECHO OFF
+SETLOCAL
+SET "SCRIPT_DIR=%~dp0"
+WHERE bun >NUL 2>&1
+IF %ERRORLEVEL% EQU 0 (
+  bun "%SCRIPT_DIR%cli.js" %*
+  EXIT /B %ERRORLEVEL%
+)
+WHERE node >NUL 2>&1
+IF %ERRORLEVEL% EQU 0 (
+  node "%SCRIPT_DIR%cli.js" %*
+  EXIT /B %ERRORLEVEL%
+)
+ECHO agentuity: need bun or node on PATH 1>&2
+EXIT /B 1

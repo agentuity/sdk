@@ -13,6 +13,7 @@ command options.
 - **Clean**: `bun run clean`
 - **Test CLI under Bun (no build needed)**: `bun src/main.ts [command]`
 - **Test CLI under Node (after build)**: `node bin/cli.js [command]`
+- **Test published bin (after build)**: `./bin/agentuity [command]`
 
 ## Runtime
 
@@ -20,36 +21,43 @@ The CLI source is **runtime-agnostic**:
 
 - Builds and runs under **Bun 1.3+** (preferred for development; tests
   and build scripts assume Bun).
-- Builds and runs under **Node.js 24+** (the published binary uses
-  `#!/usr/bin/env node`).
+- Builds and runs under **Node.js 24+** (supported for npm global installs).
 
 ### Entry point structure
 
-The published binary is `bin/cli.js` — a small, hand-written JavaScript
-shim that lives in source. It carries a `#!/usr/bin/env node` shebang
-and its only job is to delegate to the compiled `dist/main.js`:
+The published binary is `bin/agentuity` — a tiny POSIX shell launcher
+(live in source, plus `bin/agentuity.cmd` for Windows). It picks an
+available runtime (`bun` preferred, then `node`) and execs `bin/cli.js`:
+
+```sh
+# bin/agentuity (excerpt)
+exec bun "$dir/cli.js" "$@"   # or node when bun is absent
+```
+
+`bin/cli.js` is hand-written JavaScript with no shebang; it only
+delegates to the compiled `dist/main.js`:
 
 ```js
 // bin/cli.js (excerpt)
-#!/usr/bin/env node
 await import('../dist/main.js');
 ```
 
-This is the standard pattern for npm-distributed CLIs. The shim ships
-as-is from the repo to the published tarball; it is never compiled or
-rewritten by a build step.
+This is the standard pattern for dual-runtime npm CLIs. The launcher
+and shim ship as-is from the repo to the published tarball; they are
+never compiled or rewritten by a build step.
 
   - Source code: `src/main.ts` and the rest of `src/**`. Compiled to
     `dist/main.js` (and friends) by `tsc --build`.
-  - Bin entry: `bin/cli.js`. Plain JS, hand-written, has the shebang.
-  - `package.json` `bin` field points at `./bin/cli.js`.
+  - Bin entry: `bin/agentuity` (+ `bin/agentuity.cmd` on Windows).
+  - JS shim: `bin/cli.js`. Plain JS, no shebang.
+  - `package.json` `bin` field points at `./bin/agentuity`.
 
 For in-repo dev, run `bun src/main.ts ...` directly — Bun executes
 TypeScript natively, no build needed.
 
 For smoke-testing the published shape after `bun run build`, run
-`node bin/cli.js ...` (or just `./bin/cli.js ...` if the executable
-bit is set, which it is in the repo and after npm install).
+`./bin/agentuity ...`, or invoke the shim directly with
+`node bin/cli.js ...` / `bun bin/cli.js ...`.
 
 ### How dual-runtime support is structured
 
@@ -192,8 +200,8 @@ See `src/index.ts` for complete exports.
 
 1. Run `bun run build` (compiles TS to `dist/`, copies `.md` and
    `templates/` assets).
-2. Smoke-test with `node bin/cli.js --version` (and
-   `bun bin/cli.js --version`) before publishing.
+2. Smoke-test with `./bin/agentuity --version` (and
+   `node bin/cli.js --version` / `bun bin/cli.js --version`) before publishing.
 3. Depends on `@agentuity/core`, `@agentuity/server`,
    `@agentuity/storage`, plus npm deps: `commander`, `string-width`,
    `yaml`, `semver`, `tinyglobby`, `enquirer`, `archiver`, `tar`,
