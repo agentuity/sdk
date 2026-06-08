@@ -1,5 +1,4 @@
-import { defaultRenderHandler } from '@tanstack/react-router/ssr/server';
-import { createStartHandler } from '@tanstack/react-start/server';
+import { createStartHandler, defaultRenderHandler } from '@tanstack/react-start/server';
 import { createServerEntry } from '@tanstack/react-start/server-entry';
 import { docRedirectRules, getDemoRedirectTarget } from './lib/docs-redirects';
 
