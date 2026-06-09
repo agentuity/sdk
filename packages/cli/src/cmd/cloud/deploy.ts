@@ -4,12 +4,15 @@ import {
 	createWriteStream,
 	existsSync,
 	mkdirSync,
+	statSync,
 	unlinkSync,
 	writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
 import { createGzip } from 'node:zlib';
 import { StructuredError } from '@agentuity/core';
 import {
@@ -823,18 +826,21 @@ export const deploySubcommand = createSubcommand({
 								// Start code upload diagnostic
 								const endCodeUploadDiagnostic = collector.startDiagnostic('code-upload');
 								ctx.logger.trace(`Uploading deployment to ${instructions.deployment}`);
-								const zipfile = Bun.file(encryptedZip);
-								const fileSize = await zipfile.size;
+								const fileSize = statSync(encryptedZip).size;
 								ctx.logger.trace(`Upload file size: ${fileSize} bytes`);
+								const zipBody = Readable.toWeb(
+									createReadStream(encryptedZip)
+								) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>;
 								const resp = await fetch(instructions.deployment, {
 									method: 'PUT',
 									headers: {
 										'Content-Type': 'application/zip',
 										'Content-Length': String(fileSize),
 									},
-									body: zipfile,
+									body: zipBody,
 									signal: stepCtx.signal,
-								});
+									duplex: 'half',
+								} as RequestInit & { duplex: 'half' });
 								ctx.logger.trace(`Upload response: ${resp.status}`);
 								if (!resp.ok) {
 									endCodeUploadDiagnostic();
@@ -853,7 +859,7 @@ export const deploySubcommand = createSubcommand({
 								// Cancel to release resources without buffering into memory.
 								await resp.body?.cancel();
 								ctx.logger.trace('Deleting encrypted zip');
-								await zipfile.delete();
+								await Bun.file(encryptedZip).delete();
 							} finally {
 								ctx.logger.trace('Cleanup');
 								// Cleanup in case of error
