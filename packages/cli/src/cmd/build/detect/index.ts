@@ -159,6 +159,7 @@ async function frameworkDefToDetected(
 		definition.staticDir === null
 			? resolvedOutputDir // null means entire output IS the static dir
 			: (definition.staticDir ?? undefined);
+	let resolvedStaticAssetPublicPath = definition.staticAssetPublicPath;
 
 	// Resolve the start command.
 	//
@@ -194,6 +195,7 @@ async function frameworkDefToDetected(
 	) {
 		resolvedOutputDir = 'dist';
 		resolvedStaticDir = 'dist/client';
+		resolvedStaticAssetPublicPath = '';
 	}
 
 	// Pick the runtime based on, in order:
@@ -246,6 +248,7 @@ async function frameworkDefToDetected(
 		buildCommand: resolvedBuildCommand,
 		buildOutput: resolvedOutputDir,
 		staticDir: resolvedStaticDir,
+		staticAssetPublicPath: resolvedStaticAssetPublicPath,
 		typegenCommand: definition.typegenCommand,
 		runtimeDependencies: definition.runtimeDependencies,
 		buildPreinstallDevDependencies: definition.buildPreinstallDevDependencies,

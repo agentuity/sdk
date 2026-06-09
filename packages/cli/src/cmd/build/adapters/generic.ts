@@ -422,6 +422,7 @@ async function finishMonorepoBuild(
 		startCommand,
 		serverEntry,
 		staticDir: resolvedStaticDir,
+		staticAssetPublicPath: framework.staticAssetPublicPath,
 		port: framework.port,
 		duration: Date.now() - started,
 		logs,
@@ -623,6 +624,7 @@ export const genericAdapter: BuildAdapter = {
 			serverEntry,
 			staticDir:
 				resolvedStaticDir && existsSync(resolvedStaticDir) ? resolvedStaticDir : undefined,
+			staticAssetPublicPath: framework.staticAssetPublicPath,
 			port: framework.port,
 			duration: Date.now() - started,
 			logs,

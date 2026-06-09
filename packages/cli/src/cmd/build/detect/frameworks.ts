@@ -97,6 +97,11 @@ export interface FrameworkDefinition {
 	 * - `undefined` (omitted) means no known static asset directory.
 	 */
 	staticDir?: string | null;
+	/**
+	 * Public URL path prefix for files inside staticDir.
+	 * Use an empty string when staticDir is the public web root.
+	 */
+	staticAssetPublicPath?: string;
 	/** Environment variable prefix for browser-inlined values */
 	envPrefix?: string;
 	/**
@@ -127,6 +132,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'next build',
 		outputDirectory: null, // Dynamic — reads from next.config
 		staticDir: '.next/static', // Relative to project root (adapter handles standalone copy)
+		staticAssetPublicPath: '_next/static',
 		envPrefix: 'NEXT_PUBLIC_',
 		detectors: {
 			every: [{ matchPackage: 'next' }],
@@ -144,6 +150,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		// so we preserve the .output/ tree intact.
 		outputDirectory: '.output',
 		staticDir: '.output/public',
+		staticAssetPublicPath: '',
 		envPrefix: 'NUXT_ENV_',
 		detectors: {
 			some: [
@@ -160,6 +167,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'remix build',
 		outputDirectory: 'public',
 		staticDir: 'public/build', // Built browser bundles
+		staticAssetPublicPath: 'build',
 		detectors: {
 			some: [
 				{ matchPackage: '@remix-run/dev' },
@@ -174,6 +182,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'react-router build',
 		outputDirectory: 'build',
 		staticDir: 'build/client', // Client-side assets
+		staticAssetPublicPath: '',
 		detectors: {
 			some: [
 				{ path: 'react-router.config.js' },
@@ -203,6 +212,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		// we run.
 		outputDirectory: 'build',
 		staticDir: 'build/client',
+		staticAssetPublicPath: '',
 		detectors: {
 			every: [
 				{
@@ -224,6 +234,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		runtimeDependencies: ['@astrojs/node'],
 		outputDirectory: 'dist',
 		staticDir: null, // Entire dist/ is static (SSG default); dist/client/ for SSR
+		staticAssetPublicPath: '',
 		envPrefix: 'PUBLIC_',
 		detectors: {
 			every: [{ matchPackage: 'astro' }],
@@ -235,6 +246,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'vinxi build',
 		outputDirectory: '.output',
 		staticDir: '.output/public', // Nitro-based static assets
+		staticAssetPublicPath: '',
 		envPrefix: 'VITE_',
 		detectors: {
 			every: [{ matchPackage: 'solid-js' }, { matchPackage: '@solidjs/start' }],
@@ -265,6 +277,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		// for an SSR build and 404s every route.
 		outputDirectory: '.output',
 		staticDir: '.output/public',
+		staticAssetPublicPath: '',
 		detectors: {
 			every: [{ matchPackage: '@tanstack/react-start' }],
 		},
@@ -275,6 +288,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'yarn rw build',
 		outputDirectory: null, // Dynamic — depends on target
 		staticDir: 'web/dist', // Redwood web-side build output
+		staticAssetPublicPath: '',
 		envPrefix: 'REDWOOD_ENV_',
 		detectors: {
 			every: [{ matchPackage: '@redwoodjs/core' }],
@@ -289,6 +303,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'gatsby build',
 		outputDirectory: 'public',
 		staticDir: null, // Entire public/ is static output
+		staticAssetPublicPath: '',
 		envPrefix: 'GATSBY_',
 		detectors: {
 			every: [{ matchPackage: 'gatsby' }],
@@ -300,6 +315,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'npx @11ty/eleventy',
 		outputDirectory: '_site',
 		staticDir: null, // Entire _site/ is static output
+		staticAssetPublicPath: '',
 		detectors: {
 			every: [{ matchPackage: '@11ty/eleventy' }],
 		},
@@ -310,6 +326,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'vitepress build docs',
 		outputDirectory: 'docs/.vitepress/dist',
 		staticDir: null, // Entire output is static
+		staticAssetPublicPath: '',
 		detectors: {
 			every: [{ matchPackage: 'vitepress' }],
 		},
@@ -320,6 +337,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'vuepress build src',
 		outputDirectory: 'src/.vuepress/dist',
 		staticDir: null, // Entire output is static
+		staticAssetPublicPath: '',
 		detectors: {
 			every: [{ matchPackage: 'vuepress' }],
 		},
@@ -330,6 +348,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'docusaurus build',
 		outputDirectory: 'build',
 		staticDir: null, // Entire build/ is static output
+		staticAssetPublicPath: '',
 		detectors: {
 			some: [{ matchPackage: '@docusaurus/core' }],
 		},
@@ -340,6 +359,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'hexo generate',
 		outputDirectory: 'public',
 		staticDir: null, // Entire public/ is static output
+		staticAssetPublicPath: '',
 		detectors: {
 			every: [{ matchPackage: 'hexo' }],
 		},
@@ -390,6 +410,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 			}
 		},
 		staticDir: null, // Entire output dir is static (browser/ for v17+, project root pre-17)
+		staticAssetPublicPath: '',
 		// `ng serve` is the dev server — never a production start.
 		// Angular ships static assets; the generic adapter injects a
 		// static file server when `startCommand` is absent.
@@ -435,6 +456,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'vue-cli-service build',
 		outputDirectory: 'dist',
 		staticDir: null, // Entire dist/ is static output
+		staticAssetPublicPath: '',
 		envPrefix: 'VUE_APP_',
 		detectors: {
 			every: [{ matchPackage: '@vue/cli-service' }],
@@ -446,6 +468,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'react-scripts build',
 		outputDirectory: 'build',
 		staticDir: null, // Entire build/ is static output
+		staticAssetPublicPath: '',
 		envPrefix: 'REACT_APP_',
 		detectors: {
 			some: [{ matchPackage: 'react-scripts' }, { matchPackage: 'react-dev-utils' }],
@@ -457,6 +480,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'preact build',
 		outputDirectory: 'build',
 		staticDir: null, // Entire build/ is static output
+		staticAssetPublicPath: '',
 		detectors: {
 			every: [{ matchPackage: 'preact-cli' }],
 		},
@@ -470,6 +494,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'nitro build',
 		outputDirectory: 'dist',
 		staticDir: '.output/public', // Nitro static assets
+		staticAssetPublicPath: '',
 		detectors: {
 			some: [{ matchPackage: 'nitropack' }, { matchPackage: 'nitro' }],
 		},
@@ -483,6 +508,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'vite build',
 		outputDirectory: 'dist',
 		staticDir: null, // Entire dist/ is static output
+		staticAssetPublicPath: '',
 		envPrefix: 'VITE_',
 		detectors: {
 			every: [{ matchPackage: 'vite' }],
@@ -494,6 +520,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		buildCommand: 'parcel build',
 		outputDirectory: 'dist',
 		staticDir: null, // Entire dist/ is static output
+		staticAssetPublicPath: '',
 		detectors: {
 			every: [{ matchPackage: 'parcel' }],
 		},

@@ -342,6 +342,7 @@ describe('Framework Detection', () => {
 			expect(result!.startCommand).toBe('bun dist/server.js');
 			expect(result!.buildOutput).toBe('dist');
 			expect(result!.staticDir).toBe('dist/client');
+			expect(result!.staticAssetPublicPath).toBe('');
 		});
 
 		test('defaults to the Nitro server entry when no start script exists', async () => {

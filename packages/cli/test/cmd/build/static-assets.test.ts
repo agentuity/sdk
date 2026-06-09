@@ -327,10 +327,60 @@ describe('Static Asset CDN Upload', () => {
 		});
 
 		const filenames = metadata.assets.map((a) => a.filename);
-		expect(filenames).toContain('dist/client/index.html');
-		expect(filenames).toContain('dist/client/assets/app-abcdef12.css');
-		expect(filenames).toContain('dist/client/assets/app-abcdef12.js');
+		expect(filenames).toContain('index.html');
+		expect(filenames).toContain('assets/app-abcdef12.css');
+		expect(filenames).toContain('assets/app-abcdef12.js');
 		expect(filenames.some((f) => f.includes('server'))).toBe(false);
+
+		const script = metadata.assets.find((a) => a.filename === 'assets/app-abcdef12.js');
+		expect(script?.sourcePath).toBe('dist/client/assets/app-abcdef12.js');
+	}, 30_000);
+
+	test('framework public asset prefixes become CDN filenames', async () => {
+		writePackageJson(testDir, {
+			name: 'test-next-public-prefix',
+			version: '1.0.0',
+			scripts: {
+				build: [
+					'mkdir -p .next/static/chunks',
+					'echo "app()" > .next/static/chunks/app-abcdef12.js',
+				].join(' && '),
+				start: 'node server.js',
+			},
+		});
+
+		const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
+		expect(framework).not.toBeNull();
+		framework!.buildOutput = '.next';
+		framework!.staticDir = '.next/static';
+		framework!.staticAssetPublicPath = '_next/static';
+
+		const adapter = getAdapter(framework!.name);
+		const buildResult = await adapter.build({
+			projectDir: testDir,
+			framework: framework!,
+			packageJson: packageJson!,
+			outputDir,
+			logger,
+		});
+
+		const packageResult = packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		const metadata = await generateDeployMetadata({
+			buildResult,
+			packageResult,
+			projectDir: testDir,
+			projectId: 'test-project',
+			orgId: 'test-org',
+			region: 'us-east-1',
+			deploymentId: 'test-deployment',
+			logger,
+		});
+
+		const script = metadata.assets.find(
+			(a) => a.filename === '_next/static/chunks/app-abcdef12.js'
+		);
+		expect(script).toBeDefined();
+		expect(script?.sourcePath).toBe('.next/static/chunks/app-abcdef12.js');
 	}, 30_000);
 
 	// ── No staticDir → no CDN assets ──

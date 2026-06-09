@@ -141,6 +141,10 @@ export const BuildMetadataSchema = z.object({
 	assets: z.array(
 		z.object({
 			filename: z.string().describe('the relative path for the file'),
+			sourcePath: z
+				.string()
+				.optional()
+				.describe('the local path to read for upload, when different from filename'),
 			kind: z.string().describe('the type of asset'),
 			contentType: z.string().describe('the content-type for the file'),
 			contentEncoding: z.string().optional().describe('the content-encoding for the file'),

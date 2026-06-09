@@ -80,6 +80,12 @@ export interface DetectedFramework {
 	 */
 	staticDir?: string;
 
+	/**
+	 * Public URL path prefix for files inside staticDir.
+	 * Undefined preserves the historical behavior of using paths relative to outputDir.
+	 */
+	staticAssetPublicPath?: string;
+
 	/** Environment variables needed at build time */
 	buildEnv?: Record<string, string>;
 
