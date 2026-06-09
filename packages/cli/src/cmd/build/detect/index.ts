@@ -149,13 +149,13 @@ async function frameworkDefToDetected(
 	const dynamicOutputDir = definition.resolveOutputDirectory
 		? await definition.resolveOutputDirectory(projectDir)
 		: null;
-	const resolvedOutputDir = dynamicOutputDir ?? definition.outputDirectory ?? '.';
+	let resolvedOutputDir = dynamicOutputDir ?? definition.outputDirectory ?? '.';
 
 	// Resolve static asset directory (relative to project root):
 	// - explicit string: path relative to project root (e.g., '.next/static', '.output/public')
 	// - null: the entire output directory is static (SSGs, SPAs) — use outputDirectory
 	// - undefined: no static assets known for this framework
-	const resolvedStaticDir =
+	let resolvedStaticDir =
 		definition.staticDir === null
 			? resolvedOutputDir // null means entire output IS the static dir
 			: (definition.staticDir ?? undefined);
@@ -186,6 +186,15 @@ async function frameworkDefToDetected(
 			: userStartIsProduction
 				? userStart
 				: frameworkDefault;
+
+	if (
+		definition.slug === 'tanstack-start' &&
+		resolvedStartCommand &&
+		/\bdist\/server\.js\b/.test(resolvedStartCommand)
+	) {
+		resolvedOutputDir = 'dist';
+		resolvedStaticDir = 'dist/client';
+	}
 
 	// Pick the runtime based on, in order:
 	//  1. The actual `start` script: `bun ...` / `bun run ...` =

@@ -276,6 +276,63 @@ describe('Static Asset CDN Upload', () => {
 		expect(filenames.some((f) => f.includes('entry.js'))).toBe(true);
 	}, 30_000);
 
+	test('TanStack Start dist/server.js builds enumerate dist/client assets', async () => {
+		writePackageJson(testDir, {
+			name: 'test-tanstack-dist-assets',
+			version: '1.0.0',
+			scripts: {
+				build: [
+					'mkdir -p dist/server dist/client/assets',
+					'echo "server" > dist/server/server.js',
+					'echo "launcher" > dist/server.js',
+					'echo "<html></html>" > dist/client/index.html',
+					'echo "body{}" > dist/client/assets/app-abcdef12.css',
+					'echo "app()" > dist/client/assets/app-abcdef12.js',
+				].join(' && '),
+				start: 'bun dist/server.js',
+			},
+			dependencies: {
+				'@tanstack/react-start': '^1.0.0',
+			},
+		});
+
+		const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
+		expect(framework).not.toBeNull();
+		expect(framework!.name).toBe('tanstack-start');
+		expect(framework!.buildOutput).toBe('dist');
+		expect(framework!.staticDir).toBe('dist/client');
+
+		const adapter = getAdapter(framework!.name);
+		const buildResult = await adapter.build({
+			projectDir: testDir,
+			framework: framework!,
+			packageJson: packageJson!,
+			outputDir,
+			logger,
+		});
+
+		expect(buildResult.staticDir).toBeDefined();
+		expect(existsSync(buildResult.staticDir!)).toBe(true);
+
+		const packageResult = packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		const metadata = await generateDeployMetadata({
+			buildResult,
+			packageResult,
+			projectDir: testDir,
+			projectId: 'test-project',
+			orgId: 'test-org',
+			region: 'us-east-1',
+			deploymentId: 'test-deployment',
+			logger,
+		});
+
+		const filenames = metadata.assets.map((a) => a.filename);
+		expect(filenames).toContain('dist/client/index.html');
+		expect(filenames).toContain('dist/client/assets/app-abcdef12.css');
+		expect(filenames).toContain('dist/client/assets/app-abcdef12.js');
+		expect(filenames.some((f) => f.includes('server'))).toBe(false);
+	}, 30_000);
+
 	// ── No staticDir → no CDN assets ──
 
 	test('generic project without staticDir produces no CDN assets', async () => {
