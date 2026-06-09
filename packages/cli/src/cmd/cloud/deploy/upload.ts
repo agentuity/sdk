@@ -289,7 +289,8 @@ export function buildEncryptUploadStep(params: UploadStepParams): Step {
 				// closure; TS doesn't propagate narrowings of `build` /
 				// `instructions` across async callbacks, and we've already
 				// null-checked both above.
-				const assets = build.assets;
+				const assets: Array<(typeof build.assets)[number] & { sourcePath?: string }> =
+					build.assets;
 				const assetUrls = instructions.assets;
 				// v3 buildpack pipeline emits assets into `buildOutputDir`;
 				// fall back to `.agentuity/` for the legacy path.
@@ -298,9 +299,9 @@ export function buildEncryptUploadStep(params: UploadStepParams): Step {
 				try {
 					const uploadOne = async (asset: (typeof assets)[number]): Promise<void> => {
 						const assetUrl = assetUrls[asset.filename]!;
-						// Asset filename already includes the subdirectory
-						// (e.g., "client/assets/main-abc123.js").
-						const filePath = join(assetBaseDir, asset.filename);
+						// filename is the CDN key; sourcePath is the packaged
+						// file path when framework public paths differ.
+						const filePath = join(assetBaseDir, asset.sourcePath ?? asset.filename);
 
 						const headers: Record<string, string> = {
 							'Content-Type': asset.contentType,

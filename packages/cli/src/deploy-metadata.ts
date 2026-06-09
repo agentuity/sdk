@@ -27,6 +27,7 @@ import { getVersion } from './version.ts';
  */
 interface AssetInfo {
 	filename: string;
+	sourcePath?: string;
 	kind: string;
 	contentType: string;
 	size: number;
@@ -63,7 +64,22 @@ const BUILD_INFRA_FILES = new Set([
 /**
  * Recursively enumerate static assets from a directory.
  */
-function enumerateAssets(dir: string, baseDir: string): AssetInfo[] {
+function toAssetPath(path: string): string {
+	return path.split('\\').join('/');
+}
+
+function joinAssetPath(prefix: string, path: string): string {
+	const cleanPrefix = prefix.replace(/^\/+|\/+$/g, '');
+	const cleanPath = path.replace(/^\/+/g, '');
+	return cleanPrefix ? `${cleanPrefix}/${cleanPath}` : cleanPath;
+}
+
+function enumerateAssets(
+	dir: string,
+	baseDir: string,
+	publicPathPrefix?: string,
+	staticRoot = dir
+): AssetInfo[] {
 	const assets: AssetInfo[] = [];
 
 	if (!existsSync(dir)) return assets;
@@ -74,7 +90,7 @@ function enumerateAssets(dir: string, baseDir: string): AssetInfo[] {
 		if (entry.isDirectory()) {
 			// Skip dot-directories and node_modules
 			if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-			assets.push(...enumerateAssets(fullPath, baseDir));
+			assets.push(...enumerateAssets(fullPath, baseDir, publicPathPrefix, staticRoot));
 		} else {
 			// Skip dot-files and build/runtime metadata files.
 			if (entry.name.startsWith('.') || BUILD_INFRA_FILES.has(entry.name)) continue;
@@ -82,15 +98,23 @@ function enumerateAssets(dir: string, baseDir: string): AssetInfo[] {
 			const stats = statSync(fullPath);
 			if (stats.size === 0) continue;
 
-			const relativePath = relative(baseDir, fullPath);
+			const sourcePath = toAssetPath(relative(baseDir, fullPath));
+			const pathWithinStaticDir = toAssetPath(relative(staticRoot, fullPath));
+			const filename =
+				publicPathPrefix === undefined
+					? sourcePath
+					: joinAssetPath(publicPathPrefix, pathWithinStaticDir);
 			const contentType = getContentType(entry.name);
 
 			const asset: AssetInfo = {
-				filename: relativePath,
+				filename,
 				kind: getAssetKind(entry.name),
 				contentType,
 				size: stats.size,
 			};
+			if (sourcePath !== filename) {
+				asset.sourcePath = sourcePath;
+			}
 
 			if (shouldCompress(contentType)) {
 				asset.contentEncoding = 'gzip';
@@ -240,7 +264,11 @@ export async function generateDeployMetadata(
 	const assets: AssetInfo[] = [];
 	if (buildResult.staticDir && existsSync(buildResult.staticDir)) {
 		const outputDir = buildResult.outputDir;
-		const staticAssets = enumerateAssets(buildResult.staticDir, outputDir);
+		const staticAssets = enumerateAssets(
+			buildResult.staticDir,
+			outputDir,
+			buildResult.staticAssetPublicPath
+		);
 		assets.push(...staticAssets);
 		logger.debug(`Found ${assets.length} static assets in ${buildResult.staticDir}`);
 	}

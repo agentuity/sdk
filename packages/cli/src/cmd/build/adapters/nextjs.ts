@@ -199,6 +199,7 @@ export const nextjsAdapter: BuildAdapter = {
 				startCommand: `node ${serverEntryRel}`,
 				serverEntry: serverEntryRel,
 				staticDir: packagedStaticDir,
+				staticAssetPublicPath: framework.staticAssetPublicPath,
 				port: framework.port ?? 3000,
 				duration: Date.now() - started,
 				logs,
@@ -223,6 +224,7 @@ export const nextjsAdapter: BuildAdapter = {
 			staticDir: existsSync(join(outputDir, '.next', 'static'))
 				? join(outputDir, '.next', 'static')
 				: undefined,
+			staticAssetPublicPath: framework.staticAssetPublicPath,
 			port: framework.port ?? 3000,
 			duration: Date.now() - started,
 			logs,

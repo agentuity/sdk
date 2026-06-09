@@ -26,6 +26,9 @@ export interface BuildResult {
 	/** Static/CDN assets directory (absolute path), for CDN upload enumeration */
 	staticDir?: string;
 
+	/** Public URL path prefix for files inside staticDir */
+	staticAssetPublicPath?: string;
+
 	/** Port the app listens on */
 	port?: number;
 

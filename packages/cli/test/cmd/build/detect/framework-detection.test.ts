@@ -324,6 +324,27 @@ describe('Framework Detection', () => {
 			expect(result!.buildOutput).toBe('.output');
 		});
 
+		test('uses dist client assets when the start script launches dist/server.js', async () => {
+			writePackageJson(testDir, {
+				name: 'my-tanstack-app',
+				dependencies: {
+					'@tanstack/react-start': '^1.0.0',
+					'@tanstack/router-plugin': '^1.0.0',
+				},
+				scripts: {
+					build: 'vite build && bun run scripts/prepare-start-output.ts',
+					start: 'bun dist/server.js',
+				},
+			});
+
+			const result = await detectFramework(testDir);
+			expect(result!.name).toBe('tanstack-start');
+			expect(result!.startCommand).toBe('bun dist/server.js');
+			expect(result!.buildOutput).toBe('dist');
+			expect(result!.staticDir).toBe('dist/client');
+			expect(result!.staticAssetPublicPath).toBe('');
+		});
+
 		test('defaults to the Nitro server entry when no start script exists', async () => {
 			// The hosting docs don't add a `start` script. Without a
 			// framework default, detection yields no start command and the

@@ -149,16 +149,17 @@ async function frameworkDefToDetected(
 	const dynamicOutputDir = definition.resolveOutputDirectory
 		? await definition.resolveOutputDirectory(projectDir)
 		: null;
-	const resolvedOutputDir = dynamicOutputDir ?? definition.outputDirectory ?? '.';
+	let resolvedOutputDir = dynamicOutputDir ?? definition.outputDirectory ?? '.';
 
 	// Resolve static asset directory (relative to project root):
 	// - explicit string: path relative to project root (e.g., '.next/static', '.output/public')
 	// - null: the entire output directory is static (SSGs, SPAs) — use outputDirectory
 	// - undefined: no static assets known for this framework
-	const resolvedStaticDir =
+	let resolvedStaticDir =
 		definition.staticDir === null
 			? resolvedOutputDir // null means entire output IS the static dir
 			: (definition.staticDir ?? undefined);
+	let resolvedStaticAssetPublicPath = definition.staticAssetPublicPath;
 
 	// Resolve the start command.
 	//
@@ -186,6 +187,16 @@ async function frameworkDefToDetected(
 			: userStartIsProduction
 				? userStart
 				: frameworkDefault;
+
+	if (
+		definition.slug === 'tanstack-start' &&
+		resolvedStartCommand &&
+		/\bdist\/server\.js\b/.test(resolvedStartCommand)
+	) {
+		resolvedOutputDir = 'dist';
+		resolvedStaticDir = 'dist/client';
+		resolvedStaticAssetPublicPath = '';
+	}
 
 	// Pick the runtime based on, in order:
 	//  1. The actual `start` script: `bun ...` / `bun run ...` =
@@ -237,6 +248,7 @@ async function frameworkDefToDetected(
 		buildCommand: resolvedBuildCommand,
 		buildOutput: resolvedOutputDir,
 		staticDir: resolvedStaticDir,
+		staticAssetPublicPath: resolvedStaticAssetPublicPath,
 		typegenCommand: definition.typegenCommand,
 		runtimeDependencies: definition.runtimeDependencies,
 		buildPreinstallDevDependencies: definition.buildPreinstallDevDependencies,
