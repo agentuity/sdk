@@ -98,6 +98,9 @@ jobs:
               cp -r "$(pwd)" ~/sdk
               cd ~/sdk
 
+              # Windows checkout can leave CRLF in shell scripts; strip before exec.
+              sed -i 's/\r$//' packages/cli/bin/agentuity
+
               # Install dependencies and build
               bun install --frozen-lockfile
               bun run build
