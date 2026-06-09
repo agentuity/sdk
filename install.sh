@@ -372,6 +372,57 @@ install_cli() {
   print_message debug "Agentuity CLI installed successfully!"
 }
 
+# Bun installs the package's npm bin, whose shebang intentionally targets node
+# for npm/global Node users. The install.sh path requires Bun, so replace Bun's
+# global bin symlink with a Bun-backed shim while leaving the package untouched.
+create_bun_entrypoint_shim() {
+  cli_bin="$BUN_INSTALL_BIN/agentuity"
+
+  if [ ! -e "$cli_bin" ]; then
+    print_message warning "Could not create Bun shim - agentuity not found at $cli_bin"
+    return 0
+  fi
+
+  if [ ! -L "$cli_bin" ]; then
+    print_message debug "Skipping Bun shim creation; $cli_bin is not a symlink"
+    return 0
+  fi
+
+  cli_target=$(readlink "$cli_bin" 2>/dev/null || echo "")
+  if [ -z "$cli_target" ]; then
+    print_message warning "Could not resolve agentuity bin symlink at $cli_bin"
+    return 0
+  fi
+
+  case "$cli_target" in
+  /*) resolved_cli_target="$cli_target" ;;
+  *) resolved_cli_target="$(dirname "$cli_bin")/$cli_target" ;;
+  esac
+
+  if [ ! -f "$resolved_cli_target" ]; then
+    print_message warning "Could not create Bun shim - target not found at $resolved_cli_target"
+    return 0
+  fi
+
+  shim_tmp="$cli_bin.tmp.$$"
+  cat > "$shim_tmp" << EOF
+#!/bin/sh
+BUN_BIN="$BUN_EXEC_DIR/bun"
+if [ ! -x "\$BUN_BIN" ]; then
+  BUN_BIN=\$(command -v bun 2>/dev/null || true)
+fi
+if [ -z "\$BUN_BIN" ]; then
+  echo "Bun is required to run the Agentuity CLI installed by install.sh" >&2
+  exit 1
+fi
+exec "\$BUN_BIN" "$resolved_cli_target" "\$@"
+EOF
+  chmod 755 "$shim_tmp"
+  rm -f "$cli_bin"
+  mv "$shim_tmp" "$cli_bin"
+  print_message debug "Created Bun entrypoint shim at $cli_bin"
+}
+
 # Create a shim in ~/.agentuity/bin for backward compatibility
 # Only creates shim if the legacy directory is on PATH; otherwise cleans up
 create_legacy_shim() {
@@ -633,6 +684,10 @@ main() {
 
   # Install the CLI
   install_cli
+
+  # Ensure install.sh users run the CLI with Bun, even though the package bin
+  # remains Node-first for npm global installs.
+  create_bun_entrypoint_shim
   
   # Create backward compatibility shim if needed
   create_legacy_shim
