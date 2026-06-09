@@ -33,7 +33,7 @@ async function runCommand(cmd: string[], cwd: string): Promise<number> {
 const githubArchiveTokenEnv = 'GITHUB_ARCHIVE_TOKEN';
 const githubArchiveHosts = new Set(['api.github.com', 'codeload.github.com']);
 
-export function sourceDownloadHeaders(url: string): HeadersInit | undefined {
+export function sourceDownloadHeaders(url: string): Record<string, string> | undefined {
 	const token = process.env[githubArchiveTokenEnv]?.trim();
 	if (!token) {
 		return undefined;
