@@ -327,8 +327,29 @@ install_cli() {
 
   # Temporarily disable set -e for bun add to ensure proper error handling
   set +e
-  
-  if [ -n "$requested_version" ]; then
+
+  if [ -n "${AGENTUITY_CLI_PACKAGE:-}" ]; then
+    if [ ! -f "$AGENTUITY_CLI_PACKAGE" ]; then
+      set -e
+      print_message error "AGENTUITY_CLI_PACKAGE not found: $AGENTUITY_CLI_PACKAGE"
+      exit 1
+    fi
+    print_message debug "Installing from local package $AGENTUITY_CLI_PACKAGE"
+
+    install_output=$(bun add -g "file:$AGENTUITY_CLI_PACKAGE" 2>&1)
+    install_result=$?
+
+    if [ $install_result -ne 0 ]; then
+      set -e
+      print_message error "Failed to install from $AGENTUITY_CLI_PACKAGE"
+      printf "%s\n" "$install_output"
+      exit 1
+    fi
+
+    if [ "$verbose" = "true" ]; then
+      printf "%s\n" "$install_output"
+    fi
+  elif [ -n "$requested_version" ]; then
     # Normalize version (remove 'v' prefix if present)
     version=$(echo "$requested_version" | sed 's/^v//')
     print_message debug "Installing version $version"
