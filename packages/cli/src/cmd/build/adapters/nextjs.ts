@@ -119,6 +119,10 @@ export const nextjsAdapter: BuildAdapter = {
 		const buildEnv = {
 			...framework.buildEnv,
 			...getNextBuildEnv(monorepo?.root),
+			// Same contract as the generic adapter: expose the deploymentId
+			// so the build can construct deployment-scoped URLs (e.g. a CDN
+			// assetPrefix). Unset outside a deploy.
+			...(options.deploymentId ? { AGENTUITY_DEPLOYMENT_ID: options.deploymentId } : {}),
 		};
 
 		logger.debug(`Running Next.js build: ${framework.buildCommand}`);

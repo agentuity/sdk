@@ -468,11 +468,22 @@ export const genericAdapter: BuildAdapter = {
 			if (framework.buildCommand && framework.buildCommand !== '__agentuity_internal__') {
 				logger.debug(`Running build: ${framework.buildCommand}`);
 				const buildStart = Date.now();
+				// Expose the deploymentId to the build subprocess so custom
+				// builds can construct deployment-scoped URLs — e.g. a Vite
+				// `base` of `https://cdn.agentuity.com/<deploymentId>/client/`
+				// so static assets are served from the CDN. Native Agentuity
+				// builds get this via the Vite pipeline's `--base` injection;
+				// this is the equivalent contract for adapter builds. Unset
+				// outside a deploy (plain `agentuity build` has no deployment).
+				const buildEnv = {
+					...framework.buildEnv,
+					...(options.deploymentId ? { AGENTUITY_DEPLOYMENT_ID: options.deploymentId } : {}),
+				};
 				await runBuildCommand(
 					buildCwd,
 					framework.buildCommand,
 					framework.packageManager,
-					framework.buildEnv,
+					buildEnv,
 					logger,
 					options.monorepo ? [join(options.monorepo.root, 'node_modules', '.bin')] : []
 				);
