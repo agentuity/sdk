@@ -37,19 +37,27 @@ function applyTheme(resolved: 'light' | 'dark') {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-	const [theme, setThemeState] = useState<Theme>(getStoredTheme);
-	const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(() => {
-		const stored = getStoredTheme();
-		return stored === 'system' ? getSystemTheme() : stored;
-	});
+	// Initialize to the values the SSR server produces. The server has no
+	// window, so getStoredTheme() returns 'system' and getSystemTheme() returns
+	// 'dark'. Reading the real preference during the first client render would
+	// diverge from the server HTML; React rejects the mismatch (#418) and
+	// recovers by discarding the server-rendered DOM for that tree and
+	// re-rendering it on the client — the flash on hard refresh. The persisted
+	// preference is adopted after mount instead (React's two-pass pattern).
+	const [theme, setThemeState] = useState<Theme>('system');
+	const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark');
 
-	// Apply theme on mount and when it changes
+	// After hydration, adopt the persisted preference and resolve the system
+	// theme. The inline bootstrap script in __root.tsx applies the Tailwind
+	// `dark` class to <html> before paint, so page colors don't flash; only
+	// resolvedTheme-driven UI (e.g. theme-image) reconciles after this runs.
 	useEffect(() => {
-		const resolved = theme === 'system' ? getSystemTheme() : theme;
+		const stored = getStoredTheme();
+		const resolved = stored === 'system' ? getSystemTheme() : stored;
+		setThemeState(stored);
 		setResolvedTheme(resolved);
 		applyTheme(resolved);
-		localStorage.setItem(STORAGE_KEY, theme);
-	}, [theme]);
+	}, []);
 
 	// Listen for system theme changes
 	useEffect(() => {
@@ -65,18 +73,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 		return () => mediaQuery.removeEventListener('change', handleChange);
 	}, [theme]);
 
+	// Persist + apply on explicit user action. Persisting lives here, not in an
+	// effect, so the mount-time adoption above never clobbers the stored value.
 	const setTheme = useCallback((newTheme: Theme) => {
+		const resolved = newTheme === 'system' ? getSystemTheme() : newTheme;
+		localStorage.setItem(STORAGE_KEY, newTheme);
 		setThemeState(newTheme);
+		setResolvedTheme(resolved);
+		applyTheme(resolved);
 	}, []);
 
 	// Cycle: light → dark → system → light
 	const cycleTheme = useCallback(() => {
-		setThemeState((current) => {
-			if (current === 'light') return 'dark';
-			if (current === 'dark') return 'system';
-			return 'light';
-		});
-	}, []);
+		setTheme(theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light');
+	}, [theme, setTheme]);
 
 	return (
 		<ThemeContext.Provider value={{ theme, resolvedTheme, setTheme, cycleTheme }}>
