@@ -23,7 +23,7 @@ import type { MonorepoContext } from '../detect/monorepo.ts';
 async function runCommand(
 	cmd: string[],
 	cwd: string,
-	env?: Record<string, string>
+	env?: Record<string, string | undefined>
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
 	const result = await run({ cmd, cwd, env });
 	return {
@@ -187,7 +187,7 @@ export async function runBuildCommand(
 	projectDir: string,
 	buildCommand: string,
 	packageManager: string,
-	buildEnv?: Record<string, string>,
+	buildEnv?: Record<string, string | undefined>,
 	logger?: { debug: (...args: unknown[]) => void },
 	extraBinDirs: string[] = []
 ): Promise<{ stdout: string; stderr: string }> {
@@ -231,7 +231,7 @@ export async function runBuildCommand(
 	// `vite` end up at root rather than in the subpackage) still
 	// resolve when the build shells out from inside the subpackage.
 	const binDirs = [join(projectDir, 'node_modules', '.bin'), ...extraBinDirs];
-	const envWithLocalBin: Record<string, string> = {
+	const envWithLocalBin: Record<string, string | undefined> = {
 		...(buildEnv ?? {}),
 		PATH: `${binDirs.join(':')}:${buildEnv?.PATH ?? process.env.PATH ?? ''}`,
 	};
@@ -473,11 +473,13 @@ export const genericAdapter: BuildAdapter = {
 				// `base` of `https://cdn.agentuity.com/<deploymentId>/client/`
 				// so static assets are served from the CDN. Native Agentuity
 				// builds get this via the Vite pipeline's `--base` injection;
-				// this is the equivalent contract for adapter builds. Unset
-				// outside a deploy (plain `agentuity build` has no deployment).
+				// this is the equivalent contract for adapter builds. Outside
+				// a deploy, `undefined` actively unsets the variable (proc's
+				// env merge deletes undefined keys), so a stale value exported
+				// in the user's shell never leaks into the build.
 				const buildEnv = {
 					...framework.buildEnv,
-					...(options.deploymentId ? { AGENTUITY_DEPLOYMENT_ID: options.deploymentId } : {}),
+					AGENTUITY_DEPLOYMENT_ID: options.deploymentId || undefined,
 				};
 				await runBuildCommand(
 					buildCwd,

@@ -18,6 +18,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { createMockLogger } from '@agentuity/test-utils';
 import { detectFrameworkWithPackageJson } from '../../../../src/cmd/build/detect';
 import { getAdapter } from '../../../../src/cmd/build/adapters';
 
@@ -36,17 +37,7 @@ function writePackageJson(dir: string, content: Record<string, unknown>) {
 	writeFileSync(join(dir, 'package.json'), JSON.stringify(content, null, 2));
 }
 
-const logger = {
-	trace: () => {},
-	debug: () => {},
-	info: () => {},
-	warn: () => {},
-	error: () => {},
-	fatal: (() => {
-		throw new Error('fatal');
-	}) as never,
-	child: () => logger,
-};
+const logger = createMockLogger();
 
 // The build script captures what the subprocess actually sees. `MISSING`
 // distinguishes "unset" from "set to empty string".
@@ -132,5 +123,40 @@ describe('Deployment env injection for adapter builds', () => {
 		});
 
 		expect(readCapture(testDir)).toBe('MISSING');
+	});
+
+	test('clears a stale AGENTUITY_DEPLOYMENT_ID inherited from the CLI process env', async () => {
+		// The build subprocess env inherits process.env, so a value
+		// exported in the user's shell must be actively unset for a
+		// non-deploy build — omitting the key is not enough.
+		process.env.AGENTUITY_DEPLOYMENT_ID = 'stale_from_shell';
+		try {
+			writePackageJson(testDir, {
+				name: 'test-deployment-env-stale',
+				version: '1.0.0',
+				scripts: {
+					build: captureBuildScript,
+				},
+				devDependencies: {
+					vite: '^6.0.0',
+				},
+			});
+
+			const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
+			expect(framework).not.toBeNull();
+
+			const adapter = getAdapter(framework!.name);
+			await adapter.build({
+				projectDir: testDir,
+				framework: framework!,
+				packageJson: packageJson!,
+				outputDir,
+				logger,
+			});
+
+			expect(readCapture(testDir)).toBe('MISSING');
+		} finally {
+			delete process.env.AGENTUITY_DEPLOYMENT_ID;
+		}
 	});
 });

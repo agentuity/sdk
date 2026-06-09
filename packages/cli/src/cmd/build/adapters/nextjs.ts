@@ -121,8 +121,9 @@ export const nextjsAdapter: BuildAdapter = {
 			...getNextBuildEnv(monorepo?.root),
 			// Same contract as the generic adapter: expose the deploymentId
 			// so the build can construct deployment-scoped URLs (e.g. a CDN
-			// assetPrefix). Unset outside a deploy.
-			...(options.deploymentId ? { AGENTUITY_DEPLOYMENT_ID: options.deploymentId } : {}),
+			// assetPrefix). Outside a deploy, `undefined` actively unsets it
+			// so a stale value from the user's shell never leaks in.
+			AGENTUITY_DEPLOYMENT_ID: options.deploymentId || undefined,
 		};
 
 		logger.debug(`Running Next.js build: ${framework.buildCommand}`);
