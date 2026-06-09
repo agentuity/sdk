@@ -145,7 +145,7 @@
       "name": "@agentuity/cli",
       "version": "3.0.10",
       "bin": {
-        "agentuity": "./bin/cli.js",
+        "agentuity": "./bin/agentuity",
       },
       "dependencies": {
         "@agentuity/coder-tui": "workspace:*",
