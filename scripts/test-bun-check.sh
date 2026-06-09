@@ -4,6 +4,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 INSTALL_SCRIPT="$REPO_ROOT/install.sh"
+NODE_VERSION="${NODE_VERSION:-24}"
 
 # Colors
 RED='\033[0;31m'
@@ -38,6 +39,42 @@ cleanup_containers() {
   done
 }
 
+install_node_in_container() {
+  container_name="$1"
+
+  print_info "Installing Node ${NODE_VERSION}..."
+  docker exec -e NODE_VERSION="$NODE_VERSION" "$container_name" bash -c '
+    set -euo pipefail
+
+    case "$(uname -m)" in
+      x86_64) node_arch="x64" ;;
+      aarch64 | arm64) node_arch="arm64" ;;
+      *) echo "Unsupported Node architecture: $(uname -m)" && exit 1 ;;
+    esac
+
+    archive=$(curl -fsSL "https://nodejs.org/dist/latest-v${NODE_VERSION}.x/SHASUMS256.txt" | awk -v arch="$node_arch" '\''$2 ~ "^node-v[0-9]+\\.[0-9]+\\.[0-9]+-linux-" arch "\\.tar\\.xz$" { print $2; exit }'\'')
+    if [ -z "$archive" ]; then
+      echo "Unable to resolve Node ${NODE_VERSION} archive for ${node_arch}"
+      exit 1
+    fi
+
+    curl -fsSLo "/tmp/${archive}" "https://nodejs.org/dist/latest-v${NODE_VERSION}.x/${archive}"
+    mkdir -p /opt/node
+    tar -xJf "/tmp/${archive}" -C /opt/node --strip-components=1
+    ln -sf /opt/node/bin/node /usr/local/bin/node
+    ln -sf /opt/node/bin/npm /usr/local/bin/npm
+    ln -sf /opt/node/bin/npx /usr/local/bin/npx
+
+    installed_major=$(node -p '\''Number(process.versions.node.split(".")[0])'\'')
+    if [ "$installed_major" -lt "$NODE_VERSION" ]; then
+      echo "Expected Node ${NODE_VERSION}+ but found $(node --version)"
+      exit 1
+    fi
+
+    echo "Node version: $(node --version)"
+  '
+}
+
 test_no_bun_ci_mode() {
   print_header "Test: No Bun (CI Mode - Auto Install)"
   
@@ -46,9 +83,10 @@ test_no_bun_ci_mode() {
   print_info "Starting Debian container..."
   docker run -d --name "$container_name" debian:latest sleep infinity >/dev/null
   
-  print_info "Installing curl and unzip..."
+  print_info "Installing curl, unzip, and xz..."
   docker exec "$container_name" apt-get update -qq >/dev/null 2>&1
-  docker exec "$container_name" apt-get install -y -qq curl unzip >/dev/null 2>&1
+  docker exec "$container_name" apt-get install -y -qq curl unzip xz-utils >/dev/null 2>&1
+  install_node_in_container "$container_name"
   
   print_info "Copying install script..."
   docker cp "$INSTALL_SCRIPT" "$container_name:/tmp/install.sh"
@@ -87,9 +125,10 @@ test_bun_install_prompt() {
   print_info "Starting Debian container..."
   docker run -d --name "$container_name" debian:latest sleep infinity >/dev/null
   
-  print_info "Installing curl and unzip..."
+  print_info "Installing curl, unzip, and xz..."
   docker exec "$container_name" apt-get update -qq >/dev/null 2>&1
-  docker exec "$container_name" apt-get install -y -qq curl unzip >/dev/null 2>&1
+  docker exec "$container_name" apt-get install -y -qq curl unzip xz-utils >/dev/null 2>&1
+  install_node_in_container "$container_name"
   
   print_info "Copying install script..."
   docker cp "$INSTALL_SCRIPT" "$container_name:/tmp/install.sh"
@@ -128,9 +167,10 @@ test_bun_upgrade_prompt() {
   print_info "Starting Debian container..."
   docker run -d --name "$container_name" debian:latest sleep infinity >/dev/null
   
-  print_info "Installing curl and unzip..."
+  print_info "Installing curl, unzip, and xz..."
   docker exec "$container_name" apt-get update -qq >/dev/null 2>&1
-  docker exec "$container_name" apt-get install -y -qq curl unzip >/dev/null 2>&1
+  docker exec "$container_name" apt-get install -y -qq curl unzip xz-utils >/dev/null 2>&1
+  install_node_in_container "$container_name"
   
   print_info "Installing old Bun version 1.3.0..."
   docker exec "$container_name" bash -c 'curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.0"' >/dev/null 2>&1
@@ -166,9 +206,10 @@ test_decline_bun_install() {
   print_info "Starting Debian container..."
   docker run -d --name "$container_name" debian:latest sleep infinity >/dev/null
   
-  print_info "Installing curl and unzip..."
+  print_info "Installing curl, unzip, and xz..."
   docker exec "$container_name" apt-get update -qq >/dev/null 2>&1
-  docker exec "$container_name" apt-get install -y -qq curl unzip >/dev/null 2>&1
+  docker exec "$container_name" apt-get install -y -qq curl unzip xz-utils >/dev/null 2>&1
+  install_node_in_container "$container_name"
   
   print_info "Copying install script..."
   docker cp "$INSTALL_SCRIPT" "$container_name:/tmp/install.sh"
@@ -193,9 +234,10 @@ test_decline_bun_upgrade() {
   print_info "Starting Debian container..."
   docker run -d --name "$container_name" debian:latest sleep infinity >/dev/null
   
-  print_info "Installing curl and unzip..."
+  print_info "Installing curl, unzip, and xz..."
   docker exec "$container_name" apt-get update -qq >/dev/null 2>&1
-  docker exec "$container_name" apt-get install -y -qq curl unzip >/dev/null 2>&1
+  docker exec "$container_name" apt-get install -y -qq curl unzip xz-utils >/dev/null 2>&1
+  install_node_in_container "$container_name"
   
   print_info "Installing old Bun version 1.3.0..."
   docker exec "$container_name" bash -c 'curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.0"' >/dev/null 2>&1
