@@ -7,9 +7,9 @@
  * templates under `src/cmd/project/templates/`, which need to be
  * mirrored into the dist output.
  *
- * Note: this script does NOT touch `bin/agentuity`, `bin/agentuity.cmd`,
- * or `bin/cli.js`. Those are hand-written launcher/shim files; they ship
- * directly from the repo to the published tarball, no compilation required.
+ * Note: this script does NOT touch `bin/cli.js`. It is a hand-written
+ * polyglot launcher/shim file that ships directly from the repo to the
+ * published tarball, no compilation required.
  */
 
 import { cp, mkdir } from 'node:fs/promises';

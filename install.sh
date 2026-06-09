@@ -575,10 +575,10 @@ configure_path() {
   fi
 
   # Ensure BUN_EXEC_DIR (where the bun binary lives) is on PATH.
-  # This is critical: globally installed packages use `bin/agentuity`, a
-  # POSIX launcher that execs the JS shim with bun or node, so at least
-  # one of those runtimes must be findable on PATH. BUN_EXEC_DIR and
-  # BUN_INSTALL_BIN may differ (e.g. bun at ~/.bun/bin, global packages at ~/.local/bin).
+  # This is critical: globally installed packages use the polyglot
+  # `bin/cli.js` entrypoint, which execs itself with bun or node, so at
+  # least one of those runtimes must be findable on PATH. BUN_EXEC_DIR
+  # and BUN_INSTALL_BIN may differ (e.g. bun at ~/.bun/bin, global packages at ~/.local/bin).
   if [ "$BUN_EXEC_DIR" != "$bun_bin_dir" ]; then
     case $current_shell in
     fish)

@@ -20,8 +20,8 @@ env:
    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 # All jobs install BOTH Bun and Node 24 because the CLI is intentionally
-# runtime-agnostic. Smoke tests that exercise the built `bin/agentuity`
-# launcher (and direct `bin/cli.js` invocation) are matrixed across `[bun, node]` so a regression in either
+# runtime-agnostic. Smoke tests that exercise the built polyglot `bin/cli.js`
+# entrypoint are matrixed across `[bun, node]` so a regression in either
 # runtime trips CI.
 
 jobs:
@@ -359,7 +359,7 @@ jobs:
 
          - name: Setup Node.js
            # Framework demos invoke the CLI via node_modules/.bin/agentuity.
-           # The launcher picks node when bun is absent; Node 24+ is required.
+           # The polyglot entrypoint picks node when bun is absent; Node 24+ is required.
            uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
            with:
               node-version: '24'

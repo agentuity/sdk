@@ -1,7 +1,7 @@
 // Main CLI entry point. Side-effect import — just running this module
-// boots the CLI and parses argv. The published binary is `bin/agentuity`
-// (POSIX) or `bin/agentuity.cmd` (Windows); each execs the `bin/cli.js`
-// shim, which re-imports this file from `dist/`. See bin/ and
+// boots the CLI and parses argv. The published binary is the polyglot
+// `bin/cli.js` entrypoint, which shell-execs bun/node and then imports
+// this file from `dist/` under JavaScript runtimes. See bin/ and
 // packages/cli/AGENTS.md for the surrounding architecture.
 
 import { ConsoleLogger, getAppBaseURL } from '@agentuity/server';

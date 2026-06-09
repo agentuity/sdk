@@ -78,7 +78,7 @@ jobs:
               # smoke-test the built artifact under both bun and node
               # below. The fnm setup mirrors what end users get when
               # they `npm install -g @agentuity/cli` and run `agentuity`,
-              # which invokes node via the bin/agentuity launcher.
+              # which invokes node via the polyglot bin/cli.js entrypoint.
               curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell
               export PATH="$HOME/.local/share/fnm:$PATH"
               eval "$(fnm env --shell bash)"
@@ -98,9 +98,6 @@ jobs:
               cp -r "$(pwd)" ~/sdk
               cd ~/sdk
 
-              # Windows checkout can leave CRLF in shell scripts; strip before exec.
-              sed -i 's/\r$//' packages/cli/bin/agentuity
-
               # Install dependencies and build
               bun install --frozen-lockfile
               bun run build
@@ -110,8 +107,8 @@ jobs:
               bun packages/cli/bin/cli.js --version
               echo "--- node bin/cli.js --version ---"
               node packages/cli/bin/cli.js --version
-              echo "--- ./bin/agentuity --version ---"
-              packages/cli/bin/agentuity --version
+              echo "--- ./bin/cli.js --version ---"
+              packages/cli/bin/cli.js --version
 
          - name: Setup test credentials
            shell: wsl-bash {0}

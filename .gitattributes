@@ -1,2 +1,2 @@
-# Shell launchers must stay LF — CRLF breaks `#!/usr/bin/env sh` under WSL/Linux.
-packages/cli/bin/agentuity text eol=lf
+# The polyglot CLI entrypoint must stay LF — CRLF breaks `#!/bin/sh` under WSL/Linux.
+packages/cli/bin/cli.js text eol=lf
