@@ -162,11 +162,10 @@ Per service checklist:
 
 - [x] Pilot: move `user`, `org` env, `project` (get/list/malware), `region` create into `@agentuity/server`; wire sandbox stubs to `@agentuity/sandbox`
 - [x] Move `session`, `thread`, `apikey` into `@agentuity/server`
-- [ ] Move remaining CLI-only domains from core to `@agentuity/server`:
-  oauth, deploy, monitoring, workflow, machine, storage,
-  project (deploy/env/create/…), org (list/resources), region (list/delete), coder platform helpers
-- [ ] Slim `@agentuity/core` to foundation-only exports
-- [ ] CLI depends on `@agentuity/server` + service packages, not monolithic core services
+- [x] Move remaining platform domains: `oauth`, `org` (list/resources), `project` (deploy/env/create/…), `region` (list/delete/resources), `machine`, `monitoring`, `storage`, `workflow`, `stats`
+- [x] Trim platform symbols from `@agentuity/core` main barrel (subpath copies retained until Phase 5)
+- [ ] Point CLI service imports at `@agentuity/{service}` instead of `@agentuity/core` types where applicable
+- [ ] Remove service implementations from `@agentuity/core` main barrel (Phase 5)
 
 **Exit:** core contains no service or platform implementations.
 

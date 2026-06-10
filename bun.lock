@@ -512,7 +512,9 @@
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
         "@agentuity/client": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
+        "@agentuity/keyvalue": "workspace:*",
         "@agentuity/sandbox": "workspace:*",
         "zod": "^4.3.5",
       },

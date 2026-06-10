@@ -7,7 +7,7 @@ import {
 	WorkflowListResultSchema,
 	WorkflowSourceTypeSchema,
 	WorkflowStatusSchema,
-} from '@agentuity/core';
+} from '@agentuity/server';
 
 export const listSubcommand = createCommand({
 	name: 'list',

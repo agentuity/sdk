@@ -1,4 +1,4 @@
-import { oauthClientCreate, oauthScopes, type OAuthClientCreateRequest } from '@agentuity/core';
+import { oauthClientCreate, oauthScopes, type OAuthClientCreateRequest } from '@agentuity/server';
 import enquirer from 'enquirer';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix.ts';

@@ -20,17 +20,26 @@ Server-side utilities for Node.js and Bun applications. Provides API clients for
 
 ```text
 src/
-├── index.ts              # Main exports
+├── index.ts              # Main exports (core re-export + platform APIs)
 ├── config.ts             # getServiceUrls, resolveRegion, getAPIBaseURL/etc.
 ├── logger.ts             # ConsoleLogger, createLogger
 ├── schema.ts             # toJSONSchema
 ├── util/resources.ts     # validateResources, validateCPUSpec, validateMemorySpec
-└── api/                  # API clients for Agentuity cloud services
-    ├── org/              # Organization management
-    ├── project/          # Project management (deploy, env, etc.)
-    ├── region/           # Region management
-    ├── sandbox/          # Sandbox management (create, execute, files, snapshot)
-    └── user/             # User operations (whoami)
+└── api/                  # Platform CLI APIs (owned by @agentuity/server)
+    ├── user/             # whoami
+    ├── org/              # env, list, resources
+    ├── project/          # CRUD, deploy, env, malware
+    ├── region/           # create, list, delete, resources
+    ├── session/          # list, get, logs, events
+    ├── thread/           # list, get, delete
+    ├── apikey/           # CRUD
+    ├── oauth/            # OIDC clients, scopes, flow
+    ├── machine/          # machine CRUD
+    ├── monitoring/       # monitor nodes, websocket
+    ├── storage/          # bucket config, objects
+    ├── workflow/         # workflow service
+    ├── stats.ts          # getServiceStats
+    └── sandbox/          # re-exports from @agentuity/sandbox
 ```
 
 ## Code Conventions

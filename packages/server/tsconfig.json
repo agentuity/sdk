@@ -10,7 +10,9 @@
 	"references": [
 		{ "path": "../adapter" },
 		{ "path": "../client" },
+		{ "path": "../config" },
 		{ "path": "../core" },
+		{ "path": "../keyvalue" },
 		{ "path": "../sandbox" },
 		{ "path": "../schema" }
 	]

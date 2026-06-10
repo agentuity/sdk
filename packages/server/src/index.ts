@@ -19,6 +19,12 @@ export * from './api/region/index.ts';
 export * from './api/session/index.ts';
 export * from './api/thread/index.ts';
 export * from './api/apikey/index.ts';
+export * from './api/oauth/index.ts';
+export * from './api/machine/index.ts';
+export * from './api/monitoring/index.ts';
+export * from './api/storage/index.ts';
+export * from './api/workflow/index.ts';
+export * from './api/stats.ts';
 
 // Server-specific exports (these remain in @agentuity/server only)
 export { type ColorScheme, ConsoleLogger, createLogger } from './logger.ts';
