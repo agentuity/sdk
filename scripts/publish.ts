@@ -53,8 +53,7 @@ Description:
                 2.0.0-beta.0 -> 2.0.0-beta.1 (increment beta)
 
   npm dist-tags:
-    - Stable releases (patch/minor/major) are published with tag "latest"
-    - On the \`v2\` maintenance branch, stable releases use tag "v2" instead
+    - Stable releases (patch/minor/major) are published with tag "v2"
     - Prereleases are published with tag "next"
     - Beta prereleases are published with tag "beta"
 
@@ -507,14 +506,6 @@ async function validateEnvironment(isDryRun: boolean) {
 	console.log('✓ Environment validation passed\n');
 }
 
-async function getCurrentBranch(): Promise<string> {
-	try {
-		return (await $`git branch --show-current`.cwd(rootDir).text()).trim();
-	} catch {
-		return '';
-	}
-}
-
 async function getPreviousReleaseTag(): Promise<string | null> {
 	try {
 		const result = await $`git describe --tags --abbrev=0 --match="v*" HEAD^`.text();
@@ -889,19 +880,9 @@ async function main() {
 	}
 
 	const isPreReleaseVersion = isPrerelease(newVersion);
-	const branch = await getCurrentBranch();
-	const stableDistTag = branch === 'v2' ? 'v2' : 'latest';
-	const distTag = isPreReleaseVersion
-		? newVersion.includes('-beta.')
-			? 'beta'
-			: 'next'
-		: stableDistTag;
+	const distTag = isPreReleaseVersion ? (newVersion.includes('-beta.') ? 'beta' : 'next') : 'v2';
 
-	// Mark the GitHub release as a pre-release whenever it isn't going to the
-	// `latest` dist-tag. This covers maintenance-line stable releases on `v2`
-	// as well as prereleases on `next`/`beta`: the version string may look
-	// stable, but the release must not grab GitHub's "Latest" badge away from
-	// the actual `latest` release. Only `latest` releases are non-pre.
+	// Stable v2 maintenance releases use the `v2` dist-tag, not `latest`.
 	const markAsPrerelease = distTag !== 'latest';
 
 	const confirmed = await confirmVersion(newVersion);
@@ -912,9 +893,6 @@ async function main() {
 	}
 
 	console.log(`\n📦 Setting version to: ${newVersion}`);
-	if (branch === 'v2' && !isPreReleaseVersion) {
-		console.log('📌 Maintenance branch: stable releases will not update npm "latest"');
-	}
 	console.log(`📌 npm dist-tag: ${distTag}\n`);
 
 	try {
