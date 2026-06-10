@@ -53,7 +53,7 @@ Description:
                 2.0.0-beta.0 -> 2.0.0-beta.1 (increment beta)
 
   npm dist-tags:
-    - Stable releases (patch/minor/major) are published with tag "latest"
+    - Stable releases (patch/minor/major) are published with tag "v2"
     - Prereleases are published with tag "next"
     - Beta prereleases are published with tag "beta"
 
@@ -880,18 +880,9 @@ async function main() {
 	}
 
 	const isPreReleaseVersion = isPrerelease(newVersion);
-	const distTag = isPreReleaseVersion
-		? newVersion.includes('-beta.')
-			? 'beta'
-			: 'next'
-		: 'latest';
+	const distTag = isPreReleaseVersion ? (newVersion.includes('-beta.') ? 'beta' : 'next') : 'v2';
 
-	// Mark the GitHub release as a pre-release whenever it isn't going to the
-	// `latest` dist-tag. This covers stable-looking semvers published to a
-	// non-`latest` line (e.g. a v2.x prerelease on `next`/`beta`): the version
-	// string isn't a prerelease, but the release must not grab GitHub's "Latest"
-	// badge away from the actual `latest` release. Only `latest` releases are
-	// non-pre.
+	// Stable v2 maintenance releases use the `v2` dist-tag, not `latest`.
 	const markAsPrerelease = distTag !== 'latest';
 
 	const confirmed = await confirmVersion(newVersion);
