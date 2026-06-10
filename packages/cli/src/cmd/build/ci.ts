@@ -35,12 +35,64 @@ async function runCommand(cmd: string[], cwd: string): Promise<number> {
 	await proc.exited;
 	return proc.exitCode ?? 1;
 }
-async function downloadSource(url: string, targetPath: string): Promise<void> {
+
+const githubArchiveTokenEnv = 'GITHUB_ARCHIVE_TOKEN';
+const githubArchiveHosts = new Set(['api.github.com', 'codeload.github.com']);
+
+export function sourceDownloadHeaders(url: string): Record<string, string> | undefined {
+	const token = process.env[githubArchiveTokenEnv]?.trim();
+	if (!token) {
+		return undefined;
+	}
+
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return undefined;
+	}
+
+	if (!githubArchiveHosts.has(parsed.hostname.toLowerCase())) {
+		return undefined;
+	}
+
+	return {
+		Authorization: `Bearer ${token}`,
+		Accept: 'application/vnd.github+json',
+		'X-GitHub-Api-Version': '2022-11-28',
+	};
+}
+
+async function fetchSourceArchive(url: string): Promise<Response> {
+	let currentURL = url;
+
+	for (let redirectCount = 0; redirectCount <= 5; redirectCount++) {
+		const response = await fetch(currentURL, {
+			headers: sourceDownloadHeaders(currentURL),
+			redirect: 'manual',
+			signal: AbortSignal.timeout(60_000),
+		});
+
+		if (response.status < 300 || response.status >= 400) {
+			return response;
+		}
+
+		const location = response.headers.get('location');
+		if (!location) {
+			return response;
+		}
+		currentURL = new URL(location, currentURL).toString();
+	}
+
+	throw new Error('Download failed: too many redirects');
+}
+
+export async function downloadSource(url: string, targetPath: string): Promise<void> {
 	let lastError: unknown;
 
 	for (let attempt = 1; attempt <= 3; attempt++) {
 		try {
-			const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+			const response = await fetchSourceArchive(url);
 			if (!response.ok) {
 				throw new Error(`Download failed with status ${response.status}`);
 			}
