@@ -1,7 +1,7 @@
 {
 	"name": "@agentuity/drizzle",
 	"deprecated": "Use drizzle-orm with pg directly against your DATABASE_URL.",
-	"version": "3.0.8",
+	"version": "3.0.9",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
