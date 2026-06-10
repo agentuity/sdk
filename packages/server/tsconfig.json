@@ -9,6 +9,7 @@
 	"exclude": ["test/**/*"],
 	"references": [
 		{ "path": "../adapter" },
+		{ "path": "../client" },
 		{ "path": "../core" },
 		{ "path": "../sandbox" },
 		{ "path": "../schema" }

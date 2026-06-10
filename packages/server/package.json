@@ -26,6 +26,7 @@
 	},
 	"dependencies": {
 		"@agentuity/adapter": "workspace:*",
+		"@agentuity/client": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/sandbox": "workspace:*",
 		"zod": "^4.3.5"
