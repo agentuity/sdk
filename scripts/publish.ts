@@ -65,7 +65,15 @@ Description:
 
 Required Tools:
   gh                   GitHub CLI (https://cli.github.com/)
-  amp                  Amp CLI for release notes generation
+  opencode             OpenCode CLI for release notes generation
+
+npm Authentication:
+  npm publish no longer accepts OTP codes from authenticator apps.
+  Export an npm automation token before running this script:
+
+    export NPM_TOKEN=npm_...
+
+  Create tokens at https://www.npmjs.com/settings/~/tokens
 
 Examples:
   bun scripts/publish.ts                 # Publish to npm (interactive)
@@ -424,16 +432,53 @@ async function revertVersionChanges() {
 	);
 }
 
+function getNpmToken(): string | undefined {
+	return process.env.NPM_TOKEN?.trim() || undefined;
+}
+
+async function configureNpmAuth() {
+	const token = getNpmToken();
+	if (!token) return;
+	await $`npm config set //registry.npmjs.org/:_authToken ${token}`.quiet();
+}
+
+function printNpmAuthHelp() {
+	console.error('❌ Error: Not authenticated to npm registry.');
+	console.error('');
+	console.error('   npm no longer supports OTP from authenticator apps for publish.');
+	console.error('   Use an automation token (keeps write 2FA enabled):');
+	console.error('     1. Create at https://www.npmjs.com/settings/~/tokens');
+	console.error('     2. export NPM_TOKEN=npm_...');
+	console.error('     3. Re-run this script');
+	console.error('');
+	console.error('   Or disable "Require 2FA for write actions" in npm account settings,');
+	console.error('   then run npm logout && npm login.');
+}
+
+function isOtpRequiredError(errStr: string): boolean {
+	const lower = errStr.toLowerCase();
+	return (
+		lower.includes('one-time password') ||
+		lower.includes('one time password') ||
+		lower.includes('eotp') ||
+		(lower.includes('otp') && lower.includes('required'))
+	);
+}
+
 async function validateEnvironment(isDryRun: boolean) {
 	console.log('🔍 Validating environment...\n');
 
-	// Always check npm authentication (tokens expire frequently)
+	await configureNpmAuth();
+
 	try {
 		const user = (await $`npm whoami`.text()).trim();
-		console.log(`✓ Logged into npm as: ${user}`);
+		if (getNpmToken()) {
+			console.log(`✓ Authenticated to npm as: ${user} (via NPM_TOKEN)`);
+		} else {
+			console.log(`✓ Logged into npm as: ${user}`);
+		}
 	} catch {
-		console.error('❌ Error: Not logged into npm registry.');
-		console.error('   Run: npm login');
+		printNpmAuthHelp();
 		rl.close();
 		process.exit(1);
 	}
@@ -920,6 +965,13 @@ async function main() {
 					lastErr = err;
 					const shellErr = err as { stderr?: string; stdout?: string };
 					const errStr = `${shellErr.stderr || ''} ${shellErr.stdout || ''} ${String(err)}`;
+					if (isOtpRequiredError(errStr)) {
+						console.error(
+							'\n   npm requested an OTP, which is no longer supported for publish.'
+						);
+						printNpmAuthHelp();
+						break;
+					}
 					const isTransient = errStr.includes('404') || errStr.includes('Not Found');
 					if (isTransient && attempt < maxRetries) {
 						const delay = attempt * 5;
