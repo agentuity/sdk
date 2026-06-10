@@ -22,10 +22,7 @@ SDK PRs publish matching `@agentuity/*` tarballs to Tigris. Every Agentuity pack
 From the SDK repo:
 
 ```bash
-# By PR number (reads the canary bot comment)
-bun scripts/upgrade-canary.ts --pr 1552 ../basic-agent
-
-# Or by explicit canary version
+# Copy the version from the SDK PR canary bot comment, then:
 bun scripts/upgrade-canary.ts --version 2.0.26-2956070 ../basic-agent
 ```
 
@@ -68,7 +65,7 @@ curl -s "https://agentuity-sdk-objects.t3.storageapi.dev/npm/<version>/manifest.
 ## Dry Run
 
 ```bash
-bun scripts/upgrade-canary.ts --pr 1552 ../basic-agent --dry-run
+bun scripts/upgrade-canary.ts --version 2.0.26-2956070 ../basic-agent --dry-run
 ```
 
 ## Revert To npm

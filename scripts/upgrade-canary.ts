@@ -23,22 +23,21 @@ function showHelp() {
 Usage: bun scripts/upgrade-canary.ts [options] [project-dir]
 
 Options:
-  --version <canary-version>  Canary version (e.g. 2.0.26-2956070). Required unless --pr is set.
-  --pr <number>               SDK PR number; resolves version from the canary bot comment
+  --version <canary-version>  Canary version from the SDK PR bot comment (e.g. 2.0.26-2956070). Required.
   --dry-run                   Print changes without writing files or installing
   --skip-install              Update package.json only; do not run bun install
   --help                      Show this help message
 
 Examples:
   bun scripts/upgrade-canary.ts --version 2.0.26-2956070 ../basic-agent
-  bun scripts/upgrade-canary.ts --pr 1552 ../basic-agent
+
+The version string is in the SDK PR canary bot comment: **version:** \`2.0.26-2956070\`
 `);
 }
 
 function parseArgs(argv: string[]) {
 	let projectDir = process.cwd();
 	let version = '';
-	let pr = 0;
 	let dryRun = false;
 	let skipInstall = false;
 
@@ -51,9 +50,6 @@ function parseArgs(argv: string[]) {
 		switch (arg) {
 			case '--version':
 				version = argv[++i] ?? '';
-				break;
-			case '--pr':
-				pr = Number.parseInt(argv[++i] ?? '', 10);
 				break;
 			case '--dry-run':
 				dryRun = true;
@@ -69,7 +65,7 @@ function parseArgs(argv: string[]) {
 		}
 	}
 
-	return { projectDir, version, pr, dryRun, skipInstall };
+	return { projectDir, version, dryRun, skipInstall };
 }
 
 function tarballToPackageName(tarball: string, version: string): string {
@@ -98,33 +94,6 @@ async function fetchManifest(version: string): Promise<Manifest> {
 		throw new Error(`Failed to fetch canary manifest (${response.status}): ${url}`);
 	}
 	return (await response.json()) as Manifest;
-}
-
-async function resolveVersionFromPr(pr: number): Promise<string> {
-	const response = await fetch(
-		`https://api.github.com/repos/agentuity/sdk/issues/${pr}/comments`,
-		{
-			headers: {
-				Accept: 'application/vnd.github+json',
-				'User-Agent': 'agentuity-upgrade-canary',
-			},
-		}
-	);
-	if (!response.ok) {
-		throw new Error(`Failed to fetch PR #${pr} comments (${response.status})`);
-	}
-	const comments = (await response.json()) as Array<{ body?: string }>;
-	const botComment = comments.find((comment) =>
-		comment.body?.includes('<!-- agentuity-canary-bot -->')
-	);
-	if (!botComment?.body) {
-		throw new Error(`No canary bot comment found on agentuity/sdk#${pr}`);
-	}
-	const match = botComment.body.match(/\*\*version:\*\* `([^`]+)`/);
-	if (!match) {
-		throw new Error(`Could not parse canary version from PR #${pr} comment`);
-	}
-	return match[1];
 }
 
 function collectAgentuityPackageNames(pkgJson: Record<string, unknown>) {
@@ -211,11 +180,7 @@ async function upgradeProject(options: UpgradeOptions) {
 
 async function main() {
 	const args = parseArgs(process.argv.slice(2));
-	let version = args.version.trim();
-	if (!version && args.pr > 0) {
-		version = await resolveVersionFromPr(args.pr);
-		console.log(`Resolved PR #${args.pr} canary version: ${version}`);
-	}
+	const version = args.version.trim();
 	if (!version) {
 		showHelp();
 		process.exit(1);
