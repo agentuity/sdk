@@ -44,6 +44,15 @@ Set up and use the Workbench dev UI for interactive agent testing. Covers the bu
 - Setting up the dev testing UI
 - Embedding workbench components
 
+### agentuity-canary
+
+Upgrade an Agentuity app to SDK canary tarballs from a PR. Covers pinning all `@agentuity/*` packages via `scripts/upgrade-canary.ts`, overrides for transitive deps, and validating with `bun run build` before push.
+
+**Use when:**
+- Testing a SDK PR before merge
+- Pinning a project (e.g. `basic-agent`) to canary packages
+- Preparing a push to trigger webhook deploy against prerelease SDK bits
+
 ## Installation
 
 ```bash
@@ -66,6 +75,8 @@ Each skill follows the [Agent Skills specification](https://agentskills.io/speci
 ```
 skills/
 ├── agentuity-agents/
+│   └── SKILL.md
+├── agentuity-canary/
 │   └── SKILL.md
 ├── agentuity-routing/
 │   └── SKILL.md
