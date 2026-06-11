@@ -88,9 +88,11 @@ let summary: {
   itemCount: number;
   namespaceVisible: boolean;
 };
+let namespaceCreated = false;
 
 try {
   await kv.createNamespace(namespace, { defaultTTLSeconds: 300 });
+  namespaceCreated = true;
   await kv.set(namespace, key, session, { ttl: 300 });
   await kv.set(namespace, key + ":summary", {
     visitorId: session.visitorId,
@@ -111,7 +113,9 @@ try {
     namespaceVisible: namespaces.includes(namespace),
   };
 } finally {
-  await kv.deleteNamespace(namespace);
+  if (namespaceCreated) {
+    await kv.deleteNamespace(namespace);
+  }
 }
 
 export { summary };`,

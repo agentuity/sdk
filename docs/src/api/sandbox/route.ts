@@ -12,6 +12,7 @@
  */
 import { sse } from '../http';
 import type { ApiEnv } from '../context';
+import { StructuredError } from '@agentuity/core';
 import {
 	APIClient,
 	sandboxRun,
@@ -56,12 +57,22 @@ const SANDBOX_SERVICE_SCOPES = [
 ];
 // Terminal execution statuses — typed against the SDK enum so drift is caught at compile time
 const TERMINAL_STATUSES = new Set<ExecutionStatus>(['completed', 'failed', 'timeout', 'cancelled']);
+const SandboxScriptFileMissingError = StructuredError('SandboxScriptFileMissingError')<{
+	scriptPath: string;
+	cwd: string;
+}>();
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function loadScriptFiles(scriptPath: string): Promise<FileToWrite[]> {
 	const file = Bun.file(resolve(process.cwd(), scriptPath));
-	if (!(await file.exists())) return [];
+	if (!(await file.exists())) {
+		throw new SandboxScriptFileMissingError({
+			message: `Bundled demo script not found: ${scriptPath}. Run \`bun run build:run\` before using sandbox demos.`,
+			scriptPath,
+			cwd: process.cwd(),
+		});
+	}
 
 	return [
 		{
@@ -238,7 +249,15 @@ const router = new Hono<ApiEnv>().get(
 
 		const scriptPath = `dist/run/${scriptName}.js`;
 		const command = ['bun', 'run', scriptPath, JSON.stringify(input)];
-		const scriptFiles = await loadScriptFiles(scriptPath);
+		let scriptFiles: FileToWrite[];
+		try {
+			scriptFiles = await loadScriptFiles(scriptPath);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Unknown sandbox setup error';
+			logger?.error('Sandbox setup error', { error: message });
+			await stream.writeSSE({ event: 'error', data: message });
+			return;
+		}
 		const useInteractiveSandbox = scriptName !== 'objectstore';
 
 		// --- Interactive session path ---
