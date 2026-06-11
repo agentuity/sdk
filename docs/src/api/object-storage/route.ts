@@ -19,6 +19,7 @@ import objectstoreAgent from '../../agent/objectstore/agent';
 import { Hono } from 'hono';
 
 const prefix = 'sdk-explorer/';
+type ObjectStat = Awaited<ReturnType<S3ClientLike['stat']>>;
 
 interface FileInfo {
 	key: string;
@@ -36,12 +37,11 @@ function isMissingObjectError(error: unknown): boolean {
 	);
 }
 
-async function objectExists(storage: S3ClientLike, key: string): Promise<boolean> {
+async function getObjectStat(storage: S3ClientLike, key: string): Promise<ObjectStat | null> {
 	try {
-		await storage.stat(key);
-		return true;
+		return await storage.stat(key);
 	} catch (error) {
-		if (isMissingObjectError(error)) return false;
+		if (isMissingObjectError(error)) return null;
 		throw error;
 	}
 }
@@ -102,13 +102,13 @@ const router = new Hono<ApiEnv>()
 
 			const storage = createObjectStorageClient();
 
-			if (!(await objectExists(storage, key))) {
-				return c.json({ error: 'File not found' }, 404);
+			const stat = await getObjectStat(storage, key);
+			if (!stat) {
+				return c.json({ success: false, configured: true, error: 'File not found' }, 404);
 			}
 
 			const file = storage.file(key);
 			const data = await file.arrayBuffer();
-			const stat = await storage.stat(key);
 
 			return c.body(data, {
 				headers: {
@@ -202,7 +202,7 @@ const router = new Hono<ApiEnv>()
 			// presign() signs locally without calling S3, so a URL for a missing
 			// object would look valid but 404 on open. Check existence first.
 			const storage = createObjectStorageClient();
-			if (!(await objectExists(storage, key))) {
+			if (!(await getObjectStat(storage, key))) {
 				return c.json({ success: false, configured: true, error: 'File not found' }, 404);
 			}
 
