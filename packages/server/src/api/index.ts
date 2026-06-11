@@ -12,3 +12,7 @@ export * from './monitoring/index.ts';
 export * from './storage/index.ts';
 export * from './workflow/index.ts';
 export * from './stats.ts';
+export * from './queue/index.ts';
+export * from './stream/index.ts';
+export * from './webhook/index.ts';
+export * from './sandbox/index.ts';

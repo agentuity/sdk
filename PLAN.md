@@ -20,7 +20,7 @@ package should not pull in the full core service catalog (~60k+ LOC under
 - CLI cloud command utils that import `*StorageService` from core
 - Docs API reference generator paths (`packages/core/src/services/*/api-reference.ts`)
 - `@agentuity/local` imports of service types from core
-- Temporary backward-compat shims in core (one major version)
+- In-repo migration off internal `@agentuity/core/{service}` import paths (not a supported app surface)
 
 ### Out (for now)
 
@@ -53,10 +53,10 @@ Every service package repeats the same wiring:
 - `getServiceUrls(region)` from `@agentuity/core/config`
 - `createMinimalLogger`, `buildClientHeaders`, `createServerFetchAdapter`
 
-Duplicate public surfaces exist:
+Duplicate surfaces exist:
 
-- Apps/docs: `@agentuity/{service}` (documented)
-- CLI/internal: `@agentuity/core` and `@agentuity/core/{service}` (implementation source)
+- **Supported (apps/docs):** `@agentuity/{service}`, `@agentuity/hono`, `@agentuity/runtime`
+- **Internal (monorepo only):** `@agentuity/core`, `@agentuity/core/{service}`, `@agentuity/server` — not for deployed user code
 
 Cross-service deps inside core (affects migration order):
 
@@ -74,17 +74,33 @@ Cross-service deps inside core (affects migration order):
 @agentuity/server        platform/CLI APIs (project, org, oauth, deploy, …)
 ```
 
-User-facing import path after v4:
+## Semver (target: **3.1.0**)
+
+This refactor is **internal package layout**, not a user-facing API redesign.
+
+**Supported surface (unchanged):** `@agentuity/{service}`, `@agentuity/hono`, `@agentuity/runtime`.
+Same types, same clients, same behavior — that is what **3.1.0** semver covers.
+
+**Internal surface (not supported for apps):** `@agentuity/core/{service}` subpaths, deep
+imports from `@agentuity/core` service trees, `@agentuity/server` in user apps. No one
+should rely on these; fixing or removing them is **in-repo cleanup**, not a major release
+concern and not something we design shims around for external users.
+
+| Release | What ships |
+| ------- | ---------- |
+| **3.1.0** (this effort) | Service packages own implementation; platform admin on `@agentuity/server`; shared packages (`adapter`, `config`, `client`, `api`); slimmer `@agentuity/core` |
+| **3.x minors** (optional) | Delete core duplicate trees, drop internal subpath exports once monorepo is clean |
+| **4.0.0** (later, separate) | Only for intentional **documented** API breaks |
 
 ```typescript
+// Supported — unchanged
 import { KeyValueClient } from '@agentuity/keyvalue';
-// NOT @agentuity/core/keyvalue
 ```
 
 ## Open Questions
 
-- [x] **Semver:** Use v4 to remove `@agentuity/core/{service}` subpath exports?
-- [x] **Shim duration:** Re-export from core for one major version, or break immediately?
+- [x] **Semver:** Ship isolation as **3.1.0** (minor); no major bump for package moves alone
+- [x] **Internal imports:** `@agentuity/core/{service}` is unsupported; migrate monorepo callers — not a user compat / shim problem
 - [x] **New packages:** Approve `@agentuity/config` and `@agentuity/client`? (both added)
 - [ ] **URL resolution:** Centralized `getServiceUrls` vs per-service URL helpers (recommend hybrid)?
 - [ ] **CLI strategy:** Migrate to `*Client` classes vs keep low-level `*Service` for CLI?
@@ -96,7 +112,7 @@ import { KeyValueClient } from '@agentuity/keyvalue';
 
 - [x] Inventory all `@agentuity/core` and `@agentuity/core/{service}` imports (CLI, local, docs, tests)
 - [ ] Record install/bundle size baseline per service package
-- [x] Lock semver and shim policy (decisions above)
+- [x] Lock semver policy (decisions above)
 - [ ] Update `docs/scripts/generate-api-reference.ts` plan for new source paths
 
 **Exit:** dependency graph documented, semver decision recorded in Decisions Log.
@@ -105,7 +121,7 @@ import { KeyValueClient } from '@agentuity/keyvalue';
 
 - [x] Move HTTP primitives from core → `@agentuity/adapter`:
   - `adapter.ts`, `exception.ts`, `_util.ts` (`buildUrl`, `fromResponse`, `toServiceException`)
-- [x] Keep temporary re-exports in core for backward compatibility (core retains canonical copies until Phase 5; adapter owns parallel implementation for service clients)
+- [x] Core retains duplicate copies until Phase 5 deletes them (adapter owns parallel HTTP impl for service clients)
 - [x] Add `@agentuity/config` (or agreed alternative) for region/URL resolution
 - [x] Add `@agentuity/client` shared factory to dedupe `*Client` constructors (all service packages)
 - [x] Service packages stop importing `@agentuity/core/config` directly
@@ -163,27 +179,42 @@ Per service checklist:
 - [x] Pilot: move `user`, `org` env, `project` (get/list/malware), `region` create into `@agentuity/server`; wire sandbox stubs to `@agentuity/sandbox`
 - [x] Move `session`, `thread`, `apikey` into `@agentuity/server`
 - [x] Move remaining platform domains: `oauth`, `org` (list/resources), `project` (deploy/env/create/…), `region` (list/delete/resources), `machine`, `monitoring`, `storage`, `workflow`, `stats`
+- [x] Move queue/stream/webhook platform admin APIs into `@agentuity/server`; slim core main barrel to runtime `*Service` only for those three
+- [x] Wire sandbox runtime through `@agentuity/sandbox` on server; move `cliSandboxList` into server; drop sandbox from core main barrel
 - [x] Trim platform symbols from `@agentuity/core` main barrel (subpath copies retained until Phase 5)
 - [ ] Point CLI service imports at `@agentuity/{service}` instead of `@agentuity/core` types where applicable
 - [ ] Remove service implementations from `@agentuity/core` main barrel (Phase 5)
 
-**Exit:** core contains no service or platform implementations.
+**Exit:** platform code lives in `@agentuity/server`; core main barrel is runtime services
+only. Ready to publish as **3.1.0** once remaining CLI/docs cleanup and verification pass.
 
-### Phase 5 — Remove shims (breaking, v4)
+### 3.1.0 release checklist
 
-- [ ] Delete `packages/core/src/services/{service}/` for migrated packages
+- [ ] Monorepo typecheck, test, and publish order verified
+- [ ] Changelog: internal refactor + new packages; **no** required import changes on supported app paths
+- [ ] No remaining in-repo imports of `@agentuity/core/{service}` from CLI, local, docs, or tests (grep clean)
+- [ ] CLI uses `@agentuity/server` + `@agentuity/{service}` for supported paths
+
+### Phase 5 — Delete core duplicates (in-repo cleanup)
+
+Can land in **3.1.0** or a follow-up **3.x minor** once the monorepo no longer imports
+internal paths. Not blocked on external migration — there is no supported external use of
+`@agentuity/core/{service}`.
+
+- [ ] Delete `packages/core/src/services/{service}/` duplicate trees
 - [ ] Remove `@agentuity/core/{service}` subpath exports from core `package.json`
-- [ ] Stop `@agentuity/server` re-exporting service clients
-- [ ] Add migration guide (v3 → v4 import path changes)
+- [ ] Replace with thin re-exports only where cycles still require a core entry (goal: none)
+- [ ] Update docs API reference generator to read from service packages
 - [ ] Delete this file
 
-**Exit:** single public surface per service; core is foundational only.
+**Exit:** `@agentuity/core` is foundation only; one implementation per service in
+`@agentuity/{service}`.
 
 ## Risks & Mitigations
 
 | Risk | Mitigation |
 | ---- | ---------- |
-| Breaking `@agentuity/core/{service}` imports | Shim re-exports for one major version + migration guide |
+| Internal `@agentuity/core/{service}` imports left in repo | Grep and fix in CLI/local/docs/tests; unsupported path — not a semver/shim concern |
 | Circular deps (core → keyvalue → core) | Shims only; remove in Phase 5 |
 | Docs generator tied to core paths | Update in Phase 0/2 per service |
 | CLI is largest core consumer | Migrate CLI utils alongside each service move |
@@ -204,7 +235,9 @@ Per service checklist:
 | ---- | -------- | --------- |
 | 2026-06-04 | Plan created on branch `plan/service-package-isolation` | Capture analysis from initial planning session |
 | 2026-06-04 | Replace root `PLAN.md` with this plan | Prior monorepo deploy plan superseded by this effort |
-| 2026-06-04 | v4 removes `@agentuity/core/{service}` subpaths; shims for one major version | Minimize breakage while migrating imports |
+| 2026-06-04 | v4 removes `@agentuity/core/{service}` subpaths; shims for one major version | **Superseded** — see 2026-06-10 |
+| 2026-06-10 | Ship isolation as **3.1.0** (minor), not 4.0.0 | Supported app APIs unchanged; internal core subpaths are not a user compat surface |
+| 2026-06-10 | No external shim policy for `@agentuity/core/{service}` | Apps must not import it; monorepo cleanup only — removing subpaths is not a major release |
 | 2026-06-04 | `@agentuity/adapter` owns HTTP fetch types + util; core keeps copies until Phase 5 | Avoid TS project-reference cycle (adapter ↔ core) |
 | 2026-06-04 | `@agentuity/config` owns getEnv + getServiceUrls; core re-exports via shim | No core dep in config package; keyvalue uses config instead of core/config |
 | 2026-06-04 | `@agentuity/api` owns `APIClient` + platform errors; core keeps parallel copy until Phase 4 | api→core dep (StructuredError) blocks core shim; duplicate classes are not interchangeable across packages |

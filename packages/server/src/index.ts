@@ -25,6 +25,11 @@ export * from './api/monitoring/index.ts';
 export * from './api/storage/index.ts';
 export * from './api/workflow/index.ts';
 export * from './api/stats.ts';
+export * from './api/queue/index.ts';
+export * from './api/stream/index.ts';
+export * from './api/webhook/index.ts';
+export * from './api/sandbox/index.ts';
+export * from '@agentuity/sandbox';
 
 // Server-specific exports (these remain in @agentuity/server only)
 export { type ColorScheme, ConsoleLogger, createLogger } from './logger.ts';

@@ -39,7 +39,10 @@ src/
     ├── storage/          # bucket config, objects
     ├── workflow/         # workflow service
     ├── stats.ts          # getServiceStats
-    └── sandbox/          # re-exports from @agentuity/sandbox
+    ├── queue/            # queue admin API (listQueues, messages, DLQ, …)
+    ├── stream/           # stream admin API (streamList, delete, …)
+    ├── webhook/          # webhook admin API
+    └── sandbox/          # @agentuity/sandbox re-export + cliSandboxList
 ```
 
 ## Code Conventions
