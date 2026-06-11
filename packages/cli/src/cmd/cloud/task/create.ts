@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { Readable } from 'node:stream';
 import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
-import type { TaskPriority, TaskStatus, TaskType, UserType } from '@agentuity/core';
+import type { TaskPriority, TaskStatus, TaskType, UserType } from '@agentuity/task';
 import { getContentType, whoami } from '@agentuity/server';
 import { z } from 'zod';
 import { getCachedUserInfo, setCachedUserInfo } from '../../../cache/index.ts';

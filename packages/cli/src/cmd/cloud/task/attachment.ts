@@ -3,7 +3,7 @@ import { stat as fsStat, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { Readable } from 'node:stream';
 import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
-import type { Attachment } from '@agentuity/core';
+import type { Attachment } from '@agentuity/task';
 import { getContentType } from '@agentuity/server';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix.ts';

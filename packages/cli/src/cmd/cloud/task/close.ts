@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import type { BatchClosedTask, TaskPriority, TaskStatus, TaskType } from '@agentuity/core';
+import type { BatchClosedTask, TaskPriority, TaskStatus, TaskType } from '@agentuity/task';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix.ts';
 import { isDryRunMode, outputDryRun } from '../../../explain.ts';

@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import type { VectorUpsertParams } from '@agentuity/core';
+import type { VectorUpsertParams } from '@agentuity/vector';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix.ts';
 import { pathExists } from '../../../node-compat/fs.ts';
