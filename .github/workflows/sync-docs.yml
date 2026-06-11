@@ -72,6 +72,12 @@ jobs:
               DOCS_WEBHOOK_URL: ${{ secrets.DOCS_WEBHOOK_URL }}
               DOCS_SYNC_COMMIT: ${{ steps.commits.outputs.after_commit }}
               BATCH_SIZE: 5
+              # The merge that triggers this sync also redeploys the docs app that
+              # receives it; retry past the rollout window (observed ~5 minutes)
+              # instead of giving up within seconds.
+              MAX_RETRIES: 10
+              RETRY_DELAY: 5
+              MAX_RETRY_DELAY: 60
            run: |
               set -euo pipefail
               cat changed-files.txt | \
