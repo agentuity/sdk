@@ -16,6 +16,7 @@
 		"start": "bun dist/server.js",
 		"deploy": "agentuity deploy --dir .",
 		"typecheck": "bunx tsc --noEmit",
+		"test": "bun test",
 		"generate:schema": "bun run scripts/generate-agentuity-schema.ts",
 		"build:run": "bun run scripts/bundle-run-scripts.ts",
 		"generate:scripts": "bun run scripts/generate-sandbox-scripts.ts",
