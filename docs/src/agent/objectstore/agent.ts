@@ -182,6 +182,17 @@ const agent = defineDemoAgent('objectstore', {
 				const expiresIn = input.expiresIn || 3600;
 
 				try {
+					const storage = createStorage();
+
+					// presign() signs locally without calling S3, so a URL for a missing
+					// object would look valid but 404 on open. Check existence first.
+					if (!(await objectExists(storage, key))) {
+						return {
+							success: false,
+							message: `File "${input.filename}" not found`,
+						};
+					}
+
 					const url = createObjectStoragePresignedUrl(key, expiresIn);
 
 					return {

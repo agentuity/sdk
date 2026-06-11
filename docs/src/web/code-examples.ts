@@ -3,6 +3,59 @@
  * The live sandbox scripts live in src/run/*.ts. These examples show the
  * framework-first shape readers should copy into their own apps.
  */
+
+/**
+ * Shared by the sse-stream and streaming examples so the two snippets cannot
+ * drift apart. Frame splitting is generic SSE handling; the provider-specific
+ * delta shapes are decoded by the SDK's getAIGatewayStreamDeltaText.
+ */
+const GATEWAY_TEXT_DECODER = `// streamRequest() returns the provider's raw SSE bytes. Split frames on
+// blank lines; the SDK decodes each provider's delta shape to plain text.
+async function* readGatewayText(stream: ReadableStream<Uint8Array>) {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split(/\\r?\\n\\r?\\n/);
+      buffer = frames.pop() ?? "";
+
+      for (const frame of frames) {
+        const text = frameText(frame);
+        if (text) yield text;
+      }
+    }
+
+    buffer += decoder.decode();
+    const text = frameText(buffer);
+    if (text) yield text;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+function frameText(frame: string): string {
+  const data = frame
+    .split(/\\r?\\n/)
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trimStart())
+    .join("\\n")
+    .trim();
+
+  if (!data || data === "[DONE]") return "";
+
+  try {
+    return getAIGatewayStreamDeltaText(JSON.parse(data));
+  } catch {
+    return "";
+  }
+}`;
+
 export const CODE_EXAMPLES = {
 	hello: `import { agentuity } from "@agentuity/hono";
 import type { Logger } from "@agentuity/hono";
@@ -83,6 +136,7 @@ const session = {
 
 let summary: {
   found: boolean;
+  theme: string | null;
   keys: string[];
   matches: number;
   itemCount: number;
@@ -100,6 +154,8 @@ try {
   }, { ttl: 300 });
 
   const result = await kv.get<typeof session>(namespace, key);
+  // get() returns a union: narrow on exists before touching data.
+  const theme = result.exists ? result.data.preferences.theme : null;
   const keys = await kv.getKeys(namespace);
   const matches = await kv.search<typeof session>(namespace, "session");
   const stats = await kv.getStats(namespace);
@@ -107,6 +163,7 @@ try {
 
   summary = {
     found: result.exists,
+    theme,
     keys,
     matches: matches.size,
     itemCount: stats.count,
@@ -151,11 +208,14 @@ try {
     }
   );
 
+  // Read back stored documents by key.
   const chair = await vector.get<{ sku: string; name: string; price: number }>(
     namespace,
     sku
   );
   const documents = await vector.getMany(namespace, sku, deskSku);
+
+  // Search by meaning, not keywords: "comfortable chair" matches the ErgoMax.
   const results = await vector.search<{
     sku: string;
     name: string;
@@ -165,6 +225,7 @@ try {
     limit: 3,
     similarity: 0.3,
   });
+  // Inspect namespace state.
   const exists = await vector.exists(namespace);
   const stats = await vector.getStats(namespace);
   const namespaces = await vector.getNamespaces();
@@ -237,10 +298,12 @@ export const report = {
 	'sse-stream': `import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { AIGatewayClient } from "@agentuity/aigateway";
+import { getAIGatewayStreamDeltaText } from "@agentuity/core/aigateway";
 
 const app = new Hono();
 const gateway = new AIGatewayClient();
-const MODEL = "googleai/gemini-3.5-flash";
+// Default model in the live demo; any gateway model id works here.
+const MODEL = "anthropic/claude-opus-4-8";
 
 app.get("/api/sse-stream", (c) => {
   return streamSSE(c, async (stream) => {
@@ -280,112 +343,19 @@ app.get("/api/sse-stream", (c) => {
   });
 });
 
-async function* readGatewayText(stream: ReadableStream<Uint8Array>) {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  try {
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const frames = buffer.split(/\\r?\\n\\r?\\n/);
-      buffer = frames.pop() ?? "";
-
-      for (const frame of frames) {
-        const text = readFrameText(frame);
-        if (text) yield text;
-      }
-    }
-
-    buffer += decoder.decode();
-    const text = readFrameText(buffer);
-    if (text) yield text;
-  } finally {
-    reader.releaseLock();
-  }
-}
-
-function readFrameText(frame: string): string {
-  const data = frame
-    .split(/\\r?\\n/)
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice(5).trimStart())
-    .join("\\n")
-    .trim();
-
-  if (!data || data === "[DONE]") return "";
-
-  try {
-    return readDeltaText(JSON.parse(data));
-  } catch {
-    return "";
-  }
-}
-
-function readDeltaText(event: unknown): string {
-  if (!isRecord(event)) return "";
-
-  const choices = event.choices;
-  if (Array.isArray(choices)) {
-    return choices
-      .map((choice) => {
-        if (!isRecord(choice)) return "";
-
-        const delta = choice.delta;
-        if (isRecord(delta) && typeof delta.content === "string") {
-          return delta.content;
-        }
-
-        return typeof choice.text === "string" ? choice.text : "";
-      })
-      .join("");
-  }
-
-  const delta = event.delta;
-  if (typeof delta === "string") return delta;
-  if (isRecord(delta)) {
-    if (typeof delta.text === "string") return delta.text;
-    if (typeof delta.content === "string") return delta.content;
-  }
-
-  const candidates = event.candidates;
-  if (!Array.isArray(candidates)) return "";
-
-  return candidates
-    .map((candidate) => {
-      if (!isRecord(candidate) || !isRecord(candidate.content)) return "";
-      return textFromParts(candidate.content.parts);
-    })
-    .join("");
-}
-
-function textFromParts(parts: unknown): string {
-  if (!Array.isArray(parts)) return "";
-
-  return parts
-    .map((part) => {
-      if (!isRecord(part)) return "";
-      return typeof part.text === "string" ? part.text : "";
-    })
-    .join("");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
+${GATEWAY_TEXT_DECODER}
 
 export default app;`,
 
 	streaming: `import { Hono } from "hono";
 import { AIGatewayClient } from "@agentuity/aigateway";
+import { getAIGatewayStreamDeltaText } from "@agentuity/core/aigateway";
 
 const app = new Hono();
 const gateway = new AIGatewayClient();
 const encoder = new TextEncoder();
-const MODEL = "googleai/gemini-3.5-flash";
+// Default model in the live demo; any gateway model id works here.
+const MODEL = "anthropic/claude-opus-4-8";
 
 app.post("/api/stream", async (c) => {
   const body: unknown = await c.req.json();
@@ -417,102 +387,9 @@ app.post("/api/stream", async (c) => {
   });
 });
 
-async function* readGatewayText(stream: ReadableStream<Uint8Array>) {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
+// For named SSE events and an explicit "done" frame, see the SSE Stream demo.
 
-  try {
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const frames = buffer.split(/\\r?\\n\\r?\\n/);
-      buffer = frames.pop() ?? "";
-
-      for (const frame of frames) {
-        const text = readFrameText(frame);
-        if (text) yield text;
-      }
-    }
-
-    buffer += decoder.decode();
-    const text = readFrameText(buffer);
-    if (text) yield text;
-  } finally {
-    reader.releaseLock();
-  }
-}
-
-function readFrameText(frame: string): string {
-  const data = frame
-    .split(/\\r?\\n/)
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice(5).trimStart())
-    .join("\\n")
-    .trim();
-
-  if (!data || data === "[DONE]") return "";
-
-  try {
-    return readDeltaText(JSON.parse(data));
-  } catch {
-    return "";
-  }
-}
-
-function readDeltaText(event: unknown): string {
-  if (!isRecord(event)) return "";
-
-  const choices = event.choices;
-  if (Array.isArray(choices)) {
-    return choices
-      .map((choice) => {
-        if (!isRecord(choice)) return "";
-
-        const delta = choice.delta;
-        if (isRecord(delta) && typeof delta.content === "string") {
-          return delta.content;
-        }
-
-        return typeof choice.text === "string" ? choice.text : "";
-      })
-      .join("");
-  }
-
-  const delta = event.delta;
-  if (typeof delta === "string") return delta;
-  if (isRecord(delta)) {
-    if (typeof delta.text === "string") return delta.text;
-    if (typeof delta.content === "string") return delta.content;
-  }
-
-  const candidates = event.candidates;
-  if (!Array.isArray(candidates)) return "";
-
-  return candidates
-    .map((candidate) => {
-      if (!isRecord(candidate) || !isRecord(candidate.content)) return "";
-      return textFromParts(candidate.content.parts);
-    })
-    .join("");
-}
-
-function textFromParts(parts: unknown): string {
-  if (!Array.isArray(parts)) return "";
-
-  return parts
-    .map((part) => {
-      if (!isRecord(part)) return "";
-      return typeof part.text === "string" ? part.text : "";
-    })
-    .join("");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
+${GATEWAY_TEXT_DECODER}
 
 export default app;`,
 
@@ -597,6 +474,8 @@ try {
   const deliveryHistory = await schedules.listDeliveries(schedule.id, {
     limit: 10,
   });
+  // update() takes partial fields (name, description, expression); changing
+  // the expression recomputes the next run time.
   const updated = await schedules.update(schedule.id, {
     expression: "0 3 * * *",
   });
@@ -624,6 +503,7 @@ const gateway = new AIGatewayClient();
 const durable = await streams.create("ai-summaries", {
   contentType: "text/plain",
   metadata: { source: "nightly-report" },
+  // Seconds; 30 days is the platform default. Pass null to never expire.
   ttl: 60 * 60 * 24 * 30,
 });
 
@@ -957,11 +837,11 @@ export { published };`,
 const email = new EmailClient();
 
 const outbound = await email.send({
-  from: "hello@your-domain.com",
-  to: ["parteek@example.com"],
-  subject: "Hello from Agentuity",
-  text: "This is the plain-text body.",
-  html: "<p>This is the HTML body.</p>",
+  from: "hello-explorer@agentuity.email",
+  to: ["inbox-explorer@agentuity.email"],
+  subject: "Hello from the Agentuity SDK Explorer",
+  text: "This is a demo email from Agentuity's SDK Explorer.",
+  html: "<p>This is a demo email from Agentuity's SDK Explorer, sent with <code>email.send()</code>.</p>",
 });
 
 const latest = await email.getOutbound(outbound.id);

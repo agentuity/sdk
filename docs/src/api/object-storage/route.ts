@@ -111,7 +111,8 @@ const router = new Hono<ApiEnv>()
 			return c.body(data, {
 				headers: {
 					'content-type': stat?.type || 'application/octet-stream',
-					'content-disposition': `attachment; filename="${filename}"`,
+					// RFC 5987 encoding: stored keys may contain quotes or non-ASCII.
+					'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
 					'content-length': String(stat?.size || data.byteLength),
 				},
 			});
@@ -156,6 +157,7 @@ const router = new Hono<ApiEnv>()
 			if (isMissingObjectError(error)) {
 				return c.json({
 					success: true,
+					configured: true,
 					count: 0,
 					files: [],
 				});
@@ -193,6 +195,13 @@ const router = new Hono<ApiEnv>()
 					},
 					503
 				);
+			}
+
+			// presign() signs locally without calling S3, so a URL for a missing
+			// object would look valid but 404 on open. Check existence first.
+			const storage = createObjectStorageClient();
+			if (!(await objectExists(storage, key))) {
+				return c.json({ success: false, error: 'File not found' }, 404);
 			}
 
 			return c.json({

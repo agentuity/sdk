@@ -108,18 +108,21 @@ await storage.write('users/user_123/avatar.png', response.body ?? await response
 });
 
 const avatar = storage.file('users/user_123/avatar.png');
-try {
-  const bytes = await avatar.arrayBuffer();
-  const contentType = avatar.type;
-  // bytes is ArrayBuffer; contentType is the stored MIME type
-  void bytes;
-  void contentType;
-} catch (error) {
-  // Object not found or storage service error.
-  throw error;
-}
+
+// arrayBuffer() throws if the object is missing; type is the stored MIME type.
+const bytes = await avatar.arrayBuffer();
+console.log(`avatar: ${bytes.byteLength} bytes (${avatar.type})`);
 
 await storage.delete('users/user_123/avatar.png');
+```
+
+List objects under a prefix to enumerate what you stored:
+
+```typescript
+const result = await storage.list({ prefix: 'users/', maxKeys: 100 });
+for (const object of result.contents) {
+  console.log(object.key, object.size);
+}
 ```
 
 For large files, pass a stream instead of holding the whole payload in memory:

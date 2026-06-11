@@ -29,7 +29,7 @@ try {
 	await ctx.kv.createNamespace(namespace, { defaultTTLSeconds: 300 });
 	namespaceCreated = true;
 
-	ctx.logger.info('Setting key');
+	ctx.logger.info('Setting keys', { namespace, key, summaryKey });
 
 	// TTL keeps demo data from lingering if cleanup fails.
 	await ctx.kv.set(namespace, key, sessionData, { ttl: 300 });
@@ -43,7 +43,7 @@ try {
 		{ ttl: 300 }
 	);
 
-	ctx.logger.info('Getting key');
+	ctx.logger.info('Reading namespace', { namespace, key });
 
 	const result = await ctx.kv.get<typeof sessionData>(namespace, key);
 	const keys = await ctx.kv.getKeys(namespace);

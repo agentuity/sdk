@@ -16,7 +16,9 @@ import {
 
 const ctx = getDemoContext();
 
-const key = `sdk-explorer/demo-${Date.now()}.txt`;
+// Stable key: each run overwrites the previous demo file instead of leaving
+// one object per run in the shared explorer bucket (and its UI file list).
+const key = 'sdk-explorer/sandbox-demo.txt';
 const content = `Hello from Object Storage!\nTimestamp: ${new Date().toISOString()}`;
 
 try {

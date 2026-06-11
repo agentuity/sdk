@@ -258,6 +258,9 @@ const router = new Hono<ApiEnv>().get(
 			await stream.writeSSE({ event: 'error', data: message });
 			return;
 		}
+		// Sandbox env is fixed at creation, so a reused session sandbox can predate
+		// the linked-bucket AWS_* env (e.g. storage linked after the session began).
+		// Always run the object storage script one-shot so it sees current env.
 		const useInteractiveSandbox = scriptName !== 'objectstore';
 
 		// --- Interactive session path ---

@@ -56,6 +56,7 @@ export function ObjectStoreDemo() {
 		storage: 'session',
 	});
 	const [copied, setCopied] = useState(false);
+	const [presigningFile, setPresigningFile] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [seeding, setSeeding] = useState(false);
@@ -73,17 +74,16 @@ export function ObjectStoreDemo() {
 		try {
 			const response = await fetch('/api/object-storage/list');
 			const result: ListResult = await response.json();
-			if (result.success) {
-				setConfigured(true);
-				applyFiles(result.files);
-				setError(null);
-			} else {
+			if (!response.ok) {
 				if (result.configured === false) {
 					setConfigured(false);
 					applyFiles([]);
 				}
-				setError(result.message || result.error || 'Failed to list files');
+				throw new Error(result.message || result.error || `HTTP ${response.status}`);
 			}
+			setConfigured(true);
+			applyFiles(result.files);
+			setError(null);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to list files');
 		} finally {
@@ -139,6 +139,7 @@ export function ObjectStoreDemo() {
 		async (fileToPresign: string, options: { persist?: boolean } = {}) => {
 			setError(null);
 			setCopied(false);
+			setPresigningFile(fileToPresign);
 			try {
 				const response = await fetch(
 					`/api/object-storage/presign/${encodeURIComponent(fileToPresign)}`,
@@ -168,10 +169,15 @@ export function ObjectStoreDemo() {
 						setLastPresignedFile(result.filename);
 					}
 				} else {
+					// Drop any previous URL card so a failure can't leave a stale link up.
+					setPresignInfo(null);
 					setError(result.message || result.error || 'Presign failed');
 				}
 			} catch (err) {
+				setPresignInfo(null);
 				setError(err instanceof Error ? err.message : 'Presign failed');
+			} finally {
+				setPresigningFile(null);
 			}
 		},
 		[setLastPresignedFile]
@@ -286,8 +292,9 @@ export function ObjectStoreDemo() {
 										variant="ghost"
 										size="xs"
 										onClick={() => handlePresign(file.filename)}
+										disabled={presigningFile !== null}
 									>
-										Presign URL
+										{presigningFile === file.filename ? 'Presigning…' : 'Presign URL'}
 									</Button>
 									<Button variant="ghost" size="xs" asChild>
 										<a
