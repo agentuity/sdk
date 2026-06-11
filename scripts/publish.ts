@@ -30,7 +30,7 @@ Usage: bun scripts/publish.ts [options]
 Options:
   --version=X.Y.Z  Force a specific version instead of interactive prompt
   --tag=TAG        Override the npm dist-tag (e.g. alpha, next, beta, latest)
-  --yes, -y        Skip all confirmation prompts and OTP (use with automation token)
+  --yes, -y        Skip all confirmation prompts
   --no-cache       Ignore cached release notes and regenerate them via opencode
   --dry-run        Run the publish process without actually publishing to npm.
                    Version changes will be automatically reverted after completion.
@@ -80,7 +80,15 @@ Description:
 
 Required Tools:
   gh                   GitHub CLI (https://cli.github.com/)
-  amp                  Amp CLI for release notes generation
+  opencode             OpenCode CLI for release notes generation
+
+npm Authentication:
+  npm publish no longer accepts OTP codes from authenticator apps.
+  Export an npm automation token before running this script:
+
+    export NPM_TOKEN=npm_...
+
+  Create tokens at https://www.npmjs.com/settings/~/tokens
 
 Examples:
   bun scripts/publish.ts                 # Publish to npm (interactive)
@@ -359,16 +367,53 @@ async function revertVersionChanges() {
 	);
 }
 
+function getNpmToken(): string | undefined {
+	return process.env.NPM_TOKEN?.trim() || undefined;
+}
+
+async function configureNpmAuth() {
+	const token = getNpmToken();
+	if (!token) return;
+	await $`npm config set //registry.npmjs.org/:_authToken ${token}`.quiet();
+}
+
+function printNpmAuthHelp() {
+	console.error('❌ Error: Not authenticated to npm registry.');
+	console.error('');
+	console.error('   npm no longer supports OTP from authenticator apps for publish.');
+	console.error('   Use an automation token (keeps write 2FA enabled):');
+	console.error('     1. Create at https://www.npmjs.com/settings/~/tokens');
+	console.error('     2. export NPM_TOKEN=npm_...');
+	console.error('     3. Re-run this script');
+	console.error('');
+	console.error('   Or disable "Require 2FA for write actions" in npm account settings,');
+	console.error('   then run npm logout && npm login.');
+}
+
+function isOtpRequiredError(errStr: string): boolean {
+	const lower = errStr.toLowerCase();
+	return (
+		lower.includes('one-time password') ||
+		lower.includes('one time password') ||
+		lower.includes('eotp') ||
+		(lower.includes('otp') && lower.includes('required'))
+	);
+}
+
 async function validateEnvironment(isDryRun: boolean) {
 	console.log('🔍 Validating environment...\n');
 
-	// Always check npm authentication (tokens expire frequently)
+	await configureNpmAuth();
+
 	try {
 		const user = (await $`npm whoami`.text()).trim();
-		console.log(`✓ Logged into npm as: ${user}`);
+		if (getNpmToken()) {
+			console.log(`✓ Authenticated to npm as: ${user} (via NPM_TOKEN)`);
+		} else {
+			console.log(`✓ Logged into npm as: ${user}`);
+		}
 	} catch {
-		console.error('❌ Error: Not logged into npm registry.');
-		console.error('   Run: npm login');
+		printNpmAuthHelp();
 		rl.close();
 		process.exit(1);
 	}
@@ -743,15 +788,6 @@ async function main() {
 		process.exit(0);
 	}
 
-	// Prompt for npm OTP code upfront (skip for dry runs or --yes)
-	let otp: string | null = null;
-	if (!isDryRun && !skipPrompts) {
-		const input = await readLine(
-			'\n🔑 Enter npm OTP code (leave empty if using automation token): '
-		);
-		if (input) otp = input;
-	}
-
 	console.log(`\n📦 Setting version to: ${newVersion}`);
 	console.log(`📌 npm dist-tag: ${distTag}\n`);
 
@@ -809,7 +845,6 @@ async function main() {
 					// 2. bun publish validates all deps exist on the registry, which
 					//    fails for private workspace packages like @agentuity/test-utils
 					const args = ['publish', '--access', 'public', '--tag', distTag, '--ignore-scripts'];
-					if (otp) args.push(`--otp=${otp}`);
 					if (isDryRun) args.push('--dry-run');
 					await $`npm ${args}`.cwd(pkg.path);
 					console.log(`✓ ${isDryRun ? 'Dry run completed for' : 'Published'} ${pkgName}`);
@@ -819,6 +854,13 @@ async function main() {
 					lastErr = err;
 					const shellErr = err as { stderr?: string; stdout?: string };
 					const errStr = `${shellErr.stderr || ''} ${shellErr.stdout || ''} ${String(err)}`;
+					if (isOtpRequiredError(errStr)) {
+						console.error(
+							'\n   npm requested an OTP, which is no longer supported for publish.'
+						);
+						printNpmAuthHelp();
+						break;
+					}
 					const isTransient = errStr.includes('404') || errStr.includes('Not Found');
 					if (isTransient && attempt < maxRetries) {
 						const delay = attempt * 5;
