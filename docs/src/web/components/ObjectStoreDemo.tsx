@@ -1,3 +1,4 @@
+import { Check, CopyIcon, ExternalLink } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Button, Separator } from './ui';
@@ -11,17 +12,29 @@ interface FileInfo {
 
 interface ListResult {
 	success: boolean;
+	configured?: boolean;
 	count: number;
 	files: FileInfo[];
+	error?: string;
+	message?: string;
+}
+
+interface SeedResult {
+	success: boolean;
+	configured?: boolean;
+	message?: string;
 	error?: string;
 }
 
 interface PresignResult {
 	success: boolean;
-	url: string;
-	filename: string;
-	expiresIn: string;
+	configured?: boolean;
+	url?: string;
+	urlType?: 'presigned';
+	filename?: string;
+	expiresIn?: string;
 	error?: string;
+	message?: string;
 }
 
 interface PresignInfo {
@@ -47,32 +60,36 @@ export function ObjectStoreDemo() {
 	const [loading, setLoading] = useState(false);
 	const [seeding, setSeeding] = useState(false);
 	const [seeded, setSeeded] = useState(false);
+	const [configured, setConfigured] = useState(true);
 	const restoredPresignRef = useRef(false);
 
-	// Stable fetch function
+	const applyFiles = useCallback((nextFiles: FileInfo[]) => {
+		setFiles(nextFiles);
+		setSeeded(nextFiles.some((file) => file.filename === SAMPLE_DOC.name));
+	}, []);
+
 	const fetchFiles = useCallback(async () => {
 		setLoading(true);
 		try {
 			const response = await fetch('/api/object-storage/list');
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}`);
-			}
 			const result: ListResult = await response.json();
 			if (result.success) {
-				setFiles(result.files);
-				// Check if sample file exists
-				if (result.files.some((f) => f.filename === 'hello.txt')) {
-					setSeeded(true);
-				}
+				setConfigured(true);
+				applyFiles(result.files);
+				setError(null);
 			} else {
-				setError(result.error || 'Failed to list files');
+				if (result.configured === false) {
+					setConfigured(false);
+					applyFiles([]);
+				}
+				setError(result.message || result.error || 'Failed to list files');
 			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to list files');
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [applyFiles]);
 
 	// Fetch on mount
 	useEffect(() => {
@@ -88,17 +105,22 @@ export function ObjectStoreDemo() {
 				method: 'POST',
 			});
 
+			const result: SeedResult = await response.json();
 			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}`);
+				if (result.configured === false) {
+					setConfigured(false);
+				}
+				throw new Error(result.message || result.error || `HTTP ${response.status}`);
 			}
 
-			const result = await response.json();
 			if (result.success) {
+				setConfigured(true);
 				setSeeded(true);
 				await fetchFiles();
 			} else {
 				// If already seeded, still mark as seeded
 				if (result.message?.includes('already')) {
+					setConfigured(true);
 					setSeeded(true);
 					await fetchFiles();
 				} else {
@@ -123,15 +145,22 @@ export function ObjectStoreDemo() {
 					{ method: 'POST' }
 				);
 
-				if (!response.ok) {
-					throw new Error(`HTTP ${response.status}`);
-				}
-
 				const result: PresignResult = await response.json();
 
+				if (!response.ok) {
+					if (result.configured === false) {
+						setConfigured(false);
+					}
+					throw new Error(result.message || result.error || `HTTP ${response.status}`);
+				}
+
 				if (result.success) {
+					if (!result.url || !result.filename || !result.expiresIn) {
+						throw new Error('Presign response was missing URL details');
+					}
+					setConfigured(true);
 					setPresignInfo({
-						url: result.url,
+						url: new URL(result.url, window.location.origin).href,
 						expiresIn: result.expiresIn,
 						filename: result.filename,
 					});
@@ -139,7 +168,7 @@ export function ObjectStoreDemo() {
 						setLastPresignedFile(result.filename);
 					}
 				} else {
-					setError(result.error || 'Presign failed');
+					setError(result.message || result.error || 'Presign failed');
 				}
 			} catch (err) {
 				setError(err instanceof Error ? err.message : 'Presign failed');
@@ -193,7 +222,12 @@ export function ObjectStoreDemo() {
 					>
 						{SAMPLE_DOC.name}
 					</span>
-					<Button variant="success" size="sm" onClick={seedData} disabled={loading || seeded}>
+					<Button
+						variant="success"
+						size="sm"
+						onClick={seedData}
+						disabled={loading || seeded || !configured}
+					>
 						<span className="relative">
 							<span className={seeding || seeded ? 'invisible' : ''}>Load Sample Data</span>
 							{seeding && !seeded && (
@@ -227,7 +261,11 @@ export function ObjectStoreDemo() {
 				<Separator />
 				{files.length === 0 ? (
 					<div className="text-zinc-500 dark:text-zinc-600 text-sm p-8 text-center">
-						No files yet. Click "Load Sample Data" to add a sample file.
+						{!configured
+							? 'No files available until storage is configured.'
+							: loading
+								? 'Loading files...'
+								: 'No files yet. Click "Load Sample Data" to add a sample file.'}
 					</div>
 				) : (
 					<div className="divide-y divide-zinc-200 dark:divide-zinc-900 max-h-64 overflow-auto">
@@ -276,44 +314,30 @@ export function ObjectStoreDemo() {
 								({presignInfo.filename} · expires in {presignInfo.expiresIn})
 							</span>
 						</div>
-						<Button variant="outline" size="xs" onClick={copyToClipboard}>
-							{copied ? (
-								<>
-									<svg
-										aria-hidden="true"
-										className="text-green-600 dark:text-green-400"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-											d="M5 13l4 4L19 7"
+						<div className="flex items-center gap-2">
+							<Button variant="outline" size="xs" asChild>
+								<a href={presignInfo.url} target="_blank" rel="noreferrer">
+									<ExternalLink aria-hidden="true" />
+									<span>Open</span>
+								</a>
+							</Button>
+							<Button variant="outline" size="xs" onClick={copyToClipboard}>
+								{copied ? (
+									<>
+										<Check
+											aria-hidden="true"
+											className="text-green-600 dark:text-green-400"
 										/>
-									</svg>
-									<span className="text-green-600 dark:text-green-400">Copied!</span>
-								</>
-							) : (
-								<>
-									<svg
-										aria-hidden="true"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-											d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-										/>
-									</svg>
-									<span>Copy</span>
-								</>
-							)}
-						</Button>
+										<span className="text-green-600 dark:text-green-400">Copied!</span>
+									</>
+								) : (
+									<>
+										<CopyIcon aria-hidden="true" />
+										<span>Copy</span>
+									</>
+								)}
+							</Button>
+						</div>
 					</div>
 					<div className="text-zinc-600 dark:text-zinc-400 text-sm font-mono break-all bg-zinc-100 dark:bg-zinc-950 rounded p-3 border border-zinc-300 dark:border-zinc-800">
 						{presignInfo.url}

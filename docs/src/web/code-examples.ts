@@ -72,7 +72,7 @@ export default app;`,
 	'key-value': `import { KeyValueClient } from "@agentuity/keyvalue";
 
 const kv = new KeyValueClient();
-const namespace = "explorer-sandbox";
+const namespace = "explorer-" + crypto.randomUUID();
 const key = "session-" + crypto.randomUUID();
 
 const session = {
@@ -81,59 +81,116 @@ const session = {
   preferences: { theme: "dark" },
 };
 
-await kv.set(namespace, key, session, { ttl: 300 });
+let summary: {
+  found: boolean;
+  keys: string[];
+  matches: number;
+  itemCount: number;
+  namespaceVisible: boolean;
+};
 
-const result = await kv.get<typeof session>(namespace, key);
-if (result.exists) {
-  // result.data is typed after the discriminated check.
+try {
+  await kv.createNamespace(namespace, { defaultTTLSeconds: 300 });
+  await kv.set(namespace, key, session, { ttl: 300 });
   await kv.set(namespace, key + ":summary", {
-    visitorId: result.data.visitorId,
-    theme: result.data.preferences.theme,
+    visitorId: session.visitorId,
+    theme: session.preferences.theme,
   }, { ttl: 300 });
+
+  const result = await kv.get<typeof session>(namespace, key);
+  const keys = await kv.getKeys(namespace);
+  const matches = await kv.search<typeof session>(namespace, "session");
+  const stats = await kv.getStats(namespace);
+  const namespaces = await kv.getNamespaces();
+
+  summary = {
+    found: result.exists,
+    keys,
+    matches: matches.size,
+    itemCount: stats.count,
+    namespaceVisible: namespaces.includes(namespace),
+  };
+} finally {
+  await kv.deleteNamespace(namespace);
 }
 
-await kv.delete(namespace, key);`,
+export { summary };`,
 
 	'vector-storage': `import { VectorClient } from "@agentuity/vector";
 
 const vector = new VectorClient();
-const namespace = "product-search";
+const namespace = "product-search-" + crypto.randomUUID();
 const sku = "chair-" + crypto.randomUUID();
+const deskSku = "desk-" + crypto.randomUUID();
 
-await vector.upsert(namespace, {
-  key: sku,
-  document: "ErgoMax Pro Chair: ergonomic office chair with lumbar support",
-  metadata: {
-    sku,
-    name: "ErgoMax Pro Chair",
-    price: 549,
-  },
-});
+let summary: {
+  chairFound: boolean;
+  loaded: number;
+  topMatch: string | undefined;
+  exists: boolean;
+  count: number;
+  namespaceVisible: boolean;
+};
 
-const results = await vector.search<{
-  sku: string;
-  name: string;
-  price: number;
-}>(namespace, {
-  query: "comfortable chair",
-  limit: 3,
-  similarity: 0.3,
-});
+try {
+  await vector.upsert(
+    namespace,
+    {
+      key: sku,
+      document: "ErgoMax Pro Chair: ergonomic office chair with lumbar support",
+      metadata: { sku, name: "ErgoMax Pro Chair", price: 549 },
+    },
+    {
+      key: deskSku,
+      document: "LiftDesk Air: adjustable standing desk for focused work",
+      metadata: { sku: deskSku, name: "LiftDesk Air", price: 799 },
+    }
+  );
 
-for (const result of results) {
-  // Similarity scores make ranking visible in your UI or logs.
-  result.metadata?.name;
-  result.similarity;
+  const chair = await vector.get<{ sku: string; name: string; price: number }>(
+    namespace,
+    sku
+  );
+  const documents = await vector.getMany(namespace, sku, deskSku);
+  const results = await vector.search<{
+    sku: string;
+    name: string;
+    price: number;
+  }>(namespace, {
+    query: "comfortable chair",
+    limit: 3,
+    similarity: 0.3,
+  });
+  const exists = await vector.exists(namespace);
+  const stats = await vector.getStats(namespace);
+  const namespaces = await vector.getNamespaces();
+
+  summary = {
+    chairFound: chair.exists,
+    loaded: documents.size,
+    topMatch: results[0]?.metadata?.name,
+    exists,
+    count: stats.count,
+    namespaceVisible: namespaces.includes(namespace),
+  };
+
+  await vector.delete(namespace, sku, deskSku);
+} finally {
+  await vector.deleteNamespace(namespace);
 }
 
-await vector.delete(namespace, sku);`,
+export { summary };`,
 
-	'object-storage': `import { bucketConfigFromEnv, createS3Client } from "@agentuity/storage";
+	'object-storage': `import { S3Client } from "bun";
+import { bucketConfigFromEnv, createS3Client } from "@agentuity/storage";
+import { resolveEndpoint } from "@agentuity/storage/types";
 
-const storage = createS3Client(bucketConfigFromEnv());
+const bucket = bucketConfigFromEnv();
+const storage = createS3Client(bucket);
 const key = "reports/demo-" + crypto.randomUUID() + ".txt";
 const body = "Generated at " + new Date().toISOString();
 
+// Portable SDK path: works in Bun and Node.js.
 await storage.write(key, body, {
   type: "text/plain",
 });
@@ -141,13 +198,35 @@ await storage.write(key, body, {
 const file = storage.file(key);
 const text = await file.text();
 const stat = await storage.stat(key);
+const listing = await storage.list({ prefix: "reports/", maxKeys: 10 });
 
-await storage.delete(key);
+// Bun-only option today: use Bun's S3Client for presigned URLs.
+const bunStorage = new S3Client({
+  endpoint: resolveEndpoint(bucket),
+  accessKeyId: bucket.access_key,
+  secretAccessKey: bucket.secret_key,
+  region: bucket.region ?? "auto",
+  virtualHostedStyle: true,
+});
+
+const downloadUrl = bunStorage.presign(key, {
+  method: "GET",
+  expiresIn: 60 * 15,
+});
+
+// Node.js presign option:
+// Use @aws-sdk/s3-request-presigner with @aws-sdk/client-s3.
+// @agentuity/storage does not expose storage.presign() yet.
+//
+// Delete the object after the share URL no longer needs to work:
+// await storage.delete(key);
 
 export const report = {
   key,
   text,
   bytes: stat.size,
+  filesListed: listing.contents.length,
+  downloadUrl,
 };`,
 
 	'sse-stream': `import { Hono } from "hono";
@@ -473,37 +552,63 @@ export default app;`,
 const schedules = new ScheduleClient();
 const name = "nightly-sync-" + crypto.randomUUID();
 const appUrl = process.env.APP_URL ?? "https://your-app.agentuity.dev";
+let scheduleId: string | undefined;
+let destinationId: string | undefined;
+let summary: {
+  scheduleId: string;
+  destinationCount: number;
+  listed: boolean;
+  deliveries: number;
+  expression: string;
+};
 
-const { schedule, destinations } = await schedules.create({
-  name,
-  description: "Call the sync endpoint every night",
-  expression: "0 2 * * *",
-  destinations: [
-    {
+try {
+  const { schedule, destinations } = await schedules.create({
+    name,
+    description: "Call the sync endpoint every night",
+    expression: "0 2 * * *",
+    destinations: [{
       type: "url",
       config: {
         url: appUrl + "/api/sync",
         method: "POST",
       },
+    }],
+  });
+
+  scheduleId = schedule.id;
+
+  const extraDestination = await schedules.createDestination(schedule.id, {
+    type: "url",
+    config: {
+      url: appUrl + "/api/audit-sync",
+      method: "POST",
     },
-  ],
-});
+  });
+  destinationId = extraDestination.destination.id;
 
-const deliveryHistory = await schedules.listDeliveries(schedule.id, {
-  limit: 10,
-});
+  const fetched = await schedules.get(schedule.id);
+  const page = await schedules.list({ limit: 25 });
+  const deliveryHistory = await schedules.listDeliveries(schedule.id, {
+    limit: 10,
+  });
+  const updated = await schedules.update(schedule.id, {
+    expression: "0 3 * * *",
+  });
 
-await schedules.update(schedule.id, {
-  expression: "0 3 * * *",
-});
+  summary = {
+    scheduleId: fetched.schedule.id,
+    destinationCount: fetched.destinations.length,
+    listed: page.schedules.some((item) => item.id === schedule.id),
+    deliveries: deliveryHistory.deliveries.length,
+    expression: updated.schedule.expression,
+  };
+} finally {
+  if (destinationId) await schedules.deleteDestination(destinationId);
+  if (scheduleId) await schedules.delete(scheduleId);
+}
 
-await schedules.delete(schedule.id);
-
-export const summary = {
-  scheduleId: schedule.id,
-  destinations: destinations.length,
-  deliveries: deliveryHistory.deliveries.length,
-};`,
+export { summary };`,
 
 	'durable-stream': `import { StreamClient } from "@agentuity/stream";
 import { AIGatewayClient } from "@agentuity/aigateway";
@@ -530,10 +635,22 @@ const result = await gateway.completeText({
 await durable.write(result.text);
 await durable.close();
 
+const info = await streams.get(durable.id);
+const body = await new Response(await streams.download(durable.id)).text();
+const page = await streams.list({
+  namespace: "ai-summaries",
+  limit: 10,
+});
+
+// Delete the stream after its public URL no longer needs to work:
+// await streams.delete(durable.id);
+
 export const published = {
-  streamId: durable.id,
-  url: durable.url,
+  streamId: info.id,
+  url: info.url,
   bytesWritten: durable.bytesWritten,
+  downloaded: body,
+  listed: page.streams.some((stream) => stream.id === durable.id),
 };`,
 
 	chat: `import { KeyValueClient } from "@agentuity/keyvalue";
@@ -649,11 +766,12 @@ export { data as judgment };`,
 	'ai-gateway': `import { AIGatewayClient } from "@agentuity/aigateway";
 
 const gateway = new AIGatewayClient();
+const MODEL = "openai/gpt-5.4-mini";
 
 const models = await gateway.listModels();
 
-const completion = await gateway.complete({
-  model: "anthropic/claude-opus-4-8",
+const text = await gateway.completeText({
+  model: MODEL,
   messages: [
     {
       role: "user",
@@ -662,10 +780,35 @@ const completion = await gateway.complete({
   ],
 });
 
+const structured = await gateway.completeStructured<{
+  summary: string;
+  category: "agent" | "workflow" | "other";
+}>({
+  model: MODEL,
+  messages: [
+    {
+      role: "user",
+      content: "Classify this: an AI agent can plan and call tools.",
+    },
+  ],
+  response_schema: {
+    name: "agent_classification",
+    schema: {
+      type: "object",
+      properties: {
+        summary: { type: "string" },
+        category: { type: "string", enum: ["agent", "workflow", "other"] },
+      },
+      required: ["summary", "category"],
+      additionalProperties: false,
+    },
+  },
+});
+
 export const result = {
   providers: Object.keys(models),
-  model: completion.model,
-  firstChoice: completion.choices?.[0],
+  text: text.text,
+  structured: structured.data,
 };`,
 
 	websocket: `import { Hono } from "hono";
@@ -768,31 +911,39 @@ export default {
 
 const queues = new QueueClient();
 const queueName = "orders-" + crypto.randomUUID();
+let published: Awaited<ReturnType<typeof queues.publish>> | undefined;
+let created = false;
 
-await queues.createQueue(queueName, {
-  queueType: "worker",
-  settings: {
-    defaultMaxRetries: 3,
-    defaultVisibilityTimeoutSeconds: 30,
-  },
-});
+try {
+  await queues.createQueue(queueName, {
+    queueType: "worker",
+    settings: {
+      defaultMaxRetries: 3,
+      defaultVisibilityTimeoutSeconds: 30,
+    },
+  });
+  created = true;
 
-const published = await queues.publish(queueName, {
-  task: "process-order",
-  orderId: "order-123",
-  priority: "high",
-}, {
-  sync: true,
-  idempotencyKey: "order-123-v1",
-  metadata: { source: "checkout" },
-});
+  published = await queues.publish(queueName, {
+    task: "process-order",
+    orderId: "order-123",
+    priority: "high",
+  }, {
+    sync: true,
+    idempotencyKey: "order-123-v1",
+    metadata: { source: "checkout" },
+  });
 
-await queues.publish(queueName, {
-  task: "send-receipt",
-  orderId: "order-123",
-});
+  await queues.publish(queueName, {
+    task: "send-receipt",
+    orderId: "order-123",
+  });
+} finally {
+  if (created) await queues.deleteQueue(queueName);
+}
 
-await queues.deleteQueue(queueName);
+// Queue workers receive, ack, nack, and dead-letter messages from the
+// Agentuity runtime route, not from the standalone QueueClient.
 
 export { published };`,
 
@@ -809,10 +960,14 @@ const outbound = await email.send({
 });
 
 const latest = await email.getOutbound(outbound.id);
+const outbox = await email.listOutbound();
+const activity = await email.getActivity({ days: 7 });
 
 export const status = {
   outboundId: outbound.id,
   status: latest?.status ?? outbound.status,
+  listed: outbox.some((message) => message.id === outbound.id),
+  activityDays: activity.activity.length,
 };`,
 
 	database: `import { gte, ilike, lt } from "drizzle-orm";

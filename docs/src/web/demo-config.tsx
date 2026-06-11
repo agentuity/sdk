@@ -193,15 +193,15 @@ export const DEMOS: DemoConfig[] = [
 		id: 'object-storage',
 		title: 'Object Storage',
 		subtitle: 'Agentuity Storage',
-		description: 'Store files with presigned URLs for sharing.',
+		description: 'Store files with the SDK, and generate share URLs from Bun routes.',
 		explanation: (
 			<>
-				Object storage is for files and blobs, not small JSON records. This demo loads a sample
-				text file, lists files in the bucket, and generates a presigned URL for temporary
-				sharing.{' '}
+				Object storage is for files and blobs, not small JSON records. This demo uses
+				<code> @agentuity/storage</code> to load, list, read, and delete files, then uses Bun's
+				native S3 client for temporary share URLs.
 				<span className="bg-cyan-500/10 px-1 rounded">
-					Use it for files such as uploads, reports, images, and generated artifacts
-				</span>{' '}
+					{' Use it for files such as uploads, reports, images, and generated artifacts '}
+				</span>
 				when the data is a file people or systems need to download. For exact-key JSON state,
 				see{' '}
 				<Link

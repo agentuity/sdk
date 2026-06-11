@@ -8,14 +8,23 @@
  * POST /presign/:filename - Generates presigned URL for temporary access
  */
 import type { ApiEnv } from '../context';
-import { s3 } from 'bun';
 import type { S3ClientLike } from '@agentuity/storage';
-import { bucketConfigFromEnv, createS3Client } from '@agentuity/storage';
+import {
+	createObjectStorageClient,
+	createObjectStoragePresignedUrl,
+	isObjectStorageConfigured,
+	objectStorageNotConfiguredMessage,
+} from '../../lib/demo-object-storage';
 import objectstoreAgent from '../../agent/objectstore/agent';
 import { Hono } from 'hono';
 
-function createStorage(): S3ClientLike {
-	return createS3Client(bucketConfigFromEnv());
+const prefix = 'sdk-explorer/';
+
+interface FileInfo {
+	key: string;
+	filename: string;
+	size: number;
+	lastModified?: string;
 }
 
 function isMissingObjectError(error: unknown): boolean {
@@ -37,6 +46,16 @@ async function objectExists(storage: S3ClientLike, key: string): Promise<boolean
 	}
 }
 
+async function listDemoFiles(storage: S3ClientLike): Promise<FileInfo[]> {
+	const objects = await storage.list({ prefix, maxKeys: 100 });
+	return objects.contents.map((obj) => ({
+		key: obj.key,
+		filename: obj.key.replace(prefix, '') || obj.key,
+		size: obj.size,
+		lastModified: obj.lastModified,
+	}));
+}
+
 const router = new Hono<ApiEnv>()
 
 	.get('/', (c) => {
@@ -49,6 +68,17 @@ const router = new Hono<ApiEnv>()
 	})
 
 	.post('/seed', async (c) => {
+		if (!isObjectStorageConfigured()) {
+			return c.json(
+				{
+					success: false,
+					configured: false,
+					message: objectStorageNotConfiguredMessage,
+				},
+				503
+			);
+		}
+
 		const result = await objectstoreAgent.run({ action: 'seed' });
 		return c.json(result);
 	})
@@ -58,7 +88,17 @@ const router = new Hono<ApiEnv>()
 		const key = `sdk-explorer/${filename}`;
 
 		try {
-			const storage = createStorage();
+			if (!isObjectStorageConfigured()) {
+				return c.json(
+					{
+						error: 'Object storage is not configured',
+						message: objectStorageNotConfiguredMessage,
+					},
+					503
+				);
+			}
+
+			const storage = createObjectStorageClient();
 
 			if (!(await objectExists(storage, key))) {
 				return c.json({ error: 'File not found' }, 404);
@@ -89,20 +129,26 @@ const router = new Hono<ApiEnv>()
 
 	.get('/list', async (c) => {
 		try {
-			const storage = createStorage();
-			const prefix = 'sdk-explorer/';
-			const objects = await storage.list({ prefix, maxKeys: 100 });
+			if (!isObjectStorageConfigured()) {
+				return c.json(
+					{
+						success: false,
+						configured: false,
+						count: 0,
+						files: [],
+						error: 'Object storage is not configured',
+						message: objectStorageNotConfiguredMessage,
+					},
+					503
+				);
+			}
 
-			const files =
-				objects.contents.map((obj) => ({
-					key: obj.key,
-					filename: obj.key.replace(prefix, '') || obj.key,
-					size: obj.size,
-					lastModified: obj.lastModified,
-				})) || [];
+			const storage = createObjectStorageClient();
+			const files = await listDemoFiles(storage);
 
 			return c.json({
 				success: true,
+				configured: true,
 				count: files.length,
 				files,
 			});
@@ -137,16 +183,23 @@ const router = new Hono<ApiEnv>()
 		const expiresIn = Math.min(Math.max(rawExpires, 60), 86400);
 
 		try {
-			// `@agentuity/storage` mirrors Bun's object APIs but does not expose
-			// presign yet, so this route keeps Bun's presign helper for the URL.
-			const url = s3.presign(key, {
-				expiresIn,
-				method: 'GET',
-			});
+			if (!isObjectStorageConfigured()) {
+				return c.json(
+					{
+						success: false,
+						configured: false,
+						error: 'Object storage is not configured',
+						message: objectStorageNotConfiguredMessage,
+					},
+					503
+				);
+			}
 
 			return c.json({
 				success: true,
-				url,
+				configured: true,
+				url: createObjectStoragePresignedUrl(key, expiresIn),
+				urlType: 'presigned',
 				filename,
 				expiresIn: `${expiresIn}s`,
 			});

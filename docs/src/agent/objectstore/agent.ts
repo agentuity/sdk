@@ -12,16 +12,20 @@
  * - storage.write(key, data) - Upload a file
  * - storage.file(key).text() / .arrayBuffer() - Download file contents
  * - storage.stat(key) - Check object metadata
- * - s3.presign(key, { expiresIn }) - Generate temporary shareable URL
+ * - Bun S3Client.presign(key, { expiresIn }) - Generate temporary shareable URL
  * - storage.list({ prefix }) - List files in a directory
  *
  * Docs: https://agentuity.dev/services/storage/object
  */
 import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
-import { s3 } from 'bun';
 import type { S3ClientLike } from '@agentuity/storage';
-import { bucketConfigFromEnv, createS3Client } from '@agentuity/storage';
+import {
+	createObjectStorageClient,
+	createObjectStoragePresignedUrl,
+	isObjectStorageConfigurationError,
+	objectStorageNotConfiguredMessage,
+} from '../../lib/demo-object-storage';
 
 const prefix = 'sdk-explorer/';
 
@@ -34,7 +38,7 @@ const SAMPLE_FILE = {
 };
 
 function createStorage(): S3ClientLike {
-	return createS3Client(bucketConfigFromEnv());
+	return createObjectStorageClient();
 }
 
 function isMissingObjectError(error: unknown): boolean {
@@ -114,6 +118,13 @@ const agent = defineDemoAgent('objectstore', {
 						},
 					};
 				} catch (error) {
+					if (isObjectStorageConfigurationError(error)) {
+						return {
+							success: false,
+							message: objectStorageNotConfiguredMessage,
+						};
+					}
+
 					ctx.logger.error('Download failed', { error, key });
 					return {
 						success: false,
@@ -148,6 +159,15 @@ const agent = defineDemoAgent('objectstore', {
 							data: [],
 						};
 					}
+
+					if (isObjectStorageConfigurationError(error)) {
+						return {
+							success: false,
+							message: objectStorageNotConfiguredMessage,
+							data: [],
+						};
+					}
+
 					ctx.logger.error('List failed', { error });
 					return {
 						success: false,
@@ -162,19 +182,26 @@ const agent = defineDemoAgent('objectstore', {
 				const expiresIn = input.expiresIn || 3600;
 
 				try {
-					// `@agentuity/storage` does not expose presign yet; keep Bun's helper
-					// here while reads/writes/listing use the public storage client path.
-					const url = s3.presign(key, {
-						expiresIn,
-						method: 'GET',
-					});
+					const url = createObjectStoragePresignedUrl(key, expiresIn);
 
 					return {
 						success: true,
 						message: `Presigned URL for "${input.filename}" (expires in ${expiresIn}s)`,
-						data: { url, filename: input.filename, expiresIn },
+						data: {
+							url,
+							urlType: 'presigned',
+							filename: input.filename,
+							expiresIn,
+						},
 					};
 				} catch (error) {
+					if (isObjectStorageConfigurationError(error)) {
+						return {
+							success: false,
+							message: objectStorageNotConfiguredMessage,
+						};
+					}
+
 					ctx.logger.error('Presign failed', { error, key });
 					return {
 						success: false,
@@ -217,6 +244,13 @@ const agent = defineDemoAgent('objectstore', {
 						},
 					};
 				} catch (error) {
+					if (isObjectStorageConfigurationError(error)) {
+						return {
+							success: false,
+							message: objectStorageNotConfiguredMessage,
+						};
+					}
+
 					ctx.logger.error('Seed failed', { error, key });
 					return {
 						success: false,

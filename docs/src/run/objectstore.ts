@@ -3,12 +3,16 @@
  *
  * Uses @agentuity/storage so the sandbox matches the public example. The
  * client reads linked bucket credentials from AWS_* environment variables.
+ * Bun's native S3Client is used only for the presigned URL example.
  *
  * Usage: bun run src/run/objectstore.ts '{}'
  */
 import { getDemoContext } from '../api/context';
 import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
-import { bucketConfigFromEnv, createS3Client } from '@agentuity/storage';
+import {
+	createObjectStorageClient,
+	createObjectStoragePresignedUrl,
+} from '../lib/demo-object-storage';
 
 const ctx = getDemoContext();
 
@@ -16,7 +20,7 @@ const key = `sdk-explorer/demo-${Date.now()}.txt`;
 const content = `Hello from Object Storage!\nTimestamp: ${new Date().toISOString()}`;
 
 try {
-	const storage = createS3Client(bucketConfigFromEnv());
+	const storage = createObjectStorageClient();
 
 	ctx.logger.info('Writing file');
 
@@ -28,9 +32,9 @@ try {
 	const readContent = await file.text();
 	const stat = await storage.stat(key);
 
-	ctx.logger.info('Deleting file');
+	ctx.logger.info('Creating presigned URL');
 
-	await storage.delete(key);
+	const presignedUrl = createObjectStoragePresignedUrl(key, 60 * 15);
 
 	writeSandboxOutput(
 		[
@@ -40,7 +44,9 @@ try {
 			`Read: "${key}"`,
 			`  Content: ${readContent.split('\n')[0]}...`,
 			`  Size: ${stat.size}`,
-			`Deleted: "${key}"`,
+			'Presign: Bun S3Client',
+			`  Presigned URL: ${presignedUrl}`,
+			'Delete the object after the URL no longer needs to work with storage.delete(key).',
 		].join('\n')
 	);
 } catch (error) {
