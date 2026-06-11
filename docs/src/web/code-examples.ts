@@ -183,6 +183,7 @@ const vector = new VectorClient();
 const namespace = "product-search-" + crypto.randomUUID();
 const sku = "chair-" + crypto.randomUUID();
 const deskSku = "desk-" + crypto.randomUUID();
+let namespaceCreated = false;
 
 let summary: {
   chairFound: boolean;
@@ -207,6 +208,7 @@ try {
       metadata: { sku: deskSku, name: "LiftDesk Air", price: 799 },
     }
   );
+  namespaceCreated = true;
 
   // Read back stored documents by key.
   const chair = await vector.get<{ sku: string; name: string; price: number }>(
@@ -241,7 +243,9 @@ try {
 
   await vector.delete(namespace, sku, deskSku);
 } finally {
-  await vector.deleteNamespace(namespace);
+  if (namespaceCreated) {
+    await vector.deleteNamespace(namespace);
+  }
 }
 
 export { summary };`,

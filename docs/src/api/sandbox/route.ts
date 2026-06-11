@@ -254,7 +254,7 @@ const router = new Hono<ApiEnv>().get(
 			scriptFiles = await loadScriptFiles(scriptPath);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Unknown sandbox setup error';
-			logger?.error('Sandbox setup error', { error: message });
+			logger?.error('Sandbox setup error', { error });
 			await stream.writeSSE({ event: 'error', data: message });
 			return;
 		}

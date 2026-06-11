@@ -91,6 +91,8 @@ const router = new Hono<ApiEnv>()
 			if (!isObjectStorageConfigured()) {
 				return c.json(
 					{
+						success: false,
+						configured: false,
 						error: 'Object storage is not configured',
 						message: objectStorageNotConfiguredMessage,
 					},
@@ -201,7 +203,7 @@ const router = new Hono<ApiEnv>()
 			// object would look valid but 404 on open. Check existence first.
 			const storage = createObjectStorageClient();
 			if (!(await objectExists(storage, key))) {
-				return c.json({ success: false, error: 'File not found' }, 404);
+				return c.json({ success: false, configured: true, error: 'File not found' }, 404);
 			}
 
 			return c.json({
