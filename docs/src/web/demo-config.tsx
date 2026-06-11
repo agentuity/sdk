@@ -196,9 +196,9 @@ export const DEMOS: DemoConfig[] = [
 		description: 'Store files with the SDK, and generate share URLs from Bun routes.',
 		explanation: (
 			<>
-				Object storage is for files and blobs, not small JSON records. This demo uses
-				<code> @agentuity/storage</code> to load, list, read, and delete files, then uses Bun's
-				native S3 client for temporary share URLs.
+				Object storage is for files and blobs, not small JSON records. This demo reads linked
+				<code> AWS_*</code> bucket env with <code>@agentuity/storage</code>, then uses Bun's{' '}
+				<code>S3Client</code> only for temporary share URLs.
 				<span className="bg-cyan-500/10 px-1 rounded">
 					{' Use it for files such as uploads, reports, images, and generated artifacts '}
 				</span>

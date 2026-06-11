@@ -6,9 +6,11 @@ import { resolveEndpoint } from '@agentuity/storage/types';
 export const objectStorageNotConfiguredMessage =
 	'Object storage is not configured. Link an Agentuity storage bucket or set AWS_* bucket env vars.';
 
-function objectStorageEnv(
+function objectStorageDemoEnv(
 	env: Record<string, string | undefined> = process.env
 ): Record<string, string | undefined> {
+	// AWS_* is the public contract. S3_* is accepted only so older local
+	// docs environments keep working while the visible demo copy stays canonical.
 	return {
 		AWS_ENDPOINT: env.AWS_ENDPOINT ?? env.S3_ENDPOINT,
 		AWS_BUCKET: env.AWS_BUCKET ?? env.S3_BUCKET,
@@ -21,7 +23,7 @@ function objectStorageEnv(
 export function isObjectStorageConfigured(
 	env: Record<string, string | undefined> = process.env
 ): boolean {
-	const storageEnv = objectStorageEnv(env);
+	const storageEnv = objectStorageDemoEnv(env);
 	return Boolean(
 		storageEnv.AWS_ENDPOINT &&
 			storageEnv.AWS_BUCKET &&
@@ -35,11 +37,11 @@ export function isObjectStorageConfigurationError(error: unknown): boolean {
 }
 
 export function createObjectStorageClient(): S3ClientLike {
-	return createS3Client(bucketConfigFromEnv(objectStorageEnv()));
+	return createS3Client(bucketConfigFromEnv(objectStorageDemoEnv()));
 }
 
 export function createObjectStoragePresignedUrl(key: string, expiresIn: number): string {
-	const bucket = bucketConfigFromEnv(objectStorageEnv());
+	const bucket = bucketConfigFromEnv(objectStorageDemoEnv());
 	const client = new S3Client({
 		endpoint: resolveEndpoint(bucket),
 		accessKeyId: bucket.access_key,

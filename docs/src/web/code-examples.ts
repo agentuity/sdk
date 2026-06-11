@@ -185,6 +185,7 @@ export { summary };`,
 import { bucketConfigFromEnv, createS3Client } from "@agentuity/storage";
 import { resolveEndpoint } from "@agentuity/storage/types";
 
+// Reads the linked AWS_* bucket env.
 const bucket = bucketConfigFromEnv();
 const storage = createS3Client(bucket);
 const key = "reports/demo-" + crypto.randomUUID() + ".txt";
@@ -200,7 +201,7 @@ const text = await file.text();
 const stat = await storage.stat(key);
 const listing = await storage.list({ prefix: "reports/", maxKeys: 10 });
 
-// Bun-only option today: use Bun's S3Client for presigned URLs.
+// Bun-only presign option today: S3Client is Bun's client class.
 const bunStorage = new S3Client({
   endpoint: resolveEndpoint(bucket),
   accessKeyId: bucket.access_key,

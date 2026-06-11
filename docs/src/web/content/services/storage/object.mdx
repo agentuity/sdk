@@ -275,7 +275,7 @@ The download route returns a short-lived redirect. The file does not flow throug
 
 ## Custom S3 Clients
 
-Use `S3Client` when you need Bun-only helpers, a specific bucket, an external S3-compatible service, or explicit credentials.
+Use `S3Client` when you need Bun-only helpers, a specific bucket, an external S3-compatible service, or explicit credentials. For Agentuity-managed buckets, prefer `bucketConfigFromEnv()` with the linked `AWS_*` values.
 
 ```typescript
 import { S3Client } from 'bun';
@@ -291,17 +291,17 @@ function requireEnv(name: string): string {
 }
 
 const uploads = new S3Client({
-  bucket: requireEnv('S3_BUCKET'),
-  endpoint: requireEnv('S3_ENDPOINT'),
-  accessKeyId: requireEnv('S3_ACCESS_KEY_ID'),
-  secretAccessKey: requireEnv('S3_SECRET_ACCESS_KEY'),
-  region: process.env.S3_REGION ?? 'us-east-1',
+  bucket: requireEnv('UPLOADS_BUCKET'),
+  endpoint: requireEnv('UPLOADS_ENDPOINT'),
+  accessKeyId: requireEnv('UPLOADS_ACCESS_KEY_ID'),
+  secretAccessKey: requireEnv('UPLOADS_SECRET_ACCESS_KEY'),
+  region: process.env.UPLOADS_REGION ?? 'us-east-1',
 });
 
 await uploads.write('healthcheck.txt', 'ok', { type: 'text/plain' });
 ```
 
-For Agentuity-managed buckets, `new S3Client()` can read the linked `AWS_*` values from the environment. For other providers, pass that provider's bucket, endpoint, and credentials explicitly.
+`UPLOADS_*` is app-owned configuration in this example, not an Agentuity-managed credential name. For other providers, pass that provider's bucket, endpoint, and credentials explicitly.
 
 ## Next Steps
 
