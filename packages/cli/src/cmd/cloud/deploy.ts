@@ -396,6 +396,7 @@ export const deploySubcommand = createSubcommand({
 				childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
 			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
 			if (opts.skipDnsValidation) childArgs.push('--skip-dns-validation');
+			if (opts.skipTypeCheck) childArgs.push('--skip-type-check');
 
 			const result = await runForkedDeploy({
 				projectDir,
