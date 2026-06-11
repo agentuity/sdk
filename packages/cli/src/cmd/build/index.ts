@@ -75,6 +75,7 @@ export const command = createCommand({
 					pullRequestUrl: opts.pullRequestUrl,
 					logsUrl: opts.logsUrl,
 					skipDnsValidation: opts.skipDnsValidation ?? true,
+					skipTypeCheck: opts.skipTypeCheck,
 				},
 				ctx.logger
 			);

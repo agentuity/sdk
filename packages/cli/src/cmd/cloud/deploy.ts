@@ -402,6 +402,7 @@ export const deploySubcommand = createSubcommand({
 				childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
 			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
 			if (opts.skipDnsValidation) childArgs.push('--skip-dns-validation');
+			if (opts.skipTypeCheck) childArgs.push('--skip-type-check');
 
 			const result = await runForkedDeploy({
 				projectDir,
@@ -650,23 +651,25 @@ export const deploySubcommand = createSubcommand({
 							let capturedOutput: string[] = [];
 							const rootDir = resolve(projectDir);
 
-							// Run typecheck with collector for error reporting
-							const endTypecheckDiagnostic = collector.startDiagnostic('typecheck');
-							const started = Date.now();
-							const typeResult = await typecheck(rootDir, { collector });
-							endTypecheckDiagnostic();
+							if (!opts.skipTypeCheck) {
+								// Run typecheck with collector for error reporting
+								const endTypecheckDiagnostic = collector.startDiagnostic('typecheck');
+								const started = Date.now();
+								const typeResult = await typecheck(rootDir, { collector });
+								endTypecheckDiagnostic();
 
-							if (typeResult.success) {
-								capturedOutput.push(
-									tui.muted(`✓ Typechecked in ${Date.now() - started}ms`)
-								);
-							} else {
-								// Errors already added to collector by typecheck()
-								// Write report before returning error
-								if (opts.reportFile) {
-									await collector.forceWrite();
+								if (typeResult.success) {
+									capturedOutput.push(
+										tui.muted(`✓ Typechecked in ${Date.now() - started}ms`)
+									);
+								} else {
+									// Errors already added to collector by typecheck()
+									// Write report before returning error
+									if (opts.reportFile) {
+										await collector.forceWrite();
+									}
+									return stepError('Typecheck failed\n\n' + typeResult.output);
 								}
-								return stepError('Typecheck failed\n\n' + typeResult.output);
 							}
 							try {
 								const bundleResult = await viteBundle({
