@@ -3,6 +3,59 @@
  * The live sandbox scripts live in src/run/*.ts. These examples show the
  * framework-first shape readers should copy into their own apps.
  */
+
+/**
+ * Shared by the sse-stream and streaming examples so the two snippets cannot
+ * drift apart. Frame splitting is generic SSE handling; the provider-specific
+ * delta shapes are decoded by the SDK's getAIGatewayStreamDeltaText.
+ */
+const GATEWAY_TEXT_DECODER = `// streamRequest() returns the provider's raw SSE bytes. Split frames on
+// blank lines; the SDK decodes each provider's delta shape to plain text.
+async function* readGatewayText(stream: ReadableStream<Uint8Array>) {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split(/\\r?\\n\\r?\\n/);
+      buffer = frames.pop() ?? "";
+
+      for (const frame of frames) {
+        const text = frameText(frame);
+        if (text) yield text;
+      }
+    }
+
+    buffer += decoder.decode();
+    const text = frameText(buffer);
+    if (text) yield text;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+function frameText(frame: string): string {
+  const data = frame
+    .split(/\\r?\\n/)
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trimStart())
+    .join("\\n")
+    .trim();
+
+  if (!data || data === "[DONE]") return "";
+
+  try {
+    return getAIGatewayStreamDeltaText(JSON.parse(data));
+  } catch {
+    return "";
+  }
+}`;
+
 export const CODE_EXAMPLES = {
 	hello: `import { agentuity } from "@agentuity/hono";
 import type { Logger } from "@agentuity/hono";
@@ -72,7 +125,7 @@ export default app;`,
 	'key-value': `import { KeyValueClient } from "@agentuity/keyvalue";
 
 const kv = new KeyValueClient();
-const namespace = "explorer-sandbox";
+const namespace = "explorer-" + crypto.randomUUID();
 const key = "session-" + crypto.randomUUID();
 
 const session = {
@@ -81,59 +134,133 @@ const session = {
   preferences: { theme: "dark" },
 };
 
-await kv.set(namespace, key, session, { ttl: 300 });
+let summary: {
+  found: boolean;
+  theme: string | null;
+  keys: string[];
+  matches: number;
+  itemCount: number;
+  namespaceVisible: boolean;
+};
+let namespaceCreated = false;
 
-const result = await kv.get<typeof session>(namespace, key);
-if (result.exists) {
-  // result.data is typed after the discriminated check.
+try {
+  await kv.createNamespace(namespace, { defaultTTLSeconds: 300 });
+  namespaceCreated = true;
+  await kv.set(namespace, key, session, { ttl: 300 });
   await kv.set(namespace, key + ":summary", {
-    visitorId: result.data.visitorId,
-    theme: result.data.preferences.theme,
+    visitorId: session.visitorId,
+    theme: session.preferences.theme,
   }, { ttl: 300 });
+
+  const result = await kv.get<typeof session>(namespace, key);
+  // get() returns a union: narrow on exists before touching data.
+  const theme = result.exists ? result.data.preferences.theme : null;
+  const keys = await kv.getKeys(namespace);
+  const matches = await kv.search<typeof session>(namespace, "session");
+  const stats = await kv.getStats(namespace);
+  const namespaces = await kv.getNamespaces();
+
+  summary = {
+    found: result.exists,
+    theme,
+    keys,
+    matches: matches.size,
+    itemCount: stats.count,
+    namespaceVisible: namespaces.includes(namespace),
+  };
+} finally {
+  if (namespaceCreated) {
+    await kv.deleteNamespace(namespace);
+  }
 }
 
-await kv.delete(namespace, key);`,
+export { summary };`,
 
 	'vector-storage': `import { VectorClient } from "@agentuity/vector";
 
 const vector = new VectorClient();
-const namespace = "product-search";
+const namespace = "product-search-" + crypto.randomUUID();
 const sku = "chair-" + crypto.randomUUID();
+const deskSku = "desk-" + crypto.randomUUID();
+let namespaceCreated = false;
 
-await vector.upsert(namespace, {
-  key: sku,
-  document: "ErgoMax Pro Chair: ergonomic office chair with lumbar support",
-  metadata: {
-    sku,
-    name: "ErgoMax Pro Chair",
-    price: 549,
-  },
-});
+let summary: {
+  chairFound: boolean;
+  loaded: number;
+  topMatch: string | undefined;
+  exists: boolean;
+  count: number;
+  namespaceVisible: boolean;
+};
 
-const results = await vector.search<{
-  sku: string;
-  name: string;
-  price: number;
-}>(namespace, {
-  query: "comfortable chair",
-  limit: 3,
-  similarity: 0.3,
-});
+try {
+  await vector.upsert(
+    namespace,
+    {
+      key: sku,
+      document: "ErgoMax Pro Chair: ergonomic office chair with lumbar support",
+      metadata: { sku, name: "ErgoMax Pro Chair", price: 549 },
+    },
+    {
+      key: deskSku,
+      document: "LiftDesk Air: adjustable standing desk for focused work",
+      metadata: { sku: deskSku, name: "LiftDesk Air", price: 799 },
+    }
+  );
+  namespaceCreated = true;
 
-for (const result of results) {
-  // Similarity scores make ranking visible in your UI or logs.
-  result.metadata?.name;
-  result.similarity;
+  // Read back stored documents by key.
+  const chair = await vector.get<{ sku: string; name: string; price: number }>(
+    namespace,
+    sku
+  );
+  const documents = await vector.getMany(namespace, sku, deskSku);
+
+  // Search by meaning, not keywords: "comfortable chair" matches the ErgoMax.
+  const results = await vector.search<{
+    sku: string;
+    name: string;
+    price: number;
+  }>(namespace, {
+    query: "comfortable chair",
+    limit: 3,
+    similarity: 0.3,
+  });
+  // Inspect namespace state.
+  const exists = await vector.exists(namespace);
+  const stats = await vector.getStats(namespace);
+  const namespaces = await vector.getNamespaces();
+
+  summary = {
+    chairFound: chair.exists,
+    loaded: documents.size,
+    topMatch: results[0]?.metadata?.name,
+    exists,
+    count: stats.count,
+    namespaceVisible: namespaces.includes(namespace),
+  };
+
+  await vector.delete(namespace, sku, deskSku);
+} finally {
+  if (namespaceCreated) {
+    await vector.deleteNamespace(namespace);
+  }
 }
 
-await vector.delete(namespace, sku);`,
+export { summary };`,
 
-	'object-storage': `import { bucketConfigFromEnv, createS3Client } from "@agentuity/storage";
+	'object-storage': `import { S3Client } from "bun";
+import { bucketConfigFromEnv, createS3Client } from "@agentuity/storage";
+import { resolveEndpoint } from "@agentuity/storage/types";
 
-const storage = createS3Client(bucketConfigFromEnv());
+// Reads the linked AWS_* bucket env.
+const bucket = bucketConfigFromEnv();
+const storage = createS3Client(bucket);
 const key = "reports/demo-" + crypto.randomUUID() + ".txt";
 const body = "Generated at " + new Date().toISOString();
 
+// Portable SDK path: works in Bun and Node.js.
 await storage.write(key, body, {
   type: "text/plain",
 });
@@ -141,22 +268,46 @@ await storage.write(key, body, {
 const file = storage.file(key);
 const text = await file.text();
 const stat = await storage.stat(key);
+const listing = await storage.list({ prefix: "reports/", maxKeys: 10 });
 
-await storage.delete(key);
+// Bun-only presign option today: S3Client is Bun's client class.
+const bunStorage = new S3Client({
+  endpoint: resolveEndpoint(bucket),
+  accessKeyId: bucket.access_key,
+  secretAccessKey: bucket.secret_key,
+  region: bucket.region ?? "auto",
+  virtualHostedStyle: true,
+});
+
+const downloadUrl = bunStorage.presign(key, {
+  method: "GET",
+  expiresIn: 60 * 15,
+});
+
+// Node.js presign option:
+// Use @aws-sdk/s3-request-presigner with @aws-sdk/client-s3.
+// @agentuity/storage does not expose storage.presign() yet.
+//
+// Delete the object after the share URL no longer needs to work:
+// await storage.delete(key);
 
 export const report = {
   key,
   text,
   bytes: stat.size,
+  filesListed: listing.contents.length,
+  downloadUrl,
 };`,
 
 	'sse-stream': `import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { AIGatewayClient } from "@agentuity/aigateway";
+import { getAIGatewayStreamDeltaText } from "@agentuity/core/aigateway";
 
 const app = new Hono();
 const gateway = new AIGatewayClient();
-const MODEL = "googleai/gemini-3.5-flash";
+// Default model in the live demo; any gateway model id works here.
+const MODEL = "anthropic/claude-opus-4-8";
 
 app.get("/api/sse-stream", (c) => {
   return streamSSE(c, async (stream) => {
@@ -196,112 +347,19 @@ app.get("/api/sse-stream", (c) => {
   });
 });
 
-async function* readGatewayText(stream: ReadableStream<Uint8Array>) {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  try {
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const frames = buffer.split(/\\r?\\n\\r?\\n/);
-      buffer = frames.pop() ?? "";
-
-      for (const frame of frames) {
-        const text = readFrameText(frame);
-        if (text) yield text;
-      }
-    }
-
-    buffer += decoder.decode();
-    const text = readFrameText(buffer);
-    if (text) yield text;
-  } finally {
-    reader.releaseLock();
-  }
-}
-
-function readFrameText(frame: string): string {
-  const data = frame
-    .split(/\\r?\\n/)
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice(5).trimStart())
-    .join("\\n")
-    .trim();
-
-  if (!data || data === "[DONE]") return "";
-
-  try {
-    return readDeltaText(JSON.parse(data));
-  } catch {
-    return "";
-  }
-}
-
-function readDeltaText(event: unknown): string {
-  if (!isRecord(event)) return "";
-
-  const choices = event.choices;
-  if (Array.isArray(choices)) {
-    return choices
-      .map((choice) => {
-        if (!isRecord(choice)) return "";
-
-        const delta = choice.delta;
-        if (isRecord(delta) && typeof delta.content === "string") {
-          return delta.content;
-        }
-
-        return typeof choice.text === "string" ? choice.text : "";
-      })
-      .join("");
-  }
-
-  const delta = event.delta;
-  if (typeof delta === "string") return delta;
-  if (isRecord(delta)) {
-    if (typeof delta.text === "string") return delta.text;
-    if (typeof delta.content === "string") return delta.content;
-  }
-
-  const candidates = event.candidates;
-  if (!Array.isArray(candidates)) return "";
-
-  return candidates
-    .map((candidate) => {
-      if (!isRecord(candidate) || !isRecord(candidate.content)) return "";
-      return textFromParts(candidate.content.parts);
-    })
-    .join("");
-}
-
-function textFromParts(parts: unknown): string {
-  if (!Array.isArray(parts)) return "";
-
-  return parts
-    .map((part) => {
-      if (!isRecord(part)) return "";
-      return typeof part.text === "string" ? part.text : "";
-    })
-    .join("");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
+${GATEWAY_TEXT_DECODER}
 
 export default app;`,
 
 	streaming: `import { Hono } from "hono";
 import { AIGatewayClient } from "@agentuity/aigateway";
+import { getAIGatewayStreamDeltaText } from "@agentuity/core/aigateway";
 
 const app = new Hono();
 const gateway = new AIGatewayClient();
 const encoder = new TextEncoder();
-const MODEL = "googleai/gemini-3.5-flash";
+// Default model in the live demo; any gateway model id works here.
+const MODEL = "anthropic/claude-opus-4-8";
 
 app.post("/api/stream", async (c) => {
   const body: unknown = await c.req.json();
@@ -333,102 +391,9 @@ app.post("/api/stream", async (c) => {
   });
 });
 
-async function* readGatewayText(stream: ReadableStream<Uint8Array>) {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
+// For named SSE events and an explicit "done" frame, see the SSE Stream demo.
 
-  try {
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const frames = buffer.split(/\\r?\\n\\r?\\n/);
-      buffer = frames.pop() ?? "";
-
-      for (const frame of frames) {
-        const text = readFrameText(frame);
-        if (text) yield text;
-      }
-    }
-
-    buffer += decoder.decode();
-    const text = readFrameText(buffer);
-    if (text) yield text;
-  } finally {
-    reader.releaseLock();
-  }
-}
-
-function readFrameText(frame: string): string {
-  const data = frame
-    .split(/\\r?\\n/)
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice(5).trimStart())
-    .join("\\n")
-    .trim();
-
-  if (!data || data === "[DONE]") return "";
-
-  try {
-    return readDeltaText(JSON.parse(data));
-  } catch {
-    return "";
-  }
-}
-
-function readDeltaText(event: unknown): string {
-  if (!isRecord(event)) return "";
-
-  const choices = event.choices;
-  if (Array.isArray(choices)) {
-    return choices
-      .map((choice) => {
-        if (!isRecord(choice)) return "";
-
-        const delta = choice.delta;
-        if (isRecord(delta) && typeof delta.content === "string") {
-          return delta.content;
-        }
-
-        return typeof choice.text === "string" ? choice.text : "";
-      })
-      .join("");
-  }
-
-  const delta = event.delta;
-  if (typeof delta === "string") return delta;
-  if (isRecord(delta)) {
-    if (typeof delta.text === "string") return delta.text;
-    if (typeof delta.content === "string") return delta.content;
-  }
-
-  const candidates = event.candidates;
-  if (!Array.isArray(candidates)) return "";
-
-  return candidates
-    .map((candidate) => {
-      if (!isRecord(candidate) || !isRecord(candidate.content)) return "";
-      return textFromParts(candidate.content.parts);
-    })
-    .join("");
-}
-
-function textFromParts(parts: unknown): string {
-  if (!Array.isArray(parts)) return "";
-
-  return parts
-    .map((part) => {
-      if (!isRecord(part)) return "";
-      return typeof part.text === "string" ? part.text : "";
-    })
-    .join("");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
+${GATEWAY_TEXT_DECODER}
 
 export default app;`,
 
@@ -473,37 +438,65 @@ export default app;`,
 const schedules = new ScheduleClient();
 const name = "nightly-sync-" + crypto.randomUUID();
 const appUrl = process.env.APP_URL ?? "https://your-app.agentuity.dev";
+let scheduleId: string | undefined;
+let destinationId: string | undefined;
+let summary: {
+  scheduleId: string;
+  destinationCount: number;
+  listed: boolean;
+  deliveries: number;
+  expression: string;
+};
 
-const { schedule, destinations } = await schedules.create({
-  name,
-  description: "Call the sync endpoint every night",
-  expression: "0 2 * * *",
-  destinations: [
-    {
+try {
+  const { schedule, destinations } = await schedules.create({
+    name,
+    description: "Call the sync endpoint every night",
+    expression: "0 2 * * *",
+    destinations: [{
       type: "url",
       config: {
         url: appUrl + "/api/sync",
         method: "POST",
       },
+    }],
+  });
+
+  scheduleId = schedule.id;
+
+  const extraDestination = await schedules.createDestination(schedule.id, {
+    type: "url",
+    config: {
+      url: appUrl + "/api/audit-sync",
+      method: "POST",
     },
-  ],
-});
+  });
+  destinationId = extraDestination.destination.id;
 
-const deliveryHistory = await schedules.listDeliveries(schedule.id, {
-  limit: 10,
-});
+  const fetched = await schedules.get(schedule.id);
+  const page = await schedules.list({ limit: 25 });
+  const deliveryHistory = await schedules.listDeliveries(schedule.id, {
+    limit: 10,
+  });
+  // update() takes partial fields (name, description, expression); changing
+  // the expression recomputes the next run time.
+  const updated = await schedules.update(schedule.id, {
+    expression: "0 3 * * *",
+  });
 
-await schedules.update(schedule.id, {
-  expression: "0 3 * * *",
-});
+  summary = {
+    scheduleId: fetched.schedule.id,
+    destinationCount: fetched.destinations.length,
+    listed: page.schedules.some((item) => item.id === schedule.id),
+    deliveries: deliveryHistory.deliveries.length,
+    expression: updated.schedule.expression,
+  };
+} finally {
+  if (destinationId) await schedules.deleteDestination(destinationId);
+  if (scheduleId) await schedules.delete(scheduleId);
+}
 
-await schedules.delete(schedule.id);
-
-export const summary = {
-  scheduleId: schedule.id,
-  destinations: destinations.length,
-  deliveries: deliveryHistory.deliveries.length,
-};`,
+export { summary };`,
 
 	'durable-stream': `import { StreamClient } from "@agentuity/stream";
 import { AIGatewayClient } from "@agentuity/aigateway";
@@ -514,6 +507,7 @@ const gateway = new AIGatewayClient();
 const durable = await streams.create("ai-summaries", {
   contentType: "text/plain",
   metadata: { source: "nightly-report" },
+  // Seconds; 30 days is the platform default. Pass null to never expire.
   ttl: 60 * 60 * 24 * 30,
 });
 
@@ -530,10 +524,22 @@ const result = await gateway.completeText({
 await durable.write(result.text);
 await durable.close();
 
+const info = await streams.get(durable.id);
+const body = await new Response(await streams.download(durable.id)).text();
+const page = await streams.list({
+  namespace: "ai-summaries",
+  limit: 10,
+});
+
+// Delete the stream after its public URL no longer needs to work:
+// await streams.delete(durable.id);
+
 export const published = {
-  streamId: durable.id,
-  url: durable.url,
+  streamId: info.id,
+  url: info.url,
   bytesWritten: durable.bytesWritten,
+  downloaded: body,
+  listed: page.streams.some((stream) => stream.id === durable.id),
 };`,
 
 	chat: `import { KeyValueClient } from "@agentuity/keyvalue";
@@ -649,11 +655,12 @@ export { data as judgment };`,
 	'ai-gateway': `import { AIGatewayClient } from "@agentuity/aigateway";
 
 const gateway = new AIGatewayClient();
+const MODEL = "openai/gpt-5.4-mini";
 
 const models = await gateway.listModels();
 
-const completion = await gateway.complete({
-  model: "anthropic/claude-opus-4-8",
+const text = await gateway.completeText({
+  model: MODEL,
   messages: [
     {
       role: "user",
@@ -662,10 +669,35 @@ const completion = await gateway.complete({
   ],
 });
 
+const structured = await gateway.completeStructured<{
+  summary: string;
+  category: "agent" | "workflow" | "other";
+}>({
+  model: MODEL,
+  messages: [
+    {
+      role: "user",
+      content: "Classify this: an AI agent can plan and call tools.",
+    },
+  ],
+  response_schema: {
+    name: "agent_classification",
+    schema: {
+      type: "object",
+      properties: {
+        summary: { type: "string" },
+        category: { type: "string", enum: ["agent", "workflow", "other"] },
+      },
+      required: ["summary", "category"],
+      additionalProperties: false,
+    },
+  },
+});
+
 export const result = {
   providers: Object.keys(models),
-  model: completion.model,
-  firstChoice: completion.choices?.[0],
+  text: text.text,
+  structured: structured.data,
 };`,
 
 	websocket: `import { Hono } from "hono";
@@ -768,31 +800,39 @@ export default {
 
 const queues = new QueueClient();
 const queueName = "orders-" + crypto.randomUUID();
+let published: Awaited<ReturnType<typeof queues.publish>> | undefined;
+let created = false;
 
-await queues.createQueue(queueName, {
-  queueType: "worker",
-  settings: {
-    defaultMaxRetries: 3,
-    defaultVisibilityTimeoutSeconds: 30,
-  },
-});
+try {
+  await queues.createQueue(queueName, {
+    queueType: "worker",
+    settings: {
+      defaultMaxRetries: 3,
+      defaultVisibilityTimeoutSeconds: 30,
+    },
+  });
+  created = true;
 
-const published = await queues.publish(queueName, {
-  task: "process-order",
-  orderId: "order-123",
-  priority: "high",
-}, {
-  sync: true,
-  idempotencyKey: "order-123-v1",
-  metadata: { source: "checkout" },
-});
+  published = await queues.publish(queueName, {
+    task: "process-order",
+    orderId: "order-123",
+    priority: "high",
+  }, {
+    sync: true,
+    idempotencyKey: "order-123-v1",
+    metadata: { source: "checkout" },
+  });
 
-await queues.publish(queueName, {
-  task: "send-receipt",
-  orderId: "order-123",
-});
+  await queues.publish(queueName, {
+    task: "send-receipt",
+    orderId: "order-123",
+  });
+} finally {
+  if (created) await queues.deleteQueue(queueName);
+}
 
-await queues.deleteQueue(queueName);
+// Queue workers receive, ack, nack, and dead-letter messages from the
+// Agentuity runtime route, not from the standalone QueueClient.
 
 export { published };`,
 
@@ -801,18 +841,22 @@ export { published };`,
 const email = new EmailClient();
 
 const outbound = await email.send({
-  from: "hello@your-domain.com",
-  to: ["parteek@example.com"],
-  subject: "Hello from Agentuity",
-  text: "This is the plain-text body.",
-  html: "<p>This is the HTML body.</p>",
+  from: "hello-explorer@agentuity.email",
+  to: ["inbox-explorer@agentuity.email"],
+  subject: "Hello from the Agentuity SDK Explorer",
+  text: "This is a demo email from Agentuity's SDK Explorer.",
+  html: "<p>This is a demo email from Agentuity's SDK Explorer, sent with <code>email.send()</code>.</p>",
 });
 
 const latest = await email.getOutbound(outbound.id);
+const outbox = await email.listOutbound();
+const activity = await email.getActivity({ days: 7 });
 
 export const status = {
   outboundId: outbound.id,
   status: latest?.status ?? outbound.status,
+  listed: outbox.some((message) => message.id === outbound.id),
+  activityDays: activity.activity.length,
 };`,
 
 	database: `import { gte, ilike, lt } from "drizzle-orm";

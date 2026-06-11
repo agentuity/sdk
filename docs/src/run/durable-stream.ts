@@ -1,8 +1,8 @@
 /**
  * Standalone run script for Durable Streams demo
  *
- * Writes generated text into a durable stream and returns the shareable URL.
- * The stream keeps the completed output available after the request ends.
+ * Writes generated text into a durable stream, verifies it can be read back,
+ * and returns the shareable URL. The stream is left in place so the URL works.
  *
  * Usage: bun run src/run/durable-stream.ts
  */
@@ -34,20 +34,28 @@ try {
 	await stream.write(result.text);
 	await stream.close();
 
+	const info = await ctx.stream.get(stream.id);
+	const downloaded = await new Response(await ctx.stream.download(stream.id)).text();
+	const page = await ctx.stream.list({ namespace: streamName, limit: 10 });
+
 	writeSandboxOutput(
 		[
 			`Stream created: ${streamName}`,
-			`Stream ID: ${stream.id}`,
+			`Stream ID: ${info.id}`,
 			'',
 			'Content written:',
 			result.text,
 			'',
 			`Bytes written: ${stream.bytesWritten}`,
+			`Downloaded bytes: ${downloaded.length}`,
+			`Listed in namespace: ${page.streams.some((item) => item.id === stream.id) ? 'yes' : 'no'}`,
 			'',
 			'Stream closed',
 			'',
 			'Public URL (shareable):',
-			`  ${stream.url}`,
+			`  ${info.url}`,
+			'',
+			'Delete after sharing is no longer needed with ctx.stream.delete(streamId).',
 		].join('\n')
 	);
 } catch (error) {

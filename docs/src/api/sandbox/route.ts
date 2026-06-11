@@ -12,6 +12,7 @@
  */
 import { sse } from '../http';
 import type { ApiEnv } from '../context';
+import { StructuredError } from '@agentuity/core';
 import {
 	APIClient,
 	sandboxRun,
@@ -22,7 +23,9 @@ import {
 	SandboxNotFoundError,
 	SandboxTerminatedError,
 	type ExecutionStatus,
+	type FileToWrite,
 } from '@agentuity/server';
+import { resolve } from 'node:path';
 import { Writable } from 'node:stream';
 import { SCRIPT_NAMES, SCRIPT_DEFAULTS } from './scripts';
 import {
@@ -54,8 +57,30 @@ const SANDBOX_SERVICE_SCOPES = [
 ];
 // Terminal execution statuses — typed against the SDK enum so drift is caught at compile time
 const TERMINAL_STATUSES = new Set<ExecutionStatus>(['completed', 'failed', 'timeout', 'cancelled']);
+const SandboxScriptFileMissingError = StructuredError('SandboxScriptFileMissingError')<{
+	scriptPath: string;
+	cwd: string;
+}>();
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function loadScriptFiles(scriptPath: string): Promise<FileToWrite[]> {
+	const file = Bun.file(resolve(process.cwd(), scriptPath));
+	if (!(await file.exists())) {
+		throw new SandboxScriptFileMissingError({
+			message: `Bundled demo script not found: ${scriptPath}. Run \`bun run build:run\` before using sandbox demos.`,
+			scriptPath,
+			cwd: process.cwd(),
+		});
+	}
+
+	return [
+		{
+			path: scriptPath,
+			content: new Uint8Array(await file.arrayBuffer()),
+		},
+	];
+}
 
 interface SandboxExecutionResult {
 	readonly exitCode: number;
@@ -206,11 +231,17 @@ const router = new Hono<ApiEnv>().get(
 		if (process.env.DATABASE_URL) envVars.DATABASE_URL = process.env.DATABASE_URL;
 
 		const storageEnv = {
-			AWS_BUCKET: process.env.AWS_BUCKET,
-			AWS_ENDPOINT: process.env.AWS_ENDPOINT,
-			AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
-			AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
-			AWS_REGION: process.env.AWS_REGION,
+			AWS_BUCKET: process.env.AWS_BUCKET ?? process.env.S3_BUCKET,
+			AWS_ENDPOINT: process.env.AWS_ENDPOINT ?? process.env.S3_ENDPOINT,
+			AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ?? process.env.S3_ACCESS_KEY_ID,
+			AWS_SECRET_ACCESS_KEY:
+				process.env.AWS_SECRET_ACCESS_KEY ?? process.env.S3_SECRET_ACCESS_KEY,
+			AWS_REGION: process.env.AWS_REGION ?? process.env.S3_REGION,
+			S3_BUCKET: process.env.S3_BUCKET,
+			S3_ENDPOINT: process.env.S3_ENDPOINT,
+			S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID,
+			S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY,
+			S3_REGION: process.env.S3_REGION,
 		};
 		for (const [key, value] of Object.entries(storageEnv)) {
 			if (value) envVars[key] = value;
@@ -218,12 +249,25 @@ const router = new Hono<ApiEnv>().get(
 
 		const scriptPath = `dist/run/${scriptName}.js`;
 		const command = ['bun', 'run', scriptPath, JSON.stringify(input)];
+		let scriptFiles: FileToWrite[];
+		try {
+			scriptFiles = await loadScriptFiles(scriptPath);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Unknown sandbox setup error';
+			logger?.error('Sandbox setup error', { error });
+			await stream.writeSSE({ event: 'error', data: message });
+			return;
+		}
+		// Sandbox env is fixed at creation, so a reused session sandbox can predate
+		// the linked-bucket AWS_* env (e.g. storage linked after the session began).
+		// Always run the object storage script one-shot so it sees current env.
+		const useInteractiveSandbox = scriptName !== 'objectstore';
 
 		// --- Interactive session path ---
 		try {
 			const threadId = c.var.thread?.id;
 
-			if (threadId) {
+			if (threadId && useInteractiveSandbox) {
 				const kvResult = await c.var.kv.get<string>(SESSION_BUCKET, threadId);
 
 				let sandboxId: string;
@@ -235,7 +279,7 @@ const router = new Hono<ApiEnv>().get(
 					try {
 						await stream.writeSSE({ event: 'status', data: 'running' });
 						const result = await withHeartbeat(stream, () =>
-							executeOnSandbox(client, sandboxId, command, orgId, stream)
+							executeOnSandbox(client, sandboxId, command, scriptFiles, orgId, stream)
 						);
 						await c.var.kv.set(SESSION_BUCKET, threadId, sandboxId, { ttl: SESSION_TTL });
 						await sendExecutionResult(stream, result);
@@ -274,7 +318,7 @@ const router = new Hono<ApiEnv>().get(
 
 				await stream.writeSSE({ event: 'status', data: 'running' });
 				const result = await withHeartbeat(stream, () =>
-					executeOnSandbox(client, sandboxId, command, orgId, stream)
+					executeOnSandbox(client, sandboxId, command, scriptFiles, orgId, stream)
 				);
 				await sendExecutionResult(stream, result);
 				return;
@@ -316,7 +360,7 @@ const router = new Hono<ApiEnv>().get(
 				sandboxRun(client, {
 					options: {
 						snapshot: SNAPSHOT_ID,
-						command: { exec: command },
+						command: { exec: command, files: scriptFiles },
 						network: { enabled: true },
 						timeout: { execution: SANDBOX_EXEC_TIMEOUT },
 						env: envVars,
@@ -370,12 +414,13 @@ async function executeOnSandbox(
 	client: APIClient,
 	sandboxId: string,
 	command: string[],
+	files: FileToWrite[],
 	orgId: string | undefined,
 	sseStream: SSEStream
 ): Promise<SandboxExecutionResult> {
 	const execution = await sandboxExecute(client, {
 		sandboxId,
-		options: { command, timeout: SANDBOX_EXEC_TIMEOUT },
+		options: { command, files, timeout: SANDBOX_EXEC_TIMEOUT },
 		orgId,
 	});
 

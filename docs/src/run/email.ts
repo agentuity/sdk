@@ -50,6 +50,10 @@ try {
 	const input = JSON.parse(process.argv[2] ?? '{"template":"welcome"}');
 	const result = await email.run(input);
 	const outbound = await waitForOutboundStatus(result.id);
+	const [outbox, activity] = await Promise.all([
+		ctx.email.listOutbound(),
+		ctx.email.getActivity({ days: 7 }),
+	]);
 
 	writeSandboxOutput(
 		JSON.stringify(
@@ -58,6 +62,8 @@ try {
 				subject: result.subject,
 				to: result.to,
 				from: result.from,
+				listed: outbox.some((message) => message.id === result.id),
+				activityDays: activity.activity.length,
 			},
 			null,
 			2

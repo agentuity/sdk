@@ -9,7 +9,7 @@
 		"predev": "bun run generate:scripts && bun run generate:schema && bun run scripts/generate-api-reference.ts && bun run scripts/generate-nav-data.ts && bun run scripts/validate-routes.ts && bun run scripts/generate-markdown-files.ts",
 		"prebuild": "bun run generate:scripts && bun run generate:schema && bun run scripts/generate-api-reference.ts && bun run scripts/generate-nav-data.ts && bun run scripts/validate-routes.ts && bun run scripts/generate-markdown-files.ts",
 		"predeploy": "cd ../ && bun install --frozen-lockfile && bun run build && cd docs && bun run prebuild",
-		"build": "vite build && bun run scripts/prepare-start-output.ts",
+		"build": "vite build && bun run build:run && bun run scripts/prepare-start-output.ts",
 		"dev": "bun run scripts/dev.ts",
 		"dev:web": "vite dev --port 3000",
 		"server:api": "PORT=3001 bun --hot src/api/dev-server.ts",

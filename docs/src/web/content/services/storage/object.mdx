@@ -25,8 +25,8 @@ const summary = JSON.parse(await file.text()) as { month: string; total: number 
 
 `storage.file()` creates a lazy file reference. Network work starts when you read, write, check metadata, delete, or stream the file.
 
-<Callout type="info" title="Use the package unless you need Bun-only APIs">
-`@agentuity/storage` uses Bun's S3 client under Bun and the AWS SDK under Node.js. Use Bun's native `S3Client` directly when you need Bun-only helpers such as `presign()`.
+<Callout type="info" title="Use the package unless you need presigned URLs">
+`@agentuity/storage` uses Bun's S3 client under Bun and the AWS SDK under Node.js. Today, use Bun's native `S3Client` directly when you need presigned URLs from a Bun route.
 </Callout>
 
 ## Setup
@@ -108,18 +108,21 @@ await storage.write('users/user_123/avatar.png', response.body ?? await response
 });
 
 const avatar = storage.file('users/user_123/avatar.png');
-try {
-  const bytes = await avatar.arrayBuffer();
-  const contentType = avatar.type;
-  // bytes is ArrayBuffer; contentType is the stored MIME type
-  void bytes;
-  void contentType;
-} catch (error) {
-  // Object not found or storage service error.
-  throw error;
-}
+
+// arrayBuffer() throws if the object is missing; type is the stored MIME type.
+const bytes = await avatar.arrayBuffer();
+console.log(`avatar: ${bytes.byteLength} bytes (${avatar.type})`);
 
 await storage.delete('users/user_123/avatar.png');
+```
+
+List objects under a prefix to enumerate what you stored:
+
+```typescript
+const result = await storage.list({ prefix: 'users/', maxKeys: 100 });
+for (const object of result.contents) {
+  console.log(object.key, object.size);
+}
 ```
 
 For large files, pass a stream instead of holding the whole payload in memory:
@@ -174,12 +177,21 @@ Use the explicit `/node` import for Node.js framework routes. In Bun-native rout
 
 ## Presigned URLs
 
-Generate presigned URLs from Bun server code when clients should upload or download directly. Bun's S3 API can read the `AWS_*` values written by `agentuity project add storage`, so a linked Agentuity bucket works without extra mapping.
+Generate presigned URLs from Bun server code when clients should upload or download directly. `@agentuity/storage` does not expose `presign()` yet, so create a Bun `S3Client` with the same bucket config.
 
 ```typescript
 import { S3Client } from 'bun';
+import { bucketConfigFromEnv } from '@agentuity/storage';
+import { resolveEndpoint } from '@agentuity/storage/types';
 
-const s3 = new S3Client();
+const bucket = bucketConfigFromEnv();
+const s3 = new S3Client({
+  endpoint: resolveEndpoint(bucket),
+  accessKeyId: bucket.access_key,
+  secretAccessKey: bucket.secret_key,
+  region: bucket.region ?? 'auto',
+  virtualHostedStyle: true,
+});
 
 const downloadUrl = s3.presign('reports/monthly-summary.json', {
   method: 'GET',
@@ -193,7 +205,7 @@ const uploadUrl = s3.presign('uploads/invoice.pdf', {
 });
 ```
 
-`presign()` is synchronous. It signs a URL from local credentials and does not call S3.
+`presign()` is synchronous. It signs a URL from local credentials and does not call S3. In Node.js routes, use `@aws-sdk/s3-request-presigner` with `@aws-sdk/client-s3`.
 
 For browser uploads, configure CORS on the bucket or the browser will reject the direct `PUT`. Allow the origin that hosts your app, the `PUT` method, and the headers your upload sends, especially `Content-Type`. Keep the presigned route server-side so bucket credentials never leave your app.
 
@@ -203,10 +215,19 @@ Keep browser uploads direct to S3 by returning a short-lived upload URL from you
 
 ```typescript title="src/index.ts"
 import { S3Client } from 'bun';
+import { bucketConfigFromEnv } from '@agentuity/storage';
+import { resolveEndpoint } from '@agentuity/storage/types';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-const s3 = new S3Client();
+const bucket = bucketConfigFromEnv();
+const s3 = new S3Client({
+  endpoint: resolveEndpoint(bucket),
+  accessKeyId: bucket.access_key,
+  secretAccessKey: bucket.secret_key,
+  region: bucket.region ?? 'auto',
+  virtualHostedStyle: true,
+});
 
 const uploadRequestSchema = z.object({
   filename: z.string(),
@@ -257,7 +278,7 @@ The download route returns a short-lived redirect. The file does not flow throug
 
 ## Custom S3 Clients
 
-Use `S3Client` when you need Bun-only helpers, a specific bucket, an external S3-compatible service, or explicit credentials.
+Use `S3Client` when you need Bun-only helpers, a specific bucket, an external S3-compatible service, or explicit credentials. For Agentuity-managed buckets, prefer `bucketConfigFromEnv()` with the linked `AWS_*` values.
 
 ```typescript
 import { S3Client } from 'bun';
@@ -273,17 +294,17 @@ function requireEnv(name: string): string {
 }
 
 const uploads = new S3Client({
-  bucket: requireEnv('S3_BUCKET'),
-  endpoint: requireEnv('S3_ENDPOINT'),
-  accessKeyId: requireEnv('S3_ACCESS_KEY_ID'),
-  secretAccessKey: requireEnv('S3_SECRET_ACCESS_KEY'),
-  region: process.env.S3_REGION ?? 'us-east-1',
+  bucket: requireEnv('UPLOADS_BUCKET'),
+  endpoint: requireEnv('UPLOADS_ENDPOINT'),
+  accessKeyId: requireEnv('UPLOADS_ACCESS_KEY_ID'),
+  secretAccessKey: requireEnv('UPLOADS_SECRET_ACCESS_KEY'),
+  region: process.env.UPLOADS_REGION ?? 'us-east-1',
 });
 
 await uploads.write('healthcheck.txt', 'ok', { type: 'text/plain' });
 ```
 
-For Agentuity-managed buckets, `new S3Client()` can read the linked `AWS_*` values from the environment. For other providers, pass that provider's bucket, endpoint, and credentials explicitly.
+`UPLOADS_*` is app-owned configuration in this example, not an Agentuity-managed credential name. For other providers, pass that provider's bucket, endpoint, and credentials explicitly.
 
 ## Next Steps
 
