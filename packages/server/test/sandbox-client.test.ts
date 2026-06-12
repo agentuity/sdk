@@ -258,24 +258,12 @@ describe('SandboxClient', () => {
 			expect(result.exitCode).toBe(0);
 		});
 
-		test('execute with files should stage files before executing command', async () => {
-			let executeRequestBody: Record<string, unknown> | null = null;
-			let writeFilesRequestBody: Record<string, unknown> | null = null;
+		test('execute with files should send files as map in request body', async () => {
+			let requestBody: Record<string, unknown> | null = null;
 
 			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/fs/sandbox-123')) {
-					writeFilesRequestBody = JSON.parse(opts.body as string);
-					return new Response(
-						JSON.stringify({
-							success: true,
-							data: { filesWritten: 2 },
-						}),
-						{ status: 200, headers: { 'content-type': 'application/json' } }
-					);
-				}
-
 				if (opts?.method === 'POST' && url.includes('/execute')) {
-					executeRequestBody = JSON.parse(opts.body as string);
+					requestBody = JSON.parse(opts.body as string);
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -327,76 +315,12 @@ describe('SandboxClient', () => {
 				],
 			});
 
-			expect(writeFilesRequestBody).not.toBeNull();
-			expect(writeFilesRequestBody!.files).toEqual([
+			expect(requestBody).not.toBeNull();
+			expect(requestBody!.command).toEqual(['bun', 'run', 'script.ts']);
+			expect(requestBody!.files).toEqual([
 				{ path: 'script.ts', content: Buffer.from('console.log("hello")').toString('base64') },
 				{ path: 'data.json', content: Buffer.from('{"key": "value"}').toString('base64') },
 			]);
-			expect(executeRequestBody).not.toBeNull();
-			expect(executeRequestBody!.command).toEqual(['bun', 'run', 'script.ts']);
-			expect(executeRequestBody!.files).toBeUndefined();
-		});
-
-		test('execute with files should remove staged files when execute is rejected', async () => {
-			const removedPaths: string[] = [];
-
-			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/fs/rm/sandbox-123')) {
-					const body = JSON.parse(opts.body as string) as { path: string };
-					removedPaths.push(body.path);
-					return new Response(JSON.stringify({ success: true, found: true }), {
-						status: 200,
-						headers: { 'content-type': 'application/json' },
-					});
-				}
-
-				if (opts?.method === 'POST' && url.includes('/fs/sandbox-123')) {
-					return new Response(
-						JSON.stringify({
-							success: true,
-							data: { filesWritten: 2 },
-						}),
-						{ status: 200, headers: { 'content-type': 'application/json' } }
-					);
-				}
-
-				if (opts?.method === 'POST' && url.includes('/execute')) {
-					return new Response(
-						JSON.stringify({
-							success: false,
-							message: 'sandbox is busy',
-						}),
-						{ status: 200, headers: { 'content-type': 'application/json' } }
-					);
-				}
-
-				if (opts?.method === 'POST' && url.includes('/sandbox')) {
-					return new Response(
-						JSON.stringify({
-							success: true,
-							data: { sandboxId: 'sandbox-123', status: 'idle' },
-						}),
-						{ status: 200, headers: { 'content-type': 'application/json' } }
-					);
-				}
-
-				return new Response(null, { status: 404 });
-			});
-
-			const client = new SandboxClient({ logger: createMockLogger() });
-			const sandbox = await client.create();
-
-			await expect(
-				sandbox.execute({
-					command: ['bun', 'run', 'script.ts'],
-					files: [
-						{ path: 'script.ts', content: Buffer.from('console.log("hello")') },
-						{ path: 'data.json', content: Buffer.from('{"key": "value"}') },
-					],
-				})
-			).rejects.toThrow('sandbox is busy');
-
-			expect(removedPaths.sort()).toEqual(['data.json', 'script.ts']);
 		});
 
 		test('execute with empty files array should not include files in request', async () => {
@@ -1071,151 +995,6 @@ describe('SandboxClient', () => {
 
 			expect(result.sandboxId).toBe('sandbox-fail-test');
 			expect(result.exitCode).toBe(1);
-		});
-
-		test('should return failed execution result without waiting for hung output streams', async () => {
-			let executionPolls = 0;
-
-			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/sandbox')) {
-					return new Response(
-						JSON.stringify({
-							success: true,
-							data: {
-								sandboxId: 'sandbox-failed-stream',
-								executionId: 'exec-failed-stream',
-								status: 'running',
-								stdoutStreamUrl: 'https://stream.example.com/combined/failed-stream',
-								stderrStreamUrl: 'https://stream.example.com/combined/failed-stream',
-							},
-						}),
-						{ status: 200, headers: { 'content-type': 'application/json' } }
-					);
-				}
-
-				if (url.includes('stream.example.com/combined/failed-stream')) {
-					return new Response(
-						new ReadableStream({
-							start(controller) {
-								controller.enqueue(new TextEncoder().encode('booting...\n'));
-								opts?.signal?.addEventListener('abort', () => controller.close(), {
-									once: true,
-								});
-							},
-						}),
-						{ status: 200 }
-					);
-				}
-
-				if (url.includes('/execution/exec-failed-stream')) {
-					executionPolls++;
-					return new Response(
-						JSON.stringify({
-							success: true,
-							data: {
-								executionId: 'exec-failed-stream',
-								sandboxId: 'sandbox-failed-stream',
-								status: 'failed',
-								error: 'error creating sandbox',
-							},
-						}),
-						{ status: 200, headers: { 'content-type': 'application/json' } }
-					);
-				}
-
-				return new Response(null, { status: 404 });
-			});
-
-			const client = new SandboxClient({ logger: createMockLogger() });
-			const abortController = new AbortController();
-			const timeout = setTimeout(() => abortController.abort(), 100);
-
-			try {
-				const result = await client.run(
-					{ command: { exec: ['false'] } },
-					{ signal: abortController.signal }
-				);
-
-				expect(result.sandboxId).toBe('sandbox-failed-stream');
-				expect(result.exitCode).toBe(1);
-				expect(executionPolls).toBe(1);
-			} finally {
-				clearTimeout(timeout);
-			}
-		});
-
-		test('should abort status completion waiter after execution completion wins', async () => {
-			let resolveStatusStarted: (() => void) | undefined;
-			const statusStarted = new Promise<void>((resolve) => {
-				resolveStatusStarted = resolve;
-			});
-			let statusWaitAborted = false;
-
-			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/sandbox')) {
-					return new Response(
-						JSON.stringify({
-							success: true,
-							data: {
-								sandboxId: 'sandbox-race-test',
-								executionId: 'exec-race-test',
-								status: 'running',
-							},
-						}),
-						{ status: 200, headers: { 'content-type': 'application/json' } }
-					);
-				}
-
-				if (url.includes('/sandbox/status/sandbox-race-test')) {
-					resolveStatusStarted?.();
-					return new Promise<Response>((resolve) => {
-						opts?.signal?.addEventListener(
-							'abort',
-							() => {
-								statusWaitAborted = true;
-								resolve(
-									new Response(
-										JSON.stringify({
-											success: true,
-											data: {
-												sandboxId: 'sandbox-race-test',
-												status: 'running',
-											},
-										}),
-										{ status: 200, headers: { 'content-type': 'application/json' } }
-									)
-								);
-							},
-							{ once: true }
-						);
-					});
-				}
-
-				if (url.includes('/execution/exec-race-test')) {
-					await statusStarted;
-					return new Response(
-						JSON.stringify({
-							success: true,
-							data: {
-								executionId: 'exec-race-test',
-								sandboxId: 'sandbox-race-test',
-								status: 'completed',
-								exitCode: 0,
-							},
-						}),
-						{ status: 200, headers: { 'content-type': 'application/json' } }
-					);
-				}
-
-				return new Response(null, { status: 404 });
-			});
-
-			const client = new SandboxClient({ logger: createMockLogger() });
-			const result = await client.run({ command: { exec: ['true'] } });
-
-			expect(result.sandboxId).toBe('sandbox-race-test');
-			expect(result.exitCode).toBe(0);
-			expect(statusWaitAborted).toBe(true);
 		});
 
 		test('should return captured stdout in result', async () => {

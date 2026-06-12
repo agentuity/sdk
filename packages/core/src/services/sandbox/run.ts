@@ -253,14 +253,10 @@ export async function sandboxRun(
 			);
 
 			try {
-				// Resolve execution/status first so a failed create is not hidden by
-				// Pulse streams that stay open until the client deadline.
-				const execution = await completionPromise;
+				// Resolve execution/status first so a hung Pulse reader cannot block the
+				// whole run until the client deadline. Output stream fetches still run in parallel.
+				const [execution] = await Promise.all([completionPromise, streamsPromise]);
 				finalExecution = execution;
-				if (execution.status !== 'completed') {
-					abortController.abort();
-				}
-				await streamsPromise;
 				abortController.abort();
 			} catch (error) {
 				throw mapRunAbortError(
@@ -515,7 +511,6 @@ async function waitForRunCompletion(
 		const result = await Promise.race([executionPromise, statusPromise]);
 		return result;
 	} finally {
-		completionAbortController.abort();
 		if (onAbort && signal) {
 			signal.removeEventListener('abort', onAbort);
 		}

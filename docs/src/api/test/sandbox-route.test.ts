@@ -35,9 +35,15 @@ interface SandboxExecuteParams {
 	};
 }
 
+interface SandboxWriteFilesParams {
+	readonly sandboxId: string;
+	readonly files: readonly unknown[];
+}
+
 const sandboxRunCalls: SandboxRunParams[] = [];
 const sandboxCreateCalls: SandboxCreateParams[] = [];
 const sandboxExecuteCalls: SandboxExecuteParams[] = [];
+const sandboxWriteFilesCalls: SandboxWriteFilesParams[] = [];
 const createdScriptPaths: string[] = [];
 const storageEnvNames = [
 	'AWS_BUCKET',
@@ -81,6 +87,11 @@ const sandboxExecuteMock = mock(async (_client: unknown, params: SandboxExecuteP
 	return { executionId: 'execution_1' };
 });
 
+const sandboxWriteFilesMock = mock(async (_client: unknown, params: SandboxWriteFilesParams) => {
+	sandboxWriteFilesCalls.push(params);
+	return { filesWritten: params.files.length };
+});
+
 const executionGetMock = mock(async () => ({
 	status: 'completed',
 	exitCode: 0,
@@ -98,6 +109,7 @@ mock.module('@agentuity/server', () => ({
 	getServiceUrls: () => ({ sandbox: 'https://sandbox.test' }),
 	sandboxCreate: sandboxCreateMock,
 	sandboxExecute: sandboxExecuteMock,
+	sandboxWriteFiles: sandboxWriteFilesMock,
 	sandboxRun: sandboxRunMock,
 }));
 
@@ -225,6 +237,7 @@ test('sandbox route completes one-shot execution without storage credentials for
 test('sandbox route completes interactive execution without storage credentials for non-storage scripts', async () => {
 	sandboxCreateCalls.length = 0;
 	sandboxExecuteCalls.length = 0;
+	sandboxWriteFilesCalls.length = 0;
 
 	const response = await createApp({ interactive: true }).fetch(
 		new Request('http://docs.test/api/sandbox/run?script=hello')
@@ -235,9 +248,11 @@ test('sandbox route completes interactive execution without storage credentials 
 	expect(body).toContain('event: status');
 	expect(body).toContain('event: done');
 	expect(sandboxCreateCalls).toHaveLength(1);
+	expect(sandboxWriteFilesCalls).toHaveLength(1);
 	expect(sandboxExecuteCalls).toHaveLength(1);
 	expect(storageEnvKeys(sandboxCreateCalls[0]?.options.env)).toEqual([]);
-	expect(sandboxExecuteCalls[0]?.options.files).toHaveLength(1);
+	expect(sandboxWriteFilesCalls[0]?.files).toHaveLength(1);
+	expect(sandboxExecuteCalls[0]?.options.files).toBeUndefined();
 });
 
 test('sandbox route passes object storage credentials as S3 env only', async () => {
