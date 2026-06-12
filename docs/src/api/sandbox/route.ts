@@ -82,6 +82,49 @@ async function loadScriptFiles(scriptPath: string): Promise<FileToWrite[]> {
 	];
 }
 
+function firstEnvValue(...values: Array<string | undefined>): string | undefined {
+	return values.find((value) => value && value.trim() !== '');
+}
+
+function firstReusableCredential(...values: Array<string | undefined>): string | undefined {
+	return values.find((value) => value && value.trim() !== '' && !value.trim().startsWith('ags-'));
+}
+
+function objectStorageEnv(): Record<string, string> | undefined {
+	const bucket = firstEnvValue(process.env.S3_BUCKET, process.env.AWS_BUCKET);
+	const endpoint = firstEnvValue(process.env.S3_ENDPOINT, process.env.AWS_ENDPOINT);
+	const accessKeyId = firstReusableCredential(
+		process.env.S3_ACCESS_KEY_ID,
+		process.env.AWS_ACCESS_KEY_ID
+	);
+	const secretAccessKey = firstReusableCredential(
+		process.env.S3_SECRET_ACCESS_KEY,
+		process.env.AWS_SECRET_ACCESS_KEY
+	);
+
+	if (!bucket || !endpoint || !accessKeyId || !secretAccessKey) return undefined;
+
+	const storageEnv: Record<string, string> = {
+		S3_BUCKET: bucket,
+		S3_ENDPOINT: endpoint,
+		S3_ACCESS_KEY_ID: accessKeyId,
+		S3_SECRET_ACCESS_KEY: secretAccessKey,
+	};
+	const region = firstEnvValue(process.env.S3_REGION, process.env.AWS_REGION);
+	if (region) storageEnv.S3_REGION = region;
+
+	return storageEnv;
+}
+
+function copyObjectStorageEnv(envVars: Record<string, string>): void {
+	const storageEnv = objectStorageEnv();
+	if (!storageEnv) return;
+
+	for (const [key, value] of Object.entries(storageEnv)) {
+		envVars[key] = value;
+	}
+}
+
 interface SandboxExecutionResult {
 	readonly exitCode: number;
 	readonly error?: string;
@@ -230,23 +273,6 @@ const router = new Hono<ApiEnv>().get(
 			envVars.AGENTUITY_CLOUD_DEPLOYMENT_ID = process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID;
 		if (process.env.DATABASE_URL) envVars.DATABASE_URL = process.env.DATABASE_URL;
 
-		const storageEnv = {
-			AWS_BUCKET: process.env.AWS_BUCKET ?? process.env.S3_BUCKET,
-			AWS_ENDPOINT: process.env.AWS_ENDPOINT ?? process.env.S3_ENDPOINT,
-			AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ?? process.env.S3_ACCESS_KEY_ID,
-			AWS_SECRET_ACCESS_KEY:
-				process.env.AWS_SECRET_ACCESS_KEY ?? process.env.S3_SECRET_ACCESS_KEY,
-			AWS_REGION: process.env.AWS_REGION ?? process.env.S3_REGION,
-			S3_BUCKET: process.env.S3_BUCKET,
-			S3_ENDPOINT: process.env.S3_ENDPOINT,
-			S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID,
-			S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY,
-			S3_REGION: process.env.S3_REGION,
-		};
-		for (const [key, value] of Object.entries(storageEnv)) {
-			if (value) envVars[key] = value;
-		}
-
 		const scriptPath = `dist/run/${scriptName}.js`;
 		const command = ['bun', 'run', scriptPath, JSON.stringify(input)];
 		let scriptFiles: FileToWrite[];
@@ -258,8 +284,14 @@ const router = new Hono<ApiEnv>().get(
 			await stream.writeSSE({ event: 'error', data: message });
 			return;
 		}
-		// Sandbox env is fixed at creation, so a reused session sandbox can predate
-		// the linked-bucket AWS_* env (e.g. storage linked after the session began).
+
+		if (scriptName === 'objectstore') {
+			// Some deployment-provided AWS_* values are scoped to the parent runtime
+			// and cannot be reused inside a child sandbox. Forward only reusable
+			// S3_* credentials for the object-storage demo.
+			copyObjectStorageEnv(envVars);
+		}
+
 		// Always run the object storage script one-shot so it sees current env.
 		const useInteractiveSandbox = scriptName !== 'objectstore';
 

@@ -2,7 +2,7 @@ import type { ExecuteOptions, Execution, ExecutionStatus } from './types.ts';
 import { z } from 'zod';
 import type { APIClient } from '../api.ts';
 import { SandboxBusyError, SandboxNotFoundError, throwSandboxError } from './util.ts';
-import { base64Encode } from './base64.ts';
+import { sandboxWriteFiles } from './files.ts';
 
 export const ExecuteRequestSchema = z
 	.object({
@@ -86,10 +86,12 @@ export async function sandboxExecute(
 	};
 
 	if (options.files && options.files.length > 0) {
-		body.files = options.files.map((f) => ({
-			path: f.path,
-			content: base64Encode(f.content),
-		}));
+		await sandboxWriteFiles(client, {
+			sandboxId,
+			files: options.files,
+			orgId,
+			signal: signal ?? options.signal,
+		});
 	}
 	if (options.timeout) {
 		body.timeout = options.timeout;
