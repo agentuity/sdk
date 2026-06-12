@@ -515,6 +515,7 @@ async function waitForRunCompletion(
 		const result = await Promise.race([executionPromise, statusPromise]);
 		return result;
 	} finally {
+		completionAbortController.abort();
 		if (onAbort && signal) {
 			signal.removeEventListener('abort', onAbort);
 		}
