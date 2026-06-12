@@ -1,8 +1,10 @@
-import type { ExecuteOptions, Execution, ExecutionStatus } from './types.ts';
+import type { ExecuteOptions, Execution, ExecutionStatus, FileToWrite } from './types.ts';
 import { z } from 'zod';
 import type { APIClient } from '../api.ts';
 import { SandboxBusyError, SandboxNotFoundError, throwSandboxError } from './util.ts';
-import { base64Encode } from './base64.ts';
+import { sandboxRmFile, sandboxWriteFiles } from './files.ts';
+
+const EXECUTE_FILE_ROLLBACK_TIMEOUT_MS = 5_000;
 
 export const ExecuteRequestSchema = z
 	.object({
@@ -68,6 +70,47 @@ export const SandboxExecuteParamsSchema = z.object({
 
 export type SandboxExecuteParams = z.infer<typeof SandboxExecuteParamsSchema>;
 
+function createRollbackSignal(): { readonly signal: AbortSignal; readonly cleanup: () => void } {
+	if (typeof AbortSignal.timeout === 'function') {
+		return { signal: AbortSignal.timeout(EXECUTE_FILE_ROLLBACK_TIMEOUT_MS), cleanup() {} };
+	}
+
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), EXECUTE_FILE_ROLLBACK_TIMEOUT_MS);
+	return {
+		signal: controller.signal,
+		cleanup() {
+			clearTimeout(timer);
+		},
+	};
+}
+
+async function cleanupStagedExecuteFiles(
+	client: APIClient,
+	params: {
+		readonly sandboxId: string;
+		readonly files: readonly FileToWrite[];
+		readonly orgId: string | undefined;
+	}
+): Promise<void> {
+	const { sandboxId, files, orgId } = params;
+	const rollback = createRollbackSignal();
+	try {
+		await Promise.allSettled(
+			files.map((file) =>
+				sandboxRmFile(client, {
+					sandboxId,
+					path: file.path,
+					orgId,
+					signal: rollback.signal,
+				})
+			)
+		);
+	} finally {
+		rollback.cleanup();
+	}
+}
+
 /**
  * Executes a command in an existing sandbox.
  *
@@ -84,12 +127,16 @@ export async function sandboxExecute(
 	const body: z.infer<typeof ExecuteRequestSchema> = {
 		command: options.command,
 	};
+	let stagedFiles: readonly FileToWrite[] | undefined;
 
 	if (options.files && options.files.length > 0) {
-		body.files = options.files.map((f) => ({
-			path: f.path,
-			content: base64Encode(f.content),
-		}));
+		await sandboxWriteFiles(client, {
+			sandboxId,
+			files: options.files,
+			orgId,
+			signal: signal ?? options.signal,
+		});
+		stagedFiles = options.files;
 	}
 	if (options.timeout) {
 		body.timeout = options.timeout;
@@ -115,6 +162,9 @@ export async function sandboxExecute(
 			signal ?? options.signal
 		);
 	} catch (error: unknown) {
+		if (stagedFiles) {
+			await cleanupStagedExecuteFiles(client, { sandboxId, files: stagedFiles, orgId });
+		}
 		if (
 			error &&
 			typeof error === 'object' &&
@@ -163,5 +213,8 @@ export async function sandboxExecute(
 		};
 	}
 
+	if (stagedFiles) {
+		await cleanupStagedExecuteFiles(client, { sandboxId, files: stagedFiles, orgId });
+	}
 	throwSandboxError(resp, { sandboxId });
 }
