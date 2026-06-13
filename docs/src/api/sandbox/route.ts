@@ -18,6 +18,7 @@ import {
 	sandboxRun,
 	sandboxCreate,
 	sandboxExecute,
+	sandboxWriteFiles,
 	executionGet,
 	getServiceUrls,
 	SandboxNotFoundError,
@@ -450,9 +451,15 @@ async function executeOnSandbox(
 	orgId: string | undefined,
 	sseStream: SSEStream
 ): Promise<SandboxExecutionResult> {
+	await sandboxWriteFiles(client, {
+		sandboxId,
+		files,
+		orgId,
+	});
+
 	const execution = await sandboxExecute(client, {
 		sandboxId,
-		options: { command, files, timeout: SANDBOX_EXEC_TIMEOUT },
+		options: { command, timeout: SANDBOX_EXEC_TIMEOUT },
 		orgId,
 	});
 
