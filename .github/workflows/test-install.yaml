@@ -57,7 +57,31 @@ jobs:
               git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed-files.txt
               cat changed-files.txt
 
-              if grep -E '^(install\.sh|scripts/test-install\.sh|scripts/test-bun-check\.sh|packages/cli/|\.github/workflows/test-install\.yaml)' changed-files.txt > /dev/null; then
+              should_run=false
+
+              if grep -E '^(install\.sh|scripts/test-install\.sh|scripts/test-bun-check\.sh|\.github/workflows/test-install\.yaml)' changed-files.txt > /dev/null; then
+                should_run=true
+                echo "Install script/workflow files changed."
+              fi
+
+              if grep '^packages/cli/' changed-files.txt > /dev/null; then
+                while IFS= read -r file; do
+                  case "$file" in
+                    packages/cli/package.json)
+                      if git diff "$BASE_SHA" "$HEAD_SHA" -- "$file" | grep '^[+-]' | grep -v '"version"' | grep -qv '^[+-]\{3\}'; then
+                        should_run=true
+                        echo "packages/cli/package.json changed beyond version field."
+                      fi
+                      ;;
+                    *)
+                      should_run=true
+                      echo "Install-related CLI file changed: $file"
+                      ;;
+                  esac
+                done < <(grep '^packages/cli/' changed-files.txt)
+              fi
+
+              if [ "$should_run" = true ]; then
                 echo "should-run=true" >> "$GITHUB_OUTPUT"
                 echo "Install-related files changed; running install tests."
               else
@@ -210,7 +234,10 @@ jobs:
 
               if [ -n "${SETUP:-}" ]; then
                 echo "Running setup commands..."
-                eval "$SETUP" > /dev/null 2>&1
+                if ! eval "$SETUP"; then
+                  echo "❌ Distro setup failed"
+                  exit 1
+                fi
               fi
 
               install_node() {
@@ -296,7 +323,7 @@ jobs:
               run_distro 'Ubuntu 22.04' 'ubuntu:22.04@sha256:14be402d3f1eeeb5e7da73d3260322c68e7b51c88388f53e88eb21d6450bd520' 'apt-get update -qq && apt-get install -y -qq curl unzip xz-utils'
               run_distro 'Ubuntu 20.04' 'ubuntu:20.04@sha256:c664f8f86ed5a386b0a340d981b8f81714e21a8b9c73f658c4bea56aa179d54a' 'apt-get update -qq && apt-get install -y -qq curl unzip xz-utils'
               run_distro 'Fedora Latest' 'fedora:latest@sha256:f717d3f59ea0dc45d3c024c9477e786bab7d418d26636920d17b48016f1e69ca' 'dnf install -y -q curl unzip xz'
-              run_distro 'Amazon Linux 2023' 'amazonlinux:2023@sha256:41e9b88745672d658868717255dcccbe531d82b88d6dd0ce5de04530b38b35fa' 'yum install -y -q curl gzip unzip xz'
+              run_distro 'Amazon Linux 2023' 'amazonlinux:2023@sha256:41e9b88745672d658868717255dcccbe531d82b88d6dd0ce5de04530b38b35fa' 'yum install -y -q gzip tar unzip xz'
 
    test-bun-checks:
       name: Bun version checks
