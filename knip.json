@@ -59,7 +59,6 @@
 		"packages/postgres",
 		"packages/drizzle",
 		"packages/schema",
-		"packages/local",
 		"packages/vscode",
 		"packages/claude-code",
 		"packages/opencode"

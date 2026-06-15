@@ -84,7 +84,6 @@ The structure of this mono repository:
 ### Framework integration
 
 - `packages/hono` — Hono middleware for Agentuity service injection
-- `packages/local` — Local development services (Bun SQLite, fallback when no SDK key)
 - `packages/migrate` — v1→v2 and v2→v3 migration tooling
 
 ### Internal

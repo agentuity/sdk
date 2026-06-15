@@ -19,7 +19,6 @@
 		{ "path": "./packages/email" },
 		{ "path": "./packages/hono" },
 		{ "path": "./packages/keyvalue" },
-		{ "path": "./packages/local" },
 		{ "path": "./packages/migrate" },
 		{ "path": "./packages/opencode" },
 		{ "path": "./packages/pi" },

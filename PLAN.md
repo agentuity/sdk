@@ -19,7 +19,6 @@ package should not pull in the full core service catalog (~60k+ LOC under
 - Shared HTTP/client infrastructure currently duplicated across service packages
 - CLI cloud command utils that import `*StorageService` from core
 - Docs API reference generator paths (`packages/core/src/services/*/api-reference.ts`)
-- `@agentuity/local` imports of service types from core
 - In-repo migration off internal `@agentuity/core/{service}` import paths (not a supported app surface)
 
 ### Out (for now)
@@ -131,7 +130,6 @@ import { KeyValueClient } from '@agentuity/keyvalue';
 ### Phase 2 — Pilot: `@agentuity/keyvalue`
 
 - [x] Move `packages/core/src/services/keyvalue/*` → `packages/keyvalue/src/` (service + types; core copy retained until shim bootstrap solved)
-- [x] Update `@agentuity/local` to import types from `@agentuity/keyvalue`
 - [x] Update CLI `packages/cli/src/cmd/cloud/keyvalue/util.ts`
 - [ ] Point docs API reference generator at keyvalue package
 - [x] Add core shim: `export * from '@agentuity/keyvalue'` (duplicate service/types removed; api-reference stays in core until docs move)
@@ -192,8 +190,7 @@ only. Ready to publish as **3.1.0** once remaining CLI/docs cleanup and verifica
 
 - [x] Monorepo typecheck, test, and publish order verified (`bun run all` passed 2026-06-15)
 - [ ] Changelog: internal refactor + new packages; **no** required import changes on supported app paths (generated at publish via `scripts/publish.ts`)
-- [x] No remaining in-repo imports of `@agentuity/core/{service}` from CLI, local, docs, or tests (grep clean; comments/docs examples excepted)
-- [x] `@agentuity/local` uses `@agentuity/{service}` for storage interfaces
+- [x] No remaining in-repo imports of `@agentuity/core/{service}` from CLI, docs, or tests (grep clean; comments/docs examples excepted)
 - [x] `@agentuity/server` uses `@agentuity/api` for platform HTTP (not `@agentuity/core/api`)
 - [x] CLI uses `@agentuity/server` + `@agentuity/{service}` for supported paths (foundation types from `@agentuity/core` OK)
 

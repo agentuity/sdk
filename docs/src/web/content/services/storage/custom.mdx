@@ -132,21 +132,8 @@ class MemorySessionStore implements SessionStore {
 }
 ```
 
-For Bun-only local storage checks, `@agentuity/local` exports local implementations backed by `~/.config/agentuity/local.db`.
-
-```typescript
-import { LocalKeyValueStorage, getLocalDB } from '@agentuity/local';
-
-const localKv = new LocalKeyValueStorage(getLocalDB(), process.cwd());
-
-await localKv.set('sessions', 'session_123', {
-  userId: 'user_123',
-  email: 'ada@example.com',
-});
-```
-
-<Callout type="info" title="Local implementations are Bun-only checks">
-Local storage is useful for constructor and API-shape tests. Validate managed-service behavior, search relevance, TTLs, and permissions against the managed service before relying on those details.
+<Callout type="info" title="Validate against the managed service">
+In-memory or mock implementations are useful for constructor and API-shape tests. Validate managed-service behavior, search relevance, TTLs, and permissions against the managed service before relying on those details.
 </Callout>
 
 ## Next Steps
