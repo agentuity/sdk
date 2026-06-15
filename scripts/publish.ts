@@ -83,12 +83,7 @@ Required Tools:
   opencode             OpenCode CLI for release notes generation
 
 npm Authentication:
-  npm publish no longer accepts OTP codes from authenticator apps.
-  Export an npm automation token before running this script:
-
-    export NPM_TOKEN=npm_...
-
-  Create tokens at https://www.npmjs.com/settings/~/tokens
+  Run \`npm login\` before publishing. Optionally set \`NPM_TOKEN\` for CI.
 
 Examples:
   bun scripts/publish.ts                 # Publish to npm (interactive)
@@ -378,26 +373,8 @@ async function configureNpmAuth() {
 }
 
 function printNpmAuthHelp() {
-	console.error('❌ Error: Not authenticated to npm registry.');
-	console.error('');
-	console.error('   npm no longer supports OTP from authenticator apps for publish.');
-	console.error('   Use an automation token (keeps write 2FA enabled):');
-	console.error('     1. Create at https://www.npmjs.com/settings/~/tokens');
-	console.error('     2. export NPM_TOKEN=npm_...');
-	console.error('     3. Re-run this script');
-	console.error('');
-	console.error('   Or disable "Require 2FA for write actions" in npm account settings,');
-	console.error('   then run npm logout && npm login.');
-}
-
-function isOtpRequiredError(errStr: string): boolean {
-	const lower = errStr.toLowerCase();
-	return (
-		lower.includes('one-time password') ||
-		lower.includes('one time password') ||
-		lower.includes('eotp') ||
-		(lower.includes('otp') && lower.includes('required'))
-	);
+	console.error('❌ Error: Not logged into npm registry.');
+	console.error('   Run: npm login');
 }
 
 async function validateEnvironment(isDryRun: boolean) {
@@ -836,14 +813,9 @@ async function main() {
 			let lastErr: unknown;
 			for (let attempt = 1; attempt <= maxRetries; attempt++) {
 				try {
-					// Use npm publish instead of bun publish:
-					// 1. --ignore-scripts skips prepublishOnly which would rebuild and
-					//    fail resolving workspace deps pinned to the new version
-					// 2. bun publish validates all deps exist on the registry, which
-					//    fails for private workspace packages like @agentuity/test-utils
-					const args = ['publish', '--access', 'public', '--tag', distTag, '--ignore-scripts'];
+					const args = ['publish', '--access', 'public', '--tag', distTag];
 					if (isDryRun) args.push('--dry-run');
-					await $`npm ${args}`.cwd(pkg.path);
+					await $`bun ${args}`.cwd(pkg.path);
 					console.log(`✓ ${isDryRun ? 'Dry run completed for' : 'Published'} ${pkgName}`);
 					lastErr = undefined;
 					break;
@@ -851,13 +823,6 @@ async function main() {
 					lastErr = err;
 					const shellErr = err as { stderr?: string; stdout?: string };
 					const errStr = `${shellErr.stderr || ''} ${shellErr.stdout || ''} ${String(err)}`;
-					if (isOtpRequiredError(errStr)) {
-						console.error(
-							'\n   npm requested an OTP, which is no longer supported for publish.'
-						);
-						printNpmAuthHelp();
-						break;
-					}
 					const isTransient = errStr.includes('404') || errStr.includes('Not Found');
 					if (isTransient && attempt < maxRetries) {
 						const delay = attempt * 5;
