@@ -1,4 +1,4 @@
-import { StructuredError } from '@agentuity/core';
+import { StructuredError } from '@agentuity/adapter';
 import { z } from 'zod/v4';
 
 export const CoderErrorCodeSchema = z

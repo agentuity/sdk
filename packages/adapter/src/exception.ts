@@ -1,4 +1,4 @@
-import { StructuredError } from '@agentuity/core';
+import { StructuredError } from './error.ts';
 import { z } from 'zod';
 import { HttpMethodSchema } from './fetch.ts';
 

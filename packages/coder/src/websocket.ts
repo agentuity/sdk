@@ -9,7 +9,7 @@
  *
  * @example Class-based API with callbacks
  * ```typescript
- * import { CoderHubWebSocketClient } from '@agentuity/core/coder';
+ * import { CoderHubWebSocketClient } from '@agentuity/coder';
  *
  * const client = new CoderHubWebSocketClient({
  *   apiKey: 'your-api-key',
@@ -41,7 +41,7 @@
  *
  * @example Async iterator API
  * ```typescript
- * import { subscribeToCoderHub } from '@agentuity/core/coder';
+ * import { subscribeToCoderHub } from '@agentuity/coder';
  *
  * for await (const message of subscribeToCoderHub({
  *   sessionId: 'session-123',
@@ -55,9 +55,9 @@
  */
 
 import { z } from 'zod/v4';
-import { StructuredError } from '@agentuity/core';
-import type { Logger } from '@agentuity/core';
-import { APIClient } from '@agentuity/core/api';
+import { StructuredError } from '@agentuity/adapter';
+import type { Logger } from '@agentuity/adapter';
+import { APIClient } from '@agentuity/api';
 import { getServiceUrls } from '@agentuity/config';
 import { createMinimalLogger } from '@agentuity/client';
 import { getEnv } from '@agentuity/config';
@@ -937,7 +937,7 @@ export class CoderHubWebSocketClient {
  *
  * @example Basic usage
  * ```typescript
- * import { subscribeToCoderHub } from '@agentuity/core/coder';
+ * import { subscribeToCoderHub } from '@agentuity/coder';
  *
  * for await (const message of subscribeToCoderHub({
  *   sessionId: 'session-123',

@@ -9,13 +9,11 @@
  */
 
 // Re-export core interfaces so users can implement their own
-export type {
-	StreamStorage,
-	VectorStorage,
-	QueueService,
-	EmailService,
-	TaskStorage,
-} from '@agentuity/core';
+export type { StreamStorage } from '@agentuity/stream';
+export type { VectorStorage } from '@agentuity/vector';
+export type { QueueService } from '@agentuity/queue';
+export type { EmailService } from '@agentuity/email';
+export type { TaskStorage } from '@agentuity/task';
 export type { KeyValueStorage } from '@agentuity/keyvalue';
 
 // Runtime detection

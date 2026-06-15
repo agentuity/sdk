@@ -1,5 +1,5 @@
 import { FetchAdapter, buildUrl, toServiceException } from '@agentuity/adapter';
-import { StructuredError } from '@agentuity/core';
+import { StructuredError } from '@agentuity/adapter';
 import type {
 	CreateWebhookDestinationRequest,
 	CreateWebhookRequest,

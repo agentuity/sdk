@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '@agentuity/core/api';
+import { type APIClient, APIResponseSchema } from '@agentuity/api';
 import { DbInvalidArgumentError, DbResponseError } from './util.ts';
 
 // Request schema

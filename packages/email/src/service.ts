@@ -1,5 +1,5 @@
 import { FetchAdapter, buildUrl, toServiceException } from '@agentuity/adapter';
-import { safeStringify } from '@agentuity/core';
+import { safeStringify } from '@agentuity/adapter';
 import { z } from 'zod';
 
 /**

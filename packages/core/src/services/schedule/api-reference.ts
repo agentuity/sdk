@@ -2,13 +2,14 @@ import type { Service } from '../api-reference.ts';
 import {
 	CreateScheduleDestinationParamsSchema,
 	CreateScheduleParamsSchema,
+	ScheduleCreateDestinationResultSchema,
 	ScheduleCreateResultSchema,
 	ScheduleDeliveryListResultSchema,
 	ScheduleGetResultSchema,
 	ScheduleListResultSchema,
+	ScheduleUpdateResultSchema,
 	UpdateScheduleParamsSchema,
-} from './service.ts';
-import { ScheduleCreateDestinationResultSchema, ScheduleUpdateResultSchema } from './types.ts';
+} from '@agentuity/schedule';
 
 const service: Service = {
 	name: 'Schedules',

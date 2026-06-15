@@ -32,8 +32,9 @@ import type {
 	TaskActivityResult,
 	UserEntityRef,
 	EntityRef,
-} from '@agentuity/core';
-import { StructuredError, normalizeTaskStatus } from '@agentuity/core';
+} from '@agentuity/task';
+import { normalizeTaskStatus } from '@agentuity/task';
+import { StructuredError } from '@agentuity/adapter';
 import { now } from './util';
 
 const TaskTitleRequiredError = StructuredError(

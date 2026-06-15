@@ -6,4 +6,4 @@ Use `APIClient` for routes such as `/cli/project`, `/cli/stream`, deploy, org ad
 
 Service storage clients (`KeyValueClient`, `StreamClient`, etc.) use `@agentuity/adapter` instead.
 
-During the v3 isolation migration, `@agentuity/core/api` retains a parallel copy (same as `@agentuity/adapter`). New code should import from `@agentuity/api`; core platform helpers still type against `@agentuity/core/api` until Phase 4.
+During the v3 isolation migration, `@agentuity/core/api` re-exports this package. New code should import from `@agentuity/api` directly.

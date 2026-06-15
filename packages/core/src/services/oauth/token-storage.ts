@@ -1,4 +1,4 @@
-import type { KeyValueStorage } from '../keyvalue/service.ts';
+import type { KeyValueStorage } from '@agentuity/keyvalue';
 import type { OAuthFlowConfig, OAuthTokenResponse, StoredToken } from './types.ts';
 import { StoredTokenSchema } from './types.ts';
 import { refreshToken, logout } from './flow.ts';

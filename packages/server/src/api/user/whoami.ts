@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIResponseSchema, APIClient } from '@agentuity/core/api';
+import { APIResponseSchema, APIClient } from '@agentuity/api';
 import { UserResponseError } from './util.ts';
 
 export const OrganizationSchema = z.object({

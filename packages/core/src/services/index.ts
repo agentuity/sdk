@@ -14,9 +14,9 @@ export * from './schedule/index.ts';
 export * from './task/index.ts';
 export * from './vector/index.ts';
 export * from './db/index.ts';
-export * from './queue/service.ts';
-export * from './stream/service.ts';
-export * from './webhook/service.ts';
+export * from './queue/index.ts';
+export * from './stream/index.ts';
+export * from './webhook/index.ts';
 export * from './coder/index.ts';
 // Sandbox runtime: prefer @agentuity/sandbox; platform CLI list via @agentuity/server
 

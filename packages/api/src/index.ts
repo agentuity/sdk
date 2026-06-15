@@ -5,8 +5,8 @@
  */
 
 import { z } from 'zod';
-import type { Logger } from '@agentuity/core';
-import { StructuredError } from '@agentuity/core';
+import type { Logger } from '@agentuity/adapter';
+import { StructuredError } from '@agentuity/adapter';
 import { getEnv } from '@agentuity/config';
 
 function getVersion(): string {
@@ -15,6 +15,31 @@ function getVersion(): string {
 
 function getUserAgent(): string {
 	return `Agentuity SDK/${getVersion()}`;
+}
+
+function isReadableStreamBody(body: unknown): body is ReadableStream<Uint8Array> {
+	return typeof ReadableStream !== 'undefined' && body instanceof ReadableStream;
+}
+
+function buildFetchInit(
+	method: string,
+	headers: Record<string, string>,
+	body: Uint8Array | ArrayBuffer | ReadableStream<Uint8Array> | string | Blob | undefined,
+	signal?: AbortSignal
+): RequestInit & { duplex?: 'half' } {
+	const init: RequestInit & { duplex?: 'half' } = {
+		method,
+		headers,
+		body,
+		signal,
+	};
+
+	// Node's fetch requires duplex when streaming request bodies.
+	if (isReadableStreamBody(body)) {
+		init.duplex = 'half';
+	}
+
+	return init;
 }
 
 export const APIClientConfigSchema = z.object({
@@ -426,7 +451,7 @@ export class APIClient {
 			});
 		}
 
-		const canRetry = !(body instanceof ReadableStream); // we cannot safely retry a ReadableStream as body
+		const canRetry = !isReadableStreamBody(body); // we cannot safely retry a ReadableStream as body
 
 		let attempt = 0;
 		while (true) {
@@ -454,12 +479,7 @@ export class APIClient {
 						}
 					}
 
-					response = await fetch(url, {
-						method,
-						headers,
-						body: requestBody,
-						signal,
-					});
+					response = await fetch(url, buildFetchInit(method, headers, requestBody, signal));
 				} catch (ex) {
 					this.#logger.debug('fetch returned an error trying to access: %s. %s', url, ex);
 					const _ex = ex as { code?: string; name: string };
@@ -471,10 +491,14 @@ export class APIClient {
 						// TypeError from fetch typically indicates network issues
 						retryable = true;
 					}
-					if (retryable) {
+					if (retryable && canRetry) {
 						response = new Response(null, { status: 503 });
 					} else {
 						throw new APIError({
+							message:
+								ex instanceof Error && ex.message
+									? `Fetch failed: ${ex.message}`
+									: 'Fetch failed before receiving a response',
 							url,
 							status: 0,
 							cause: ex,
@@ -516,12 +540,10 @@ export class APIClient {
 							}
 						}
 
-						const regionalResponse = await fetch(regionalUrl, {
-							method,
-							headers,
-							body: requestBody,
-							signal,
-						});
+						const regionalResponse = await fetch(
+							regionalUrl,
+							buildFetchInit(method, headers, requestBody, signal)
+						);
 
 						// If the regional request also fails with 421, throw MisdirectedRequestError
 						if (regionalResponse.status === 421) {

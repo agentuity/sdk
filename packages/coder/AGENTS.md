@@ -40,4 +40,4 @@ console.log(`Created session: ${session.sessionId}`);
 ## Publishing
 
 1. Run `bun run build`
-2. Must publish **after** @agentuity/core
+2. Publish after `@agentuity/adapter`, `@agentuity/api`, `@agentuity/client`, `@agentuity/config`, `@agentuity/sandbox`

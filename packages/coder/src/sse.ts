@@ -8,7 +8,7 @@
  *
  * @example Class-based API with callbacks
  * ```typescript
- * import { CoderSSEClient } from '@agentuity/core/coder';
+ * import { CoderSSEClient } from '@agentuity/coder';
  *
  * const client = new CoderSSEClient({
  *   apiKey: 'your-api-key',
@@ -35,7 +35,7 @@
  *
  * @example Async iterator API
  * ```typescript
- * import { streamCoderSessionSSE } from '@agentuity/core/coder';
+ * import { streamCoderSessionSSE } from '@agentuity/coder';
  *
  * const controller = new AbortController();
  *
@@ -53,9 +53,9 @@
  */
 
 import { z } from 'zod/v4';
-import { StructuredError } from '@agentuity/core';
-import type { Logger } from '@agentuity/core';
-import { APIClient } from '@agentuity/core/api';
+import { StructuredError } from '@agentuity/adapter';
+import type { Logger } from '@agentuity/adapter';
+import { APIClient } from '@agentuity/api';
 import { getServiceUrls } from '@agentuity/config';
 import { createMinimalLogger } from '@agentuity/client';
 import { getEnv } from '@agentuity/config';
@@ -669,7 +669,7 @@ export class CoderSSEClient {
  *
  * @example
  * ```typescript
- * import { streamCoderSessionSSE } from '@agentuity/core/coder';
+ * import { streamCoderSessionSSE } from '@agentuity/coder';
  *
  * // Basic usage
  * for await (const event of streamCoderSessionSSE({

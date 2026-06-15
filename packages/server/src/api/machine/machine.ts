@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIResponseSchema, APIResponseSchemaNoData, APIClient } from '@agentuity/core/api';
+import { APIResponseSchema, APIResponseSchemaNoData, APIClient } from '@agentuity/api';
 import { MachineResponseError } from './util.ts';
 
 // TODO: The old /cli/auth/machine/* endpoints should be aliased to redirect

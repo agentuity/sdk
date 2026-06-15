@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mockFetch } from '@agentuity/test-utils';
-import { CoderClient } from '../src/services/coder/client.ts';
-import { APIError, ValidationInputError } from '../src/services/api.ts';
+import { CoderClient } from '@agentuity/coder';
+import { APIError, ValidationInputError } from '@agentuity/api';
 import {
 	CoderCreateAgentBuilderSessionRequestSchema,
 	CoderCreateCustomSkillRequestSchema,
 	CoderCreateWorkspaceRequestSchema,
 	CoderUpdateWorkspaceRequestSchema,
-} from '../src/services/coder/types.ts';
+} from '@agentuity/coder';
 
 const ORIGINAL_FETCH = globalThis.fetch;
 

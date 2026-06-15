@@ -1,5 +1,9 @@
-import { KeyValueStatsPaginatedSchema, KeyValueStatsSchema } from './service.ts';
-import { CreateNamespaceApiRequestSchema, KeyValueItemMetadataSchema } from './types.ts';
+import {
+	KeyValueStatsPaginatedSchema,
+	KeyValueStatsSchema,
+	CreateNamespaceApiRequestSchema,
+	KeyValueItemMetadataSchema,
+} from '@agentuity/keyvalue';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {

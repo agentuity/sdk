@@ -1,6 +1,6 @@
 import { buildUrl, toPayload, toServiceException } from '@agentuity/adapter';
 import type { FetchAdapter } from '@agentuity/adapter';
-import { StructuredError } from '@agentuity/core';
+import { StructuredError } from '@agentuity/adapter';
 import { z } from 'zod';
 
 const AIGatewayModelsResponseError = StructuredError('AIGatewayModelsResponseError')<{

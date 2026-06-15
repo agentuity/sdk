@@ -1,18 +1,16 @@
 import { z } from 'zod';
 import {
-	VectorNamespaceStatsWithSamplesSchema,
-	VectorSearchParamsSchema,
-	VectorStatsPaginatedSchema,
-	VectorUpsertBaseSchema,
-} from './service.ts';
-import {
 	VectorDeleteMultipleRequestSchema,
 	VectorDeleteResponseSchema,
 	VectorGetResponseSchema,
 	VectorNamespaceListResponseSchema,
+	VectorNamespaceStatsWithSamplesSchema,
+	VectorSearchParamsSchema,
 	VectorSearchResponseSchema,
+	VectorStatsPaginatedSchema,
+	VectorUpsertBaseSchema,
 	VectorUpsertResponseSchema,
-} from './types.ts';
+} from '@agentuity/vector';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {

@@ -1,4 +1,4 @@
-import { StructuredError, safeStringify } from '@agentuity/core';
+import { StructuredError, safeStringify } from '@agentuity/adapter';
 import { buildUrl, toServiceException } from '@agentuity/adapter';
 import type { FetchAdapter } from '@agentuity/adapter';
 import { ListParamsSchema } from '@agentuity/client';

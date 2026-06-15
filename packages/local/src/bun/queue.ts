@@ -5,7 +5,7 @@ import type {
 	QueuePublishResult,
 	QueueCreateParams,
 	QueueCreateResult,
-} from '@agentuity/core';
+} from '@agentuity/queue';
 
 export class LocalQueueStorage implements QueueService {
 	#db: Database;

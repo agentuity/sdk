@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { StructuredError } from '@agentuity/core';
+import { StructuredError } from '@agentuity/adapter';
 import { SortDirectionSchema } from '@agentuity/client';
 import type { SandboxPauseResult } from './pause.ts';
 

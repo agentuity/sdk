@@ -1,6 +1,6 @@
-import type { Logger } from '@agentuity/core';
+import type { Logger } from '@agentuity/client';
 import { z } from 'zod/v4';
-import { APIClient } from '@agentuity/core/api';
+import { APIClient } from '@agentuity/api';
 import { getServiceUrls } from '@agentuity/config';
 import { getEnv } from '@agentuity/config';
 import { createMinimalLogger } from '@agentuity/client';

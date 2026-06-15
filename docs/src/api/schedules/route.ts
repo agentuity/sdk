@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { ServiceException } from '@agentuity/core/exception';
+import { ServiceException } from '@agentuity/adapter';
 import type { ApiEnv } from '../context';
 import type {
 	CreateScheduleParams,

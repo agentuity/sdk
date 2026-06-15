@@ -12,7 +12,7 @@ import {
 	getAIGatewayProviderFamily,
 	getAIGatewayStreamDeltaText,
 	getAIGatewayStreamReasoningText,
-} from '../src/services/aigateway/index.ts';
+} from '@agentuity/aigateway';
 
 describe('AIGatewayService', () => {
 	const baseUrl = 'https://aigateway.example.com';

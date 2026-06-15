@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchemaNoData } from '@agentuity/core/api';
+import { type APIClient, APIResponseSchemaNoData } from '@agentuity/api';
 import { ProjectResponseError } from './util.ts';
 
 export const ProjectEnvDeleteRequestSchema = z

@@ -101,7 +101,6 @@
       "name": "@agentuity/adapter",
       "version": "3.0.10",
       "dependencies": {
-        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -116,7 +115,6 @@
         "@agentuity/adapter": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
-        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -139,8 +137,8 @@
       "name": "@agentuity/api",
       "version": "3.0.5",
       "dependencies": {
+        "@agentuity/adapter": "workspace:*",
         "@agentuity/config": "workspace:*",
-        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -167,6 +165,7 @@
         "@agentuity/aigateway": "workspace:*",
         "@agentuity/coder": "workspace:*",
         "@agentuity/coder-tui": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
         "@agentuity/email": "workspace:*",
         "@agentuity/keyvalue": "workspace:*",
@@ -217,9 +216,10 @@
       "name": "@agentuity/coder",
       "version": "3.0.10",
       "dependencies": {
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/api": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
-        "@agentuity/core": "workspace:*",
         "@agentuity/sandbox": "workspace:*",
         "zod": "^4.3.5",
       },
@@ -260,7 +260,21 @@
       "name": "@agentuity/core",
       "version": "3.0.10",
       "dependencies": {
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/aigateway": "workspace:*",
+        "@agentuity/api": "workspace:*",
+        "@agentuity/coder": "workspace:*",
         "@agentuity/config": "workspace:*",
+        "@agentuity/db": "workspace:*",
+        "@agentuity/email": "workspace:*",
+        "@agentuity/keyvalue": "workspace:*",
+        "@agentuity/queue": "workspace:*",
+        "@agentuity/sandbox": "workspace:*",
+        "@agentuity/schedule": "workspace:*",
+        "@agentuity/stream": "workspace:*",
+        "@agentuity/task": "workspace:*",
+        "@agentuity/vector": "workspace:*",
+        "@agentuity/webhook": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -285,9 +299,10 @@
       "name": "@agentuity/db",
       "version": "3.0.10",
       "dependencies": {
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/api": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
-        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -318,7 +333,6 @@
         "@agentuity/adapter": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
-        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -370,8 +384,13 @@
       "name": "@agentuity/local",
       "version": "3.0.10",
       "dependencies": {
-        "@agentuity/core": "workspace:*",
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/email": "workspace:*",
         "@agentuity/keyvalue": "workspace:*",
+        "@agentuity/queue": "workspace:*",
+        "@agentuity/stream": "workspace:*",
+        "@agentuity/task": "workspace:*",
+        "@agentuity/vector": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -448,7 +467,6 @@
         "@agentuity/adapter": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
-        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -468,9 +486,10 @@
       "name": "@agentuity/sandbox",
       "version": "3.0.10",
       "dependencies": {
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/api": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
-        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -511,6 +530,7 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
+        "@agentuity/api": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -544,7 +564,6 @@
         "@agentuity/adapter": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
-        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -560,7 +579,6 @@
         "@agentuity/adapter": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
-        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -614,7 +632,6 @@
         "@agentuity/adapter": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
-        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -657,7 +674,6 @@
         "@agentuity/adapter": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
-        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {

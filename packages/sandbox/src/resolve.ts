@@ -1,6 +1,6 @@
-import { StructuredError } from '@agentuity/core';
+import { StructuredError } from '@agentuity/adapter';
 import { z } from 'zod';
-import { type APIClient, APIResponseSchemaOptionalData } from '@agentuity/core/api';
+import { type APIClient, APIResponseSchemaOptionalData } from '@agentuity/api';
 
 /**
  * Data schema for sandbox resolve endpoint

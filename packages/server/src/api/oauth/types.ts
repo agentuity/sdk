@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIResponseSchema } from '@agentuity/core/api';
+import { APIResponseSchema } from '@agentuity/api';
 
 export const OAuthClientSchema = z.object({
 	id: z.string(),

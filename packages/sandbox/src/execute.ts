@@ -1,6 +1,6 @@
 import type { ExecuteOptions, Execution, ExecutionStatus } from './types.ts';
 import { z } from 'zod';
-import type { APIClient } from '@agentuity/core/api';
+import type { APIClient } from '@agentuity/api';
 import { SandboxBusyError, SandboxNotFoundError, throwSandboxError } from './util.ts';
 import { base64Encode } from './base64.ts';
 

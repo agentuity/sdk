@@ -1,6 +1,6 @@
 import { FetchAdapter, buildUrl, toServiceException } from '@agentuity/adapter';
 import { ListParamsSchema } from '@agentuity/client';
-import { safeStringify, StructuredError } from '@agentuity/core';
+import { safeStringify, StructuredError } from '@agentuity/adapter';
 import { z } from 'zod';
 
 /**

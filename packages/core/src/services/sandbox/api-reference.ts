@@ -1,29 +1,30 @@
-import { SandboxCreateDataSchema, SandboxCreateRequestSchema } from './create.ts';
-import { DiskCheckpointCreateParamsSchema, DiskCheckpointInfoSchema } from './disk-checkpoint.ts';
-import { SandboxEventListDataSchema } from './events.ts';
-import { ExecuteDataSchema, ExecuteRequestSchema } from './execute.ts';
 import {
+	DiskCheckpointCreateParamsSchema,
+	DiskCheckpointInfoSchema,
+	ExecuteDataSchema,
+	ExecuteRequestSchema,
 	ListFilesDataSchema,
+	ListRuntimesResponseSchema,
+	ListSandboxesResponseSchema,
 	MkDirRequestSchema,
 	RmDirRequestSchema,
 	RmFileRequestSchema,
-	WriteFilesDataSchema,
-	WriteFilesRequestSchema,
-} from './files.ts';
-import { SandboxResolveDataSchema } from './resolve.ts';
-import { SnapshotBuildInitResponseSchema } from './snapshot.ts';
-import {
-	ListRuntimesResponseSchema,
-	ListSandboxesResponseSchema,
+	SandboxCreateDataSchema,
+	SandboxCreateRequestSchema,
 	SandboxEnvUpdateRequestSchema,
 	SandboxEnvUpdateResponseSchema,
+	SandboxEventListDataSchema,
+	SandboxResolveDataSchema,
 	SandboxStatusResponseDataSchema,
 	SnapshotBuildFinalizeRequestSchema,
 	SnapshotBuildInitRequestSchema,
+	SnapshotBuildInitResponseSchema,
 	SnapshotCreateOptionsSchema,
 	SnapshotListResponseSchema,
 	SnapshotTagUpdateRequestSchema,
-} from './types.ts';
+	WriteFilesDataSchema,
+	WriteFilesRequestSchema,
+} from '@agentuity/sandbox';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {

@@ -1,6 +1,6 @@
 import type { SandboxCreateOptions } from './types.ts';
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '@agentuity/core/api';
+import { type APIClient, APIResponseSchema } from '@agentuity/api';
 import { NPM_PACKAGE_NAME_PATTERN } from './snapshot-build.ts';
 import { throwSandboxError } from './util.ts';
 import { base64Encode } from './base64.ts';

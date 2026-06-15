@@ -1,9 +1,5 @@
 import { z } from 'zod';
-import {
-	type APIClient,
-	APIResponseSchema,
-	APIResponseSchemaOptionalData,
-} from '@agentuity/core/api';
+import { type APIClient, APIResponseSchema, APIResponseSchemaOptionalData } from '@agentuity/api';
 import { ProjectResponseError } from './util.ts';
 
 // Simplified metadata schema for the client

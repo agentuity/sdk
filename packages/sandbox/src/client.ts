@@ -16,10 +16,10 @@ import {
 	type Job,
 	type CreateJobOptions,
 } from './types.ts';
-import type { Logger } from '@agentuity/core';
+import type { Logger } from '@agentuity/client';
 import type { Readable, Writable } from 'node:stream';
 import { z } from 'zod';
-import { APIClient } from '@agentuity/core/api';
+import { APIClient } from '@agentuity/api';
 import { getEnv } from '@agentuity/config';
 import { sandboxCreate } from './create.ts';
 import { sandboxDestroy } from './destroy.ts';

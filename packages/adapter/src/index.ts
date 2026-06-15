@@ -1,5 +1,6 @@
-// Re-export Logger type from core for convenience
-export type { Logger } from '@agentuity/core';
+export type { Logger, LogLevel } from './logger.ts';
+export { isStructuredError, RichError, StructuredError } from './error.ts';
+export { safeStringify } from './json.ts';
 
 export type {
 	Body,
@@ -42,7 +43,7 @@ import type {
 	FetchAdapter,
 	HttpMethod,
 } from './fetch.ts';
-import type { Logger } from '@agentuity/core';
+import type { Logger } from './logger.ts';
 import { ServiceException } from './exception.ts';
 import { fromResponse, toServiceException } from './http-util.ts';
 import { appendFileSync } from 'node:fs';

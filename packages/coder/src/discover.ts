@@ -1,5 +1,5 @@
 import { z } from 'zod/v4';
-import { type APIClient } from '@agentuity/core/api';
+import { type APIClient } from '@agentuity/api';
 import { normalizeCoderUrl } from './util.ts';
 
 export const DiscoverCoderUrlDataSchema = z

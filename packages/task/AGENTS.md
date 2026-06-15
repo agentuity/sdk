@@ -13,8 +13,8 @@ Standalone package for the Agentuity Task service. Provides a simple, ergonomic 
 ## Architecture
 
 - **Runtime**: Node.js and Bun compatible
-- **Exports**: TaskClient and all types from @agentuity/core/task
-- **Dependencies**: @agentuity/core, @agentuity/server, zod
+- **Exports**: TaskClient and runtime types from `@agentuity/task`; `@agentuity/core/task` re-exports this package
+- **Dependencies**: `@agentuity/adapter`, `@agentuity/client`, `@agentuity/config`, zod
 
 ## Usage
 

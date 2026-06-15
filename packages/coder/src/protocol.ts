@@ -8,7 +8,7 @@
  *
  * @example Parsing server messages
  * ```typescript
- * import { parseServerMessage, type ServerMessage } from '@agentuity/core/coder';
+ * import { parseServerMessage, type ServerMessage } from '@agentuity/coder';
  *
  * const raw = JSON.parse(websocketData);
  * const message = parseServerMessage(raw);

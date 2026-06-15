@@ -247,7 +247,21 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
+		"@agentuity/adapter": "workspace:*",
+		"@agentuity/api": "workspace:*",
 		"@agentuity/config": "workspace:*",
+		"@agentuity/keyvalue": "workspace:*",
+		"@agentuity/schedule": "workspace:*",
+		"@agentuity/sandbox": "workspace:*",
+		"@agentuity/stream": "workspace:*",
+		"@agentuity/vector": "workspace:*",
+		"@agentuity/email": "workspace:*",
+		"@agentuity/queue": "workspace:*",
+		"@agentuity/webhook": "workspace:*",
+		"@agentuity/task": "workspace:*",
+		"@agentuity/aigateway": "workspace:*",
+		"@agentuity/coder": "workspace:*",
+		"@agentuity/db": "workspace:*",
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {

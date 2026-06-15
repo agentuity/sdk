@@ -9,6 +9,7 @@
 		"resolveJsonModule": true,
 		"paths": {
 			"@agentuity/coder": ["../coder/src"],
+			"@agentuity/config": ["../config/src"],
 			"@agentuity/core": ["../core/src"],
 			"@agentuity/aigateway": ["../aigateway/src"],
 			"@agentuity/email": ["../email/src"],
@@ -26,6 +27,7 @@
 	"references": [
 		{ "path": "../aigateway" },
 		{ "path": "../coder" },
+		{ "path": "../config" },
 		{ "path": "../core" },
 		{ "path": "../email" },
 		{ "path": "../keyvalue" },

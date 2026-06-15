@@ -7,7 +7,7 @@ import {
 	type QueueCreateParams,
 	type QueueCreateResult,
 } from './service.ts';
-import { StructuredError } from '@agentuity/core';
+import { StructuredError } from '@agentuity/adapter';
 import { getServiceUrls } from '@agentuity/config';
 import {
 	createServiceAdapter,

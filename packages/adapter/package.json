@@ -23,7 +23,6 @@
 		"clean": "rm -rf dist *.tsbuildinfo"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*",
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {

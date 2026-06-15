@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { StructuredError } from '@agentuity/core';
-import { APIResponseSchema } from '@agentuity/core/api';
-import type { APIClient } from '@agentuity/core/api';
+import { APIResponseSchema } from '@agentuity/api';
+import type { APIClient } from '@agentuity/api';
 import type {
 	ContainerMetrics,
 	MachineMonitorState,

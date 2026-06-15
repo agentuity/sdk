@@ -1,9 +1,9 @@
-import type { Logger } from '@agentuity/core';
+import type { Logger } from '@agentuity/client';
 import type { Readable, Writable } from 'node:stream';
 import { PassThrough } from 'node:stream';
 import { finished } from 'node:stream/promises';
 import { z } from 'zod';
-import { APIClient, PaymentRequiredError } from '@agentuity/core/api';
+import { APIClient, PaymentRequiredError } from '@agentuity/api';
 import { sandboxCreate } from './create.ts';
 import { sandboxDestroy } from './destroy.ts';
 import { executionGet } from './execution.ts';

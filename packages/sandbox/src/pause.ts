@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient } from '@agentuity/core/api';
+import { type APIClient } from '@agentuity/api';
 import { throwSandboxError } from './util.ts';
 
 export const PauseResponseSchema = z.discriminatedUnion('success', [

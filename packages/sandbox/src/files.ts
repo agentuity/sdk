@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient } from '@agentuity/core/api';
+import { APIClient } from '@agentuity/api';
 import { SandboxResponseError, throwSandboxError } from './util.ts';
 import type { FileToWrite } from './types.ts';
 import { base64Encode } from './base64.ts';

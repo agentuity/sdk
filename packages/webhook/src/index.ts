@@ -1,12 +1,4 @@
 export * from './service.ts';
-export * from './types.ts';
-export {
-	WebhookDeliveryNotFoundError,
-	WebhookDestinationNotFoundError,
-	WebhookError,
-	WebhookNotFoundError,
-	WebhookReceiptNotFoundError,
-} from './errors.ts';
 
 import {
 	WebhookService,

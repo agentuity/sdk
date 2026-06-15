@@ -1,6 +1,6 @@
 import { ExecutionStatusSchema } from './types.ts';
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '@agentuity/core/api';
+import { type APIClient, APIResponseSchema } from '@agentuity/api';
 import { throwSandboxError } from './util.ts';
 
 export const ExecutionInfoSchema = z

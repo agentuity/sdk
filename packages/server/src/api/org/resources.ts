@@ -1,6 +1,6 @@
 import { SortDirectionSchema } from '@agentuity/client';
 import { z } from 'zod';
-import { APIResponseSchema, APIClient } from '@agentuity/core/api';
+import { APIResponseSchema, APIClient } from '@agentuity/api';
 import { OrgResourceResponseError } from './util.ts';
 
 export const OrgS3Resource = z.object({

@@ -42,7 +42,7 @@ export {
 export { DbExecuteQueryRequestSchema, type DbExecuteQueryRequest } from './types.ts';
 export { DbInvalidArgumentError, DbResponseError } from './util.ts';
 
-import { APIClient } from '@agentuity/core/api';
+import { APIClient } from '@agentuity/api';
 import { getServiceUrls } from '@agentuity/config';
 import {
 	createMinimalLogger,

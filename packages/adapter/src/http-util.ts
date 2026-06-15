@@ -1,4 +1,4 @@
-import { safeStringify } from '@agentuity/core';
+import { safeStringify } from './json.ts';
 import type { Body, HttpMethod } from './fetch.ts';
 import { ServiceException } from './exception.ts';
 

@@ -1,15 +1,15 @@
-import {
-	StructuredError,
-	type EmailService,
-	type EmailAddress,
-	type EmailDestination,
-	type EmailConnectionConfig,
-	type EmailInbound,
-	type EmailOutbound,
-	type EmailSendParams,
-	type EmailActivityParams,
-	type EmailActivityResult,
-} from '@agentuity/core';
+import { StructuredError } from '@agentuity/adapter';
+import type {
+	EmailService,
+	EmailAddress,
+	EmailDestination,
+	EmailConnectionConfig,
+	EmailInbound,
+	EmailOutbound,
+	EmailSendParams,
+	EmailActivityParams,
+	EmailActivityResult,
+} from '@agentuity/email';
 
 const ERROR_MESSAGE =
 	'Email service is not available in local development mode. Deploy to Agentuity Cloud to use email.';

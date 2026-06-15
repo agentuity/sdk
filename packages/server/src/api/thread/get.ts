@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '@agentuity/core/api';
+import { APIClient, APIResponseSchema } from '@agentuity/api';
 import { ThreadSchema, type Thread } from './list.ts';
 import { ThreadResponseError } from './util.ts';
 

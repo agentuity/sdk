@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIError, APIResponseSchema } from '@agentuity/core/api';
+import { type APIClient, APIError, APIResponseSchema } from '@agentuity/api';
 import { ProjectResponseError } from './util.ts';
 
 export const ProjectExistsRequestSchema = z.object({

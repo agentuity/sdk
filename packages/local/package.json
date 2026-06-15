@@ -23,8 +23,13 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*",
-		"@agentuity/keyvalue": "workspace:*"
+		"@agentuity/adapter": "workspace:*",
+		"@agentuity/email": "workspace:*",
+		"@agentuity/keyvalue": "workspace:*",
+		"@agentuity/queue": "workspace:*",
+		"@agentuity/stream": "workspace:*",
+		"@agentuity/task": "workspace:*",
+		"@agentuity/vector": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

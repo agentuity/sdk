@@ -9,7 +9,7 @@
  *
  * @example
  * ```typescript
- * import { CODER_WS_CLOSE_CODE, isTerminalCloseCode } from '@agentuity/core/coder';
+ * import { CODER_WS_CLOSE_CODE, isTerminalCloseCode } from '@agentuity/coder';
  *
  * // Check if a close code is terminal (should not reconnect)
  * if (isTerminalCloseCode(4401)) {

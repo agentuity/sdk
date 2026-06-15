@@ -2,13 +2,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import {
 	CoderHubEventNameSchema,
 	CoderHubEvents,
-	parseClientMessage,
-} from '../src/services/coder/protocol.ts';
-import {
 	CoderHubWebSocketClient,
 	CoderHubWebSocketError,
 	type CoderHubWebSocketErrorInstance,
-} from '../src/services/coder/websocket.ts';
+	parseClientMessage,
+} from '@agentuity/coder';
 
 const OriginalWebSocket = globalThis.WebSocket;
 

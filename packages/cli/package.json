@@ -41,6 +41,7 @@
 		"@agentuity/coder-tui": "workspace:*",
 		"@agentuity/coder": "workspace:*",
 		"@agentuity/aigateway": "workspace:*",
+		"@agentuity/config": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/email": "workspace:*",
 		"@agentuity/schedule": "workspace:*",

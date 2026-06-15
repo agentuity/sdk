@@ -1,4 +1,4 @@
-import { StructuredError } from '@agentuity/core';
+import { StructuredError } from '@agentuity/adapter';
 import { resolve } from 'node:path';
 
 /**

@@ -2,9 +2,11 @@ import { z } from 'zod/v4';
 import {
 	CoderCreateAgentBuilderSessionRequestSchema,
 	CoderCreateCustomAgentRequestSchema,
+	CoderCreateSessionParamsSchema,
 	CoderCreateSessionRequestSchema,
 	CoderCustomAgentListResponseSchema,
 	CoderCustomAgentVersionListResponseSchema,
+	CoderLifecycleResponseSchema,
 	CoderListUsersResponseSchema,
 	CoderLoopStateResponseSchema,
 	CoderSessionEventSchema,
@@ -13,8 +15,7 @@ import {
 	CoderSessionSchema,
 	CoderUpdateCustomAgentRequestSchema,
 	CoderUpdateSessionRequestSchema,
-} from './types.ts';
-import { CoderCreateSessionParamsSchema, CoderLifecycleResponseSchema } from './sessions.ts';
+} from '@agentuity/coder';
 import type { Service } from '../api-reference.ts';
 
 // Docs-only wire schemas: the REST reference documents raw hub payloads,

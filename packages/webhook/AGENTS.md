@@ -13,8 +13,8 @@ Standalone package for the Agentuity Webhook service. Provides a simple, ergonom
 ## Architecture
 
 - **Runtime**: Node.js and Bun compatible
-- **Exports**: WebhookClient and all types from @agentuity/core/webhook
-- **Dependencies**: @agentuity/core, @agentuity/server, zod
+- **Exports**: WebhookClient and runtime types from `@agentuity/webhook`; `@agentuity/core/webhook` re-exports this package
+- **Dependencies**: `@agentuity/adapter`, `@agentuity/client`, `@agentuity/config`, zod
 
 ## Usage
 

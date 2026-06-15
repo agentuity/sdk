@@ -1,5 +1,5 @@
 import { z } from 'zod/v4';
-import { type APIClient } from '@agentuity/core/api';
+import { type APIClient } from '@agentuity/api';
 import { CoderLoopStateResponseSchema, type CoderLoopStateResponse } from './types.ts';
 
 export const CoderGetLoopStateParamsSchema = z

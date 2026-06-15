@@ -4,7 +4,7 @@ import {
 	AIGatewayChatCompletionStreamParamsSchema,
 	AIGatewayChatCompletionSchema,
 	AIGatewayModelsResponseSchema,
-} from './service.ts';
+} from '@agentuity/aigateway';
 import type { Service } from '../api-reference.ts';
 
 const AIGatewayStreamCompletionSchema = z

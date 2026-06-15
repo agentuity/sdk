@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchemaNoData } from '@agentuity/core/api';
+import { APIClient, APIResponseSchemaNoData } from '@agentuity/api';
 import { OrgResponseError } from './util.ts';
 
 export const OrgEnvDeleteRequestSchema = z.object({

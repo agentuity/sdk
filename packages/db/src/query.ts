@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIError } from '@agentuity/core/api';
+import { APIClient, APIError } from '@agentuity/api';
 import { DbInvalidArgumentError, DbResponseError } from './util.ts';
 
 export const QueryColumnSchema = z.object({

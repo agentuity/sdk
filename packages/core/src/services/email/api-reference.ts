@@ -1,9 +1,10 @@
 import {
 	EmailActivityResultSchema,
+	CreateAddressRequestSchema,
+	CreateEmailDestinationRequestSchema,
 	EmailConnectionConfigSchema,
 	EmailSendParamsSchema,
-} from './service.ts';
-import { CreateAddressRequestSchema, CreateEmailDestinationRequestSchema } from './types.ts';
+} from '@agentuity/email';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {

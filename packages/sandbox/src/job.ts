@@ -1,4 +1,4 @@
-import { type APIClient, APIResponseSchema } from '@agentuity/core/api';
+import { type APIClient, APIResponseSchema } from '@agentuity/api';
 import { CreateJobOptionsSchema, JobSchema, type Job } from './types.ts';
 import { throwSandboxError } from './util.ts';
 import { z } from 'zod';

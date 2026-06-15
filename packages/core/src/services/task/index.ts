@@ -1,1 +1,1 @@
-export * from './service.ts';
+export * from '@agentuity/task';

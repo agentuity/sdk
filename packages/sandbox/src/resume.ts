@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchemaNoData } from '@agentuity/core/api';
+import { type APIClient, APIResponseSchemaNoData } from '@agentuity/api';
 import { throwSandboxError } from './util.ts';
 
 export const ResumeResponseSchema = APIResponseSchemaNoData();

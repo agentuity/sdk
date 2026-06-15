@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '@agentuity/core/api';
+import { type APIClient, APIResponseSchema } from '@agentuity/api';
 import type { Project } from './get.ts';
 import { projectGet } from './get.ts';
 import { ProjectResponseError } from './util.ts';

@@ -1,4 +1,4 @@
-import { type APIClient } from '@agentuity/core/api';
+import { type APIClient } from '@agentuity/api';
 import {
 	CoderGitHubAccountListResponseSchema,
 	type CoderGitHubAccountListResponse,

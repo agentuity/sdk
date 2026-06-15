@@ -1,4 +1,4 @@
-import { APIClient } from '@agentuity/core/api';
+import { APIClient } from '@agentuity/api';
 import { OAuthScopesResponseSchema, type OAuthScopesData } from './types.ts';
 import { OAuthResponseError } from './util.ts';
 

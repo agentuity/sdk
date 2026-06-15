@@ -1,6 +1,6 @@
 import type { z as zType } from 'zod';
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '@agentuity/core/api';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '@agentuity/api';
 import { throwSandboxError } from './util.ts';
 
 // --- Schemas ---

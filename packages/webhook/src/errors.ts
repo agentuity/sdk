@@ -1,4 +1,4 @@
-import { StructuredError } from '@agentuity/core';
+import { StructuredError } from '@agentuity/adapter';
 
 export const WebhookError = StructuredError('WebhookError')<{ webhookId?: string }>();
 

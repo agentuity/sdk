@@ -2,7 +2,11 @@ import {
 	BatchDeleteTasksParamsSchema,
 	BatchDeleteTasksResultSchema,
 	CreateAttachmentParamsSchema,
+	CreateCommentRequestSchema,
+	CreateTagRequestSchema,
 	CreateTaskParamsSchema,
+	CreateTaskProjectRequestSchema,
+	CreateTaskUserRequestSchema,
 	ListAttachmentsResultSchema,
 	ListCommentsResultSchema,
 	ListProjectsResultSchema,
@@ -12,16 +16,10 @@ import {
 	PresignUploadResponseSchema,
 	TaskActivityResultSchema,
 	TaskChangelogResultSchema,
-	UpdateTaskParamsSchema,
-} from './service.ts';
-import {
-	CreateCommentRequestSchema,
-	CreateTagRequestSchema,
-	CreateTaskProjectRequestSchema,
-	CreateTaskUserRequestSchema,
 	UpdateCommentRequestSchema,
 	UpdateTagRequestSchema,
-} from './types.ts';
+	UpdateTaskParamsSchema,
+} from '@agentuity/task';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {

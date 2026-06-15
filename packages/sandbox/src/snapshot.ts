@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '@agentuity/core/api';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '@agentuity/api';
 import { NPM_PACKAGE_NAME_PATTERN } from './snapshot-build.ts';
 import { SandboxResponseError, throwSandboxError } from './util.ts';
 

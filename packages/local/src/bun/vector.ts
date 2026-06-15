@@ -12,7 +12,7 @@ import type {
 	VectorNamespaceStatsWithSamples,
 	VectorGetAllStatsParams,
 	VectorStatsPaginated,
-} from '@agentuity/core';
+} from '@agentuity/vector';
 import { now, simpleEmbedding, cosineSimilarity } from './util';
 import { randomUUID } from 'node:crypto';
 

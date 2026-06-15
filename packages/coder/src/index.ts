@@ -37,6 +37,7 @@ export {
 	CoderCreateAgentBuilderSessionParamsSchema,
 	CoderCreateSessionParamsSchema,
 	CoderGetSessionParamsSchema,
+	CoderLifecycleResponseSchema,
 	CoderListConnectableSessionsParamsSchema,
 	CoderListSessionsParamsWithOrgSchema,
 	CoderSessionIdParamsSchema,

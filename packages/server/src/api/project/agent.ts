@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import type { APIClient } from '@agentuity/core/api';
-import { APIResponseSchema } from '@agentuity/core/api';
+import type { APIClient } from '@agentuity/api';
+import { APIResponseSchema } from '@agentuity/api';
 import { AgentNotFoundError, ProjectResponseError } from './util.ts';
 
 export const AgentSchema = z.object({

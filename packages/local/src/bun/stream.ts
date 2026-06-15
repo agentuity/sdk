@@ -6,7 +6,7 @@ import type {
 	ListStreamsParams,
 	ListStreamsResponse,
 	StreamInfo,
-} from '@agentuity/core';
+} from '@agentuity/stream';
 import { now } from './util';
 import { join } from 'node:path';
 import { homedir } from 'node:os';

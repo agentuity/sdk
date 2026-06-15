@@ -10,4 +10,4 @@ export {
 	getAppBaseURL,
 	ValidationInputError,
 	ValidationOutputError,
-} from '@agentuity/core/api';
+} from '@agentuity/api';
