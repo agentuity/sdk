@@ -33,7 +33,7 @@ const BuildOptionsSchema = z.intersection(
 			.optional()
 			.describe('file path to save build report JSON with errors, warnings, and diagnostics'),
 		ci: z.boolean().optional().describe('Enable CI build mode'),
-		url: z.string().optional().describe('Source code download URL (required with --ci)'),
+		url: z.string().optional().describe('Source code download URL for CI builds'),
 		directory: z.string().optional().describe('Subdirectory within extracted source'),
 	})
 );
@@ -63,10 +63,6 @@ export const command = createCommand({
 		const { opts, projectDir, project } = ctx;
 
 		if (opts.ci) {
-			if (!opts.url) {
-				tui.fatal('--url is required when using --ci mode', ErrorCode.CONFIG_INVALID);
-			}
-
 			const { runCIBuild } = await import('./ci.ts');
 			await runCIBuild(
 				{
@@ -84,6 +80,7 @@ export const command = createCommand({
 					pullRequestUrl: opts.pullRequestUrl,
 					logsUrl: opts.logsUrl,
 					skipDnsValidation: opts.skipDnsValidation ?? true,
+					skipTypeCheck: opts.skipTypeCheck,
 				},
 				ctx.logger
 			);

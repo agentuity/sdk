@@ -132,6 +132,7 @@ export function buildBuildStep(params: BuildStepParams): Step {
 					deploymentId: deployment.id,
 					deploymentOptions: deployOptions,
 					deploymentConfig: project.deployment,
+					skipTypeCheck: deployOptions.skipTypeCheck,
 				});
 
 				const { framework, buildResult, packageResult } = pipelineResult;

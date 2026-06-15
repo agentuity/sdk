@@ -618,6 +618,7 @@ export const DeployOptionsSchema = zod
 			.boolean()
 			.optional()
 			.describe('Skip custom domain DNS validation before deploying'),
+		skipTypeCheck: zod.boolean().optional().describe('Skip TypeScript validation during deploy'),
 	})
 	.merge(GitOptionsSchema);
 
