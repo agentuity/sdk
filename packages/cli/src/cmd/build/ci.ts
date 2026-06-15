@@ -2,7 +2,7 @@ import type { Logger } from '@agentuity/core';
 import { spawn } from 'bun';
 import { mkdir, mkdtemp, readdir, realpath, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { ErrorCode } from '../../errors';
 import * as tui from '../../tui';
 
@@ -21,6 +21,27 @@ export interface CIBuildOptions {
 	pullRequestUrl?: string;
 	logsUrl?: string;
 	skipDnsValidation?: boolean;
+	skipTypeCheck?: boolean;
+}
+
+export async function hasProjectDependenciesInstalled(projectDir: string): Promise<boolean> {
+	let dir = projectDir;
+	for (;;) {
+		const bunStore = join(dir, 'node_modules', '.bun');
+		const lockfile = join(dir, 'bun.lock');
+		if (
+			(await stat(bunStore).catch(() => null))?.isDirectory() &&
+			(await Bun.file(lockfile).exists())
+		) {
+			return true;
+		}
+
+		const parent = dirname(dir);
+		if (parent === dir) {
+			return false;
+		}
+		dir = parent;
+	}
 }
 
 async function runCommand(cmd: string[], cwd: string): Promise<number> {
@@ -127,6 +148,7 @@ export function buildDeployArgs(opts: CIBuildOptions): string[] {
 	if (opts.pullRequestUrl) args.push('--pull-request-url', opts.pullRequestUrl);
 	if (opts.logsUrl) args.push('--logs-url', opts.logsUrl);
 	if (opts.skipDnsValidation) args.push('--skip-dns-validation');
+	if (opts.skipTypeCheck) args.push('--skip-type-check');
 
 	return args;
 }
@@ -210,12 +232,16 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 			await Bun.write(join(projectDir, '.env'), `AGENTUITY_SDK_KEY=${sdkKey}\n`);
 		}
 
-		tui.info('3️⃣ Installing your project dependencies...');
-		const installExit = await runCommand(['bun', 'install'], projectDir);
-		if (installExit !== 0) {
-			tui.error(`Dependency installation failed (exit ${installExit})`);
-			pendingExitCode = installExit;
-			return;
+		if (await hasProjectDependenciesInstalled(projectDir)) {
+			tui.info('3️⃣ Using existing project dependencies (skipping install)...');
+		} else {
+			tui.info('3️⃣ Installing your project dependencies...');
+			const installExit = await runCommand(['bun', 'install'], projectDir);
+			if (installExit !== 0) {
+				tui.error(`Dependency installation failed (exit ${installExit})`);
+				pendingExitCode = installExit;
+				return;
+			}
 		}
 
 		const packageJsonPath = join(projectDir, 'package.json');

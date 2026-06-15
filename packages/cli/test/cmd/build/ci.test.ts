@@ -1,14 +1,47 @@
 import { describe, expect, test } from 'bun:test';
 import { Buffer } from 'node:buffer';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildDeployArgs, downloadSource, sourceDownloadHeaders } from '../../../src/cmd/build/ci';
+import {
+	buildDeployArgs,
+	downloadSource,
+	hasProjectDependenciesInstalled,
+	sourceDownloadHeaders,
+} from '../../../src/cmd/build/ci';
 
 describe('build ci', () => {
 	test('passes skip DNS validation to nested deploy', () => {
 		const args = buildDeployArgs({ skipDnsValidation: true });
 		expect(args).toContain('--skip-dns-validation');
+	});
+
+	test('passes skip typecheck to nested deploy', () => {
+		const args = buildDeployArgs({ skipTypeCheck: true });
+		expect(args).toContain('--skip-type-check');
+	});
+
+	test('detects existing dependencies from monorepo root', async () => {
+		const dir = await mkdtemp(join(tmpdir(), 'agentuity-ci-deps-test-'));
+		try {
+			await mkdir(join(dir, 'node_modules', '.bun'), { recursive: true });
+			await writeFile(join(dir, 'bun.lock'), '');
+			const appDir = join(dir, 'apps', 'web');
+			await mkdir(appDir, { recursive: true });
+
+			expect(await hasProjectDependenciesInstalled(appDir)).toBe(true);
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
+	});
+
+	test('requires install when dependencies are missing', async () => {
+		const dir = await mkdtemp(join(tmpdir(), 'agentuity-ci-deps-test-'));
+		try {
+			expect(await hasProjectDependenciesInstalled(dir)).toBe(false);
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
 	});
 
 	test('adds GitHub archive token only for GitHub archive hosts', () => {
