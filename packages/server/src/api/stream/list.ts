@@ -1,4 +1,4 @@
-import { SortDirectionSchema } from '@agentuity/core';
+import { SortDirectionSchema } from '@agentuity/client';
 import { z } from 'zod';
 import { type APIClient, APIResponseSchema } from '../api.ts';
 import { StreamResponseError } from './util.ts';

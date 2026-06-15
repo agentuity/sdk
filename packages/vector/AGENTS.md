@@ -13,7 +13,7 @@ Standalone package for the Agentuity Vector storage service. Provides a simple, 
 ## Architecture
 
 - **Runtime**: Node.js and Bun compatible
-- **Exports**: VectorClient and all types from `@agentuity/vector`; `@agentuity/core/vector` re-exports this package
+- **Exports**: VectorClient and all types from `@agentuity/vector`
 - **Dependencies**: `@agentuity/adapter`, `@agentuity/client`, `@agentuity/config`, zod
 
 ## Usage

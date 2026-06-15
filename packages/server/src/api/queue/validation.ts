@@ -63,7 +63,7 @@ export const MAX_SOURCE_NAME_LENGTH = 256;
 // ============================================================================
 
 // Shared with runtime queue service in core; single definition for platform validation
-import { QueueValidationError } from '@agentuity/core';
+import { QueueValidationError } from '@agentuity/queue';
 export { QueueValidationError };
 
 // ============================================================================

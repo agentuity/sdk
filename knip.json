@@ -11,13 +11,7 @@
 			"project": ["src/**/*.ts", "test/**/*.ts"]
 		},
 		"packages/core": {
-			"entry": [
-				"src/index.ts",
-				"src/**/index.ts",
-				"test/**/*.test.ts",
-				"src/services/api-reference.ts",
-				"src/services/*/api-reference.ts"
-			],
+			"entry": ["src/index.ts", "src/**/index.ts", "test/**/*.test.ts"],
 			"project": ["src/**/*.ts", "test/**/*.ts"]
 		},
 		"packages/server": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },

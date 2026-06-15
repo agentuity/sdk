@@ -13,7 +13,7 @@ Standalone package for the Agentuity Queue service. Provides a simple, ergonomic
 ## Architecture
 
 - **Runtime**: Node.js and Bun compatible
-- **Exports**: QueueClient and runtime types from `@agentuity/queue`; `@agentuity/core/queue` re-exports this package
+- **Exports**: QueueClient and runtime types from `@agentuity/queue`
 - **Dependencies**: `@agentuity/adapter`, `@agentuity/client`, `@agentuity/config`, zod
 
 ## Usage

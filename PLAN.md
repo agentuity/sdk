@@ -18,7 +18,7 @@ package should not pull in the full core service catalog (~60k+ LOC under
   `schedule`, `task`, `webhook`, `sandbox`, `aigateway`, `db`
 - Shared HTTP/client infrastructure currently duplicated across service packages
 - CLI cloud command utils that import `*StorageService` from core
-- Docs API reference generator paths (`packages/core/src/services/*/api-reference.ts`)
+- Docs API reference catalogs live in service packages and `@agentuity/server` (`docs/scripts/api-reference/`)
 - In-repo migration off internal `@agentuity/core/{service}` import paths (not a supported app surface)
 
 ### Out (for now)
@@ -201,9 +201,9 @@ internal paths. Not blocked on external migration — there is no supported exte
 `@agentuity/core/{service}`.
 
 - [x] Delete runtime duplicates under `packages/core/src/services/{service}/` (shims in place; api-reference + doc-only platform types for queue/webhook/stream remain)
-- [ ] Remove `@agentuity/core/{service}` subpath exports from core `package.json`
+- [x] Remove `@agentuity/core/{service}` subpath exports from core `package.json`
 - [ ] Replace with thin re-exports only where cycles still require a core entry (goal: none)
-- [ ] Update docs API reference generator to read from service packages
+- [x] Update docs API reference generator to read from service packages and `@agentuity/server`
 - [ ] Delete this file
 
 **Exit:** `@agentuity/core` is foundation only; one implementation per service in

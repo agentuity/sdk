@@ -1,4 +1,4 @@
-import type { VectorUpsertParams } from '@agentuity/core';
+import type { VectorUpsertParams } from '@agentuity/vector';
 import type { Chunk } from './chunk-mdx';
 import { chunkAndEnrichDoc } from './chunk-mdx';
 import type { ChunkMetadata } from './types';

@@ -14,6 +14,7 @@
 		{ "path": "../config" },
 		{ "path": "../core" },
 		{ "path": "../keyvalue" },
+		{ "path": "../queue" },
 		{ "path": "../sandbox" },
 		{ "path": "../schema" }
 	]

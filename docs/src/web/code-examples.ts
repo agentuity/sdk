@@ -302,7 +302,7 @@ export const report = {
 	'sse-stream': `import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { AIGatewayClient } from "@agentuity/aigateway";
-import { getAIGatewayStreamDeltaText } from "@agentuity/core/aigateway";
+import { getAIGatewayStreamDeltaText } from "@agentuity/aigateway";
 
 const app = new Hono();
 const gateway = new AIGatewayClient();
@@ -353,7 +353,7 @@ export default app;`,
 
 	streaming: `import { Hono } from "hono";
 import { AIGatewayClient } from "@agentuity/aigateway";
-import { getAIGatewayStreamDeltaText } from "@agentuity/core/aigateway";
+import { getAIGatewayStreamDeltaText } from "@agentuity/aigateway";
 
 const app = new Hono();
 const gateway = new AIGatewayClient();

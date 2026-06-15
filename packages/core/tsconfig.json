@@ -8,21 +8,5 @@
 	},
 	"include": ["src/**/*"],
 	"exclude": ["test/**/*"],
-	"references": [
-		{ "path": "../adapter" },
-		{ "path": "../api" },
-		{ "path": "../config" },
-		{ "path": "../aigateway" },
-		{ "path": "../coder" },
-		{ "path": "../db" },
-		{ "path": "../email" },
-		{ "path": "../keyvalue" },
-		{ "path": "../queue" },
-		{ "path": "../schedule" },
-		{ "path": "../sandbox" },
-		{ "path": "../stream" },
-		{ "path": "../task" },
-		{ "path": "../vector" },
-		{ "path": "../webhook" }
-	]
+	"references": [{ "path": "../adapter" }, { "path": "../api" }, { "path": "../config" }]
 }
