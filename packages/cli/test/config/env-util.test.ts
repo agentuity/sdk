@@ -1,4 +1,7 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
 	looksLikeSecret,
 	isPublicVarKey,
@@ -7,6 +10,9 @@ import {
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
 	AGENTUITY_ALLOWED_KEYS,
+	readEnvFile,
+	writeEnvFile,
+	formatEnvValue,
 } from '../../src/env-util';
 
 describe('AGENTUITY_ALLOWED_KEYS', () => {
@@ -408,5 +414,95 @@ describe('splitEnvAndSecrets', () => {
 			AWS_ACCESS_KEY_ID: 'AKIA...',
 			AWS_SECRET_ACCESS_KEY: 'sekret',
 		});
+	});
+});
+
+describe('readEnvFile and writeEnvFile', () => {
+	let testDir: string;
+
+	/** Multi-line fixture with an embedded `=` line to exercise dotenv edge cases. */
+	function sampleMultilineEnvValue(): string {
+		return [
+			'THISISAMULTILINETESTVALUELINEONE',
+			'THISISAMULTILINETESTVALUETWOWITHANEQUALSIGN=NOTAKEY',
+			'THISISAMULTILINETESTVALUETHREEFINAL',
+		].join('\n');
+	}
+
+	beforeEach(async () => {
+		testDir = await mkdtemp(join(tmpdir(), 'agentuity-env-util-'));
+	});
+
+	afterEach(async () => {
+		await rm(testDir, { recursive: true, force: true });
+	});
+
+	test('reads multi-line quoted values without corruption', async () => {
+		const envPath = join(testDir, '.env');
+		const multilineValue = sampleMultilineEnvValue();
+		const original = [
+			'TEST_APP_ID=THISISATESTAPPIDVALUE',
+			`TEST_MULTILINE_VALUE="${multilineValue}"`,
+			'TEST_WEBHOOK_SECRET=THISISATESTWEBHOOKSECRETVALUE',
+			'TEST_PORT=3000',
+			'',
+		].join('\n');
+
+		await Bun.write(envPath, original);
+
+		const env = await readEnvFile(envPath);
+		expect(env.TEST_APP_ID).toBe('THISISATESTAPPIDVALUE');
+		expect(env.TEST_MULTILINE_VALUE).toBe(multilineValue);
+		expect(env.TEST_WEBHOOK_SECRET).toBe('THISISATESTWEBHOOKSECRETVALUE');
+		expect(env.TEST_PORT).toBe('3000');
+	});
+
+	test('writeEnvFile preserves multi-line values on merge', async () => {
+		const envPath = join(testDir, '.env');
+		const multilineValue = sampleMultilineEnvValue();
+		await Bun.write(
+			envPath,
+			[
+				'TEST_APP_ID=THISISATESTAPPIDVALUE',
+				`TEST_MULTILINE_VALUE="${multilineValue}"`,
+				'TEST_WEBHOOK_SECRET=THISISATESTWEBHOOKSECRETVALUE',
+				'TEST_PORT=3000',
+				'',
+			].join('\n')
+		);
+
+		await writeEnvFile(envPath, { AGENTUITY_SDK_KEY: 'THISISATESTSDKKEYVALUE' });
+
+		const env = await readEnvFile(envPath);
+		expect(env.AGENTUITY_SDK_KEY).toBe('THISISATESTSDKKEYVALUE');
+		expect(env.TEST_MULTILINE_VALUE).toBe(multilineValue);
+		expect(env.TEST_APP_ID).toBe('THISISATESTAPPIDVALUE');
+		expect(env.TEST_WEBHOOK_SECRET).toBe('THISISATESTWEBHOOKSECRETVALUE');
+		expect(env.TEST_PORT).toBe('3000');
+	});
+
+	test('writeEnvFile round-trips multi-line values', async () => {
+		const envPath = join(testDir, '.env');
+		const multilineValue = sampleMultilineEnvValue();
+
+		await writeEnvFile(envPath, {
+			TEST_APP_ID: 'THISISATESTAPPIDVALUE',
+			TEST_MULTILINE_VALUE: multilineValue,
+			TEST_PORT: '3000',
+		});
+
+		const env = await readEnvFile(envPath);
+		expect(env.TEST_MULTILINE_VALUE).toBe(multilineValue);
+	});
+
+	test('formatEnvValue leaves simple values unquoted', () => {
+		expect(formatEnvValue('THISISATESTSDKKEYVALUE')).toBe('THISISATESTSDKKEYVALUE');
+		expect(formatEnvValue('http://127.0.0.1:3500')).toBe('http://127.0.0.1:3500');
+	});
+
+	test('formatEnvValue quotes values with spaces', () => {
+		expect(formatEnvValue('THIS IS A VERY OBVIOUS TEST VALUE WITH SPACES')).toBe(
+			'"THIS IS A VERY OBVIOUS TEST VALUE WITH SPACES"'
+		);
 	});
 });
