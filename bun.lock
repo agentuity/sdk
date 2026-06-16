@@ -265,6 +265,7 @@
         "@agentuity/adapter": "workspace:*",
         "@agentuity/api": "workspace:*",
         "@agentuity/config": "workspace:*",
+        "@agentuity/keyvalue": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {

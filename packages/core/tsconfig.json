@@ -8,5 +8,10 @@
 	},
 	"include": ["src/**/*"],
 	"exclude": ["test/**/*"],
-	"references": [{ "path": "../adapter" }, { "path": "../api" }, { "path": "../config" }]
+	"references": [
+		{ "path": "../adapter" },
+		{ "path": "../api" },
+		{ "path": "../config" },
+		{ "path": "../keyvalue" }
+	]
 }
