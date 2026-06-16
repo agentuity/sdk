@@ -7,5 +7,15 @@
 		"types": ["bun-types"]
 	},
 	"include": ["test/**/*", "src/**/*"],
-	"references": []
+	"references": [
+		{ "path": "../adapter" },
+		{ "path": "../aigateway" },
+		{ "path": "../api" },
+		{ "path": "../coder" },
+		{ "path": "../config" },
+		{ "path": "../keyvalue" },
+		{ "path": "../queue" },
+		{ "path": "../stream" },
+		{ "path": "../vector" }
+	]
 }
