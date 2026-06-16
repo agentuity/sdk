@@ -1,4 +1,5 @@
-import { dbTables, generateCreateTableSQL, listOrgResources } from '@agentuity/server';
+import { dbTables, generateCreateTableSQL } from '@agentuity/db';
+import { listOrgResources } from '@agentuity/server';
 import { z } from 'zod';
 import { setResourceInfo } from '../../../cache/index.ts';
 import { getCommand } from '../../../command-prefix.ts';

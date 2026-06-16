@@ -43,6 +43,7 @@
 		"@agentuity/aigateway": "workspace:*",
 		"@agentuity/config": "workspace:*",
 		"@agentuity/core": "workspace:*",
+		"@agentuity/db": "workspace:*",
 		"@agentuity/email": "workspace:*",
 		"@agentuity/schedule": "workspace:*",
 		"@agentuity/stream": "workspace:*",

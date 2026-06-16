@@ -169,6 +169,7 @@
         "@agentuity/coder-tui": "workspace:*",
         "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
+        "@agentuity/db": "workspace:*",
         "@agentuity/email": "workspace:*",
         "@agentuity/keyvalue": "workspace:*",
         "@agentuity/schedule": "workspace:*",

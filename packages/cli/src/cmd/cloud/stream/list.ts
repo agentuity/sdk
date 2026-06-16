@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { streamList, type StreamInfo } from '@agentuity/server';
+import { streamList, type StreamListItem } from '@agentuity/server';
 import { StructuredError } from '@agentuity/core';
 import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
@@ -149,7 +149,7 @@ export const listSubcommand = createCommand({
 			if (result.streams.length === 0) {
 				tui.info('No streams found');
 			} else {
-				const tableData = result.streams.map((stream: StreamInfo) => {
+				const tableData = result.streams.map((stream: StreamListItem) => {
 					const sizeBytes = stream.sizeBytes ?? 0;
 					const metadataStr =
 						Object.keys(stream.metadata).length > 0 ? JSON.stringify(stream.metadata) : '-';
