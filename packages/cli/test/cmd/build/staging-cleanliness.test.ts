@@ -128,6 +128,18 @@ describe('copyMonorepoTree', () => {
 		expect(existsSync(join(dst, 'apps/web/dist/chunk-abc.js'))).toBe(true);
 	});
 
+	test('dereferences relative symlinks at repo root (Node ERR_FS_EISDIR without recursive)', () => {
+		write(join(root, 'real.txt'), 'hello from symlink');
+		symlinkSync('real.txt', join(root, 'link.txt'));
+		write(join(root, 'package.json'), '{"workspaces":["apps/*"]}');
+
+		copyMonorepoTree(ctx(), dst, noopLogger);
+
+		const dstPath = join(dst, 'link.txt');
+		expect(existsSync(dstPath)).toBe(true);
+		expect(Bun.file(dstPath).text()).resolves.toBe('hello from symlink');
+	});
+
 	test('dereferences symlinks (so workspace-link targets ship as files)', () => {
 		// `packages/shared/src/index.ts` is the real file; `apps/web/src/shared.ts`
 		// is a symlink to it. We expect the symlink to be resolved to a
