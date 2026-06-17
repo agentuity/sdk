@@ -4,6 +4,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { parse as parseDotenv } from 'dotenv';
 import { pathExists } from './node-compat/fs.ts';
 
 export interface EnvVars {
@@ -126,6 +127,29 @@ export function parseEnvLine(line: string): { key: string; value: string } | nul
 }
 
 /**
+ * Format a value for writing to an .env file.
+ * Multi-line and special characters are wrapped in double quotes per dotenv spec.
+ */
+export function formatEnvValue(value: string): string {
+	const needsQuoting =
+		value.includes('\n') ||
+		value.includes('\r') ||
+		value.includes('"') ||
+		value.includes('\\') ||
+		value.includes('#') ||
+		value.includes(' ') ||
+		value.includes('\t') ||
+		/[\u0000-\u001f]/.test(value);
+
+	if (!needsQuoting) {
+		return value;
+	}
+
+	const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+	return `"${escaped}"`;
+}
+
+/**
  * Read and parse an .env file
  */
 export async function readEnvFile(path: string): Promise<EnvVars> {
@@ -134,17 +158,7 @@ export async function readEnvFile(path: string): Promise<EnvVars> {
 	}
 
 	const content = await readFile(path, 'utf-8');
-	const lines = content.split('\n');
-	const env: EnvVars = {};
-
-	for (const line of lines) {
-		const parsed = parseEnvLine(line);
-		if (parsed) {
-			env[parsed.key] = parsed.value;
-		}
-	}
-
-	return env;
+	return parseDotenv(content);
 }
 
 /**
@@ -188,6 +202,9 @@ export async function writeEnvFile(
 		}
 
 		const value = finalVars[key];
+		if (value === undefined) {
+			continue;
+		}
 
 		// Add comment if provided
 		if (options?.addComment) {
@@ -197,8 +214,8 @@ export async function writeEnvFile(
 			}
 		}
 
-		// Write key=value
-		lines.push(`${key}=${value}`);
+		// Write key=value (quote multi-line and special values per dotenv spec)
+		lines.push(`${key}=${formatEnvValue(value)}`);
 	}
 
 	const content = lines.join('\n') + '\n';
