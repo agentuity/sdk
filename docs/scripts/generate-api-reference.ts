@@ -209,9 +209,9 @@ function renderApiIndexMdx() {
 	const cards = apiReferenceRegistry
 		.map(
 			(entry) => `  <CardLink
-    href="/reference/api/${entry.service.slug}"
-    title="${entry.routeTitle}"
-    description="${entry.service.description}"
+    href=${JSON.stringify(`/reference/api/${entry.service.slug}`)}
+    title=${JSON.stringify(entry.routeTitle)}
+    description=${JSON.stringify(entry.service.description)}
     icon={<${entry.icon} className="size-5" />}
   />`
 		)

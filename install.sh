@@ -375,6 +375,12 @@ writeFileSync(
   ) + "\n"
 );
 '
+      manifest_prepare_result=$?
+      if [ $manifest_prepare_result -ne 0 ]; then
+        set -e
+        print_message error "Failed to prepare local CLI workspace from $manifest_file"
+        exit 1
+      fi
 
       install_output=$(cd "$install_root" && bun install 2>&1)
       install_result=$?

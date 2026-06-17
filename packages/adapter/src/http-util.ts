@@ -157,6 +157,10 @@ export async function toPayload(data: unknown): Promise<[Body, string | undefine
 		case 'boolean':
 		case 'number':
 			return [JSON.stringify(data), jsonContentType];
+		case 'bigint':
+			return [data.toString(), textContentType];
+		case 'symbol':
+			throw new TypeError('Unsupported payload type: symbol');
 		case 'function':
 			return toPayload((data as () => unknown)());
 		case 'object': {
@@ -185,7 +189,7 @@ export async function toPayload(data: unknown): Promise<[Body, string | undefine
 			return [safeStringify(data), jsonContentType];
 		}
 	}
-	return ['', textContentType];
+	throw new TypeError(`Unsupported payload type: ${typeof data}`);
 }
 
 export async function fromResponse<T>(response: Response): Promise<T> {
@@ -200,7 +204,14 @@ export async function fromResponse<T>(response: Response): Promise<T> {
 		if (!text.trim()) {
 			return undefined as T;
 		}
-		return JSON.parse(text) as T;
+		try {
+			return JSON.parse(text) as T;
+		} catch (error) {
+			if (!contentType) {
+				return text as T;
+			}
+			throw error;
+		}
 	}
 
 	if (contentType.startsWith('text/')) {
