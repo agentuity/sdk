@@ -1,4 +1,4 @@
-import { StructuredError } from '@agentuity/adapter';
+import { StructuredError } from '@agentuity/core';
 import { z } from 'zod';
 import { type APIClient, APIResponseSchemaOptionalData } from '@agentuity/api';
 

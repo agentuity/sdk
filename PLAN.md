@@ -217,7 +217,7 @@ internal paths. Not blocked on external migration — there is no supported exte
 | Circular deps (core → keyvalue → core) | Shims only; remove in Phase 5 |
 | Docs generator tied to core paths | Update in Phase 0/2 per service |
 | CLI is largest core consumer | Migrate CLI utils alongside each service move |
-| Publish order complexity | Document: core → adapter → config → services → hono/cli |
+| Publish order complexity | Document: adapter → config/client → services → core → server/hono/cli |
 | Coder ↔ sandbox coupling | Migrate sandbox before coder package cleanup |
 
 ## Publish Order (target)

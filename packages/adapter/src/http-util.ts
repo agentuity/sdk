@@ -30,10 +30,11 @@ export const buildUrl = (
 	query?: URLSearchParams
 ): string => {
 	path = path.startsWith('/') ? path : `/${path}`;
-	let url = base.replace(/\/$/, '') + path;
+	const normalizedPath = subpath ? path.replace(/\/+$/, '') : path;
+	let url = base.replace(/\/$/, '') + normalizedPath;
 	if (subpath) {
-		subpath = subpath.startsWith('/') ? subpath : `/${subpath}`;
-		url += subpath;
+		const normalizedSubpath = subpath.replace(/^\/+/, '');
+		url += `/${normalizedSubpath}`;
 	}
 	if (query) {
 		url += `?${query.toString()}`;

@@ -1,4 +1,4 @@
-import { StructuredError } from '@agentuity/adapter';
+import { StructuredError } from '@agentuity/core';
 import type { EventEmitter } from 'node:events';
 import { z } from 'zod';
 

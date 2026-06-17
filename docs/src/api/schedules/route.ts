@@ -1,3 +1,4 @@
+import { isStructuredError } from '@agentuity/core';
 import { Hono } from 'hono';
 import type { ApiEnv } from '../context';
 import type {
@@ -80,18 +81,13 @@ function sortDeliveries(deliveries: ReadonlyArray<ScheduleDelivery>): ScheduleDe
 }
 
 function isMissingScheduleError(error: unknown): boolean {
-	if (
-		typeof error === 'object' &&
-		error !== null &&
+	return (
+		isStructuredError(error) &&
+		error._tag === 'ServiceException' &&
 		'statusCode' in error &&
 		typeof error.statusCode === 'number' &&
 		error.statusCode === 404
-	) {
-		return true;
-	}
-
-	const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
-	return message.includes('not found') || message.includes('404');
+	);
 }
 
 function getErrorMessage(error: unknown): string {
