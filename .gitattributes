@@ -1,0 +1,2 @@
+# The polyglot CLI entrypoint must stay LF — CRLF breaks `#!/bin/sh` under WSL/Linux.
+packages/cli/bin/cli.js text eol=lf

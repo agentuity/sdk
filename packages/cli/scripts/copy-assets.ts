@@ -7,10 +7,9 @@
  * templates under `src/cmd/project/templates/`, which need to be
  * mirrored into the dist output.
  *
- * Note: this script does NOT touch `bin/cli.js`. That file is a
- * hand-written JavaScript shim with its own shebang; it ships
- * directly from the repo to the published tarball, no compilation
- * required.
+ * Note: this script does NOT touch `bin/cli.js`. It is a hand-written
+ * polyglot launcher/shim file that ships directly from the repo to the
+ * published tarball, no compilation required.
  */
 
 import { cp, mkdir } from 'node:fs/promises';

@@ -124,11 +124,26 @@ jobs:
            with:
               bun-version: "1.3.11"
 
+         - name: Setup Node.js
+           if: ${{ needs.detect-install-changes.outputs.should-run == 'true' }}
+           uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+           with:
+              node-version: '24'
+
+         - name: Install workspace dependencies
+           if: ${{ needs.detect-install-changes.outputs.should-run == 'true' }}
+           run: bun install --frozen-lockfile
+
+         - name: Pack CLI for install tests
+           if: ${{ needs.detect-install-changes.outputs.should-run == 'true' }}
+           run: bash scripts/pack-cli-for-install-test.sh
+
          - name: Test install script
            if: ${{ needs.detect-install-changes.outputs.should-run == 'true' }}
            run: |
               set -euo pipefail
 
+              tmpdir=
               tmpdir=$(mktemp -d)
               export HOME="$tmpdir"
               trap 'rm -rf "$tmpdir"' EXIT
@@ -136,6 +151,8 @@ jobs:
               mkdir -p "$HOME/.bun/bin"
               ln -s "$(which bun)" "$HOME/.bun/bin/bun"
               export PATH="$HOME/.bun/bin:$PATH"
+              cli_package=$(cat dist/packages/.cli-install-tarball)
+              export AGENTUITY_CLI_PACKAGE="$PWD/${cli_package}"
 
               ./install.sh -y
 
@@ -183,11 +200,26 @@ jobs:
            with:
               bun-version: "1.3.11"
 
+         - name: Setup Node.js
+           if: ${{ needs.detect-install-changes.outputs.should-run == 'true' }}
+           uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+           with:
+              node-version: '24'
+
+         - name: Install workspace dependencies
+           if: ${{ needs.detect-install-changes.outputs.should-run == 'true' }}
+           run: bun install --frozen-lockfile
+
+         - name: Pack CLI for install tests
+           if: ${{ needs.detect-install-changes.outputs.should-run == 'true' }}
+           run: bash scripts/pack-cli-for-install-test.sh
+
          - name: Test install script
            if: ${{ needs.detect-install-changes.outputs.should-run == 'true' }}
            run: |
               set -euo pipefail
 
+              tmpdir=
               tmpdir=$(mktemp -d)
               export HOME="$tmpdir"
               trap 'rm -rf "$tmpdir"' EXIT
@@ -195,6 +227,8 @@ jobs:
               mkdir -p "$HOME/.bun/bin"
               ln -s "$(which bun)" "$HOME/.bun/bin/bun"
               export PATH="$HOME/.bun/bin:$PATH"
+              cli_package=$(cat dist/packages/.cli-install-tarball)
+              export AGENTUITY_CLI_PACKAGE="$PWD/${cli_package}"
 
               ./install.sh -y
 
@@ -223,6 +257,22 @@ jobs:
            uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
            with:
               node-version: ${{ env.NODE_VERSION }}
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+           with:
+              bun-version: "1.3.11"
+
+         - name: Setup Node.js
+           uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+           with:
+              node-version: '24'
+
+         - name: Install workspace dependencies
+           run: bun install --frozen-lockfile
+
+         - name: Pack CLI for install tests
+           run: bash scripts/pack-cli-for-install-test.sh
 
          - name: Test installer across Linux distros
            shell: bash
@@ -274,6 +324,11 @@ jobs:
               curl -fsSL https://bun.sh/install | bash -s -- bun-v1.3.11 > /dev/null 2>&1
               export PATH="$HOME/.bun/bin:$PATH"
               bun --version
+
+              if [ -f dist/packages/.cli-install-tarball ]; then
+                cli_package=$(cat dist/packages/.cli-install-tarball)
+                export AGENTUITY_CLI_PACKAGE="/app/${cli_package}"
+              fi
 
               if ! ./install.sh -y > /tmp/install.log 2>&1; then
                 echo "❌ Install failed:"
@@ -364,13 +419,28 @@ jobs:
            with:
               node-version: ${{ env.NODE_VERSION }}
 
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+           with:
+              bun-version: "1.3.11"
+
+         - name: Setup Node.js
+           uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+           with:
+              node-version: '24'
+
+         - name: Install workspace dependencies
+           run: bun install --frozen-lockfile
+
+         - name: Pack CLI for install tests
+           run: bash scripts/pack-cli-for-install-test.sh
+
          - name: Run installer scenarios
            shell: bash
            run: |
               set -euo pipefail
               # The single-quoted scenario bodies are intentionally expanded inside the container.
               # shellcheck disable=SC2016
-
               run_ubuntu() {
                 local name="$1"
                 local script="$2"
@@ -398,6 +468,10 @@ jobs:
                   echo \"Node version: \$(node --version)\"
                   curl -fsSL https://bun.sh/install | bash -s -- bun-v1.3.11 > /dev/null 2>&1
                   export PATH=\"\$HOME/.bun/bin:\$PATH\"
+                  if [ -f dist/packages/.cli-install-tarball ]; then
+                    cli_package=\$(cat dist/packages/.cli-install-tarball)
+                    export AGENTUITY_CLI_PACKAGE=\"/app/\${cli_package}\"
+                  fi
                   ${script}
                 "
                 echo "✅ ${name} passed"

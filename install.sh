@@ -327,8 +327,29 @@ install_cli() {
 
   # Temporarily disable set -e for bun add to ensure proper error handling
   set +e
-  
-  if [ -n "$requested_version" ]; then
+
+  if [ -n "${AGENTUITY_CLI_PACKAGE:-}" ]; then
+    if [ ! -f "$AGENTUITY_CLI_PACKAGE" ]; then
+      set -e
+      print_message error "AGENTUITY_CLI_PACKAGE not found: $AGENTUITY_CLI_PACKAGE"
+      exit 1
+    fi
+    print_message debug "Installing from local package $AGENTUITY_CLI_PACKAGE"
+
+    install_output=$(bun add -g "file:$AGENTUITY_CLI_PACKAGE" 2>&1)
+    install_result=$?
+
+    if [ $install_result -ne 0 ]; then
+      set -e
+      print_message error "Failed to install from $AGENTUITY_CLI_PACKAGE"
+      printf "%s\n" "$install_output"
+      exit 1
+    fi
+
+    if [ "$verbose" = "true" ]; then
+      printf "%s\n" "$install_output"
+    fi
+  elif [ -n "$requested_version" ]; then
     # Normalize version (remove 'v' prefix if present)
     version=$(echo "$requested_version" | sed 's/^v//')
     print_message debug "Installing version $version"
@@ -497,7 +518,7 @@ configure_path() {
   # directories to $PATH (e.g. BUN_EXEC_DIR). That makes the runtime check pass,
   # but the user's shell config file is never updated. After the subprocess exits
   # the PATH change is lost and commands fail with "No such file or directory"
-  # because the shebang interpreter (bun) cannot be found.
+  # because bun (used by the CLI launcher and global installs) cannot be found.
   # Instead, we always proceed to add_to_path() which checks the config FILE
   # for duplicates — that is the correct deduplication layer.
 
@@ -554,9 +575,10 @@ configure_path() {
   fi
 
   # Ensure BUN_EXEC_DIR (where the bun binary lives) is on PATH.
-  # This is critical: globally installed packages use a "#!/usr/bin/env bun"
-  # shebang, so bun must be findable. BUN_EXEC_DIR and BUN_INSTALL_BIN may
-  # differ (e.g. bun at ~/.bun/bin, global packages at ~/.local/bin).
+  # This is critical: globally installed packages use the polyglot
+  # `bin/cli.js` entrypoint, which execs itself with bun or node, so at
+  # least one of those runtimes must be findable on PATH. BUN_EXEC_DIR
+  # and BUN_INSTALL_BIN may differ (e.g. bun at ~/.bun/bin, global packages at ~/.local/bin).
   if [ "$BUN_EXEC_DIR" != "$bun_bin_dir" ]; then
     case $current_shell in
     fish)
@@ -586,7 +608,7 @@ setup_github_actions() {
   if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" = "true" ]; then
     printf "%s\n" "$BUN_INSTALL_BIN" >>"$GITHUB_PATH"
     print_message info "Added $BUN_INSTALL_BIN to \$GITHUB_PATH"
-    # Also add BUN_EXEC_DIR when it differs, so the "bun" shebang resolves
+    # Also add BUN_EXEC_DIR when it differs, so bun is findable for the CLI launcher
     if [ "$BUN_EXEC_DIR" != "$BUN_INSTALL_BIN" ]; then
       printf "%s\n" "$BUN_EXEC_DIR" >>"$GITHUB_PATH"
       print_message info "Added $BUN_EXEC_DIR to \$GITHUB_PATH"
