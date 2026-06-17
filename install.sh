@@ -339,7 +339,7 @@ install_cli() {
     cli_tarball_dir=$(cd "$(dirname "$AGENTUITY_CLI_PACKAGE")" && pwd)
     manifest_file="$cli_tarball_dir/.cli-install-manifest"
     if [ -f "$manifest_file" ]; then
-      install_root="${AGENTUITY_CLI_INSTALL_ROOT:-$BUN_INSTALL/install/agentuity-local}"
+      install_root="${AGENTUITY_CLI_INSTALL_ROOT:-${BUN_INSTALL:-$HOME/.bun}/install/agentuity-local}"
       mkdir -p "$install_root"
 
       INSTALL_DIR="$install_root" TARBALL_DIR="$cli_tarball_dir" MANIFEST="$manifest_file" bun -e '
