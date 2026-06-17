@@ -350,7 +350,7 @@ export function copyMonorepoTree(
 				// Resolve symlinks during copy. `node_modules` symlinks have
 				// already been skipped above; everything else is either a
 				// genuine source link or a regular file pretending to be one.
-				cpSync(srcChild, dstChild, { dereference: true });
+				cpSync(srcChild, dstChild, { dereference: true, recursive: true });
 			} else {
 				cpSync(srcChild, dstChild);
 			}
