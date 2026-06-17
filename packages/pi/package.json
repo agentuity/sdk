@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/pi",
-	"version": "3.0.10",
+	"version": "3.0.11",
 	"description": "Agentuity AI Gateway provider plugin for Pi coding agent",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
