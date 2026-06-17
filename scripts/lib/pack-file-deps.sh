@@ -122,8 +122,10 @@ writeFileSync(output, JSON.stringify(pkgJson, null, "\t") + "\n");
 pack_workspace_package_with_resolved_versions() {
 	local pkg=$1
 	local tarball_dir=$2
+	local version
 
 	cd "$SDK_ROOT/packages/$pkg"
+	version=$(node -p "require('./package.json').version")
 	write_resolved_package_json "$pkg" package.json.tmp
 	mv package.json package.json.bak
 	mv package.json.tmp package.json
@@ -135,7 +137,7 @@ pack_workspace_package_with_resolved_versions() {
 		exit 1
 	fi
 
-	rm -f "$tarball_dir"/agentuity-"${pkg}"-*.tgz
+	rm -f "$tarball_dir/agentuity-${pkg}-${version}.tgz"
 	npm pack --pack-destination "$tarball_dir" >/dev/null
 	mv package.json.bak package.json
 }

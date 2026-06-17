@@ -36,11 +36,17 @@ done
 
 for pkg in "${PACK_ORDER[@]}"; do
 	pack_workspace_package_with_resolved_versions "$pkg" "$TARBALL_DIR"
-	tarball_name=$(ls -1 "$TARBALL_DIR"/agentuity-"${pkg}"-*.tgz | head -1)
+	version=$(node -p "require('$SDK_ROOT/packages/$pkg/package.json').version")
+	tarball_name="agentuity-${pkg}-${version}.tgz"
+	if [ ! -f "$TARBALL_DIR/$tarball_name" ]; then
+		echo "ERROR: expected tarball missing after packing packages/$pkg: $tarball_name" >&2
+		ls -la "$TARBALL_DIR" >&2 || true
+		exit 1
+	fi
 	if [ "$pkg" = "cli" ]; then
-		printf 'cli:%s\n' "$(basename "$tarball_name")" >>"$MANIFEST"
+		printf 'cli:%s\n' "$tarball_name" >>"$MANIFEST"
 	else
-		printf '%s\n' "$(basename "$tarball_name")" >>"$MANIFEST"
+		printf '%s\n' "$tarball_name" >>"$MANIFEST"
 	fi
 done
 
