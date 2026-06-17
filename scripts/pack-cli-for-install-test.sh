@@ -18,7 +18,10 @@ source "$SDK_ROOT/scripts/lib/pack-file-deps.sh"
 mkdir -p "$TARBALL_DIR"
 rm -f "$TARBALL_DIR"/agentuity-*.tgz "$MANIFEST"
 
-mapfile -t PACK_ORDER < <(pack_file_deps_order cli)
+PACK_ORDER=()
+while IFS= read -r pkg; do
+	[ -n "$pkg" ] && PACK_ORDER+=("$pkg")
+done < <(pack_file_deps_order cli)
 if [ ${#PACK_ORDER[@]} -eq 0 ]; then
 	echo "ERROR: no workspace packages found for CLI install pack" >&2
 	exit 1
