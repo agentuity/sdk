@@ -1,5 +1,5 @@
+import { isStructuredError } from '@agentuity/core';
 import { Hono } from 'hono';
-import { ServiceException } from '@agentuity/core/exception';
 import type { ApiEnv } from '../context';
 import type {
 	CreateScheduleParams,
@@ -81,7 +81,13 @@ function sortDeliveries(deliveries: ReadonlyArray<ScheduleDelivery>): ScheduleDe
 }
 
 function isMissingScheduleError(error: unknown): boolean {
-	return error instanceof ServiceException && error.statusCode === 404;
+	return (
+		isStructuredError(error) &&
+		error._tag === 'ServiceException' &&
+		'statusCode' in error &&
+		typeof error.statusCode === 'number' &&
+		error.statusCode === 404
+	);
 }
 
 function getErrorMessage(error: unknown): string {

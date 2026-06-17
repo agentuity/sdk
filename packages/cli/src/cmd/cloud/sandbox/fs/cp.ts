@@ -30,7 +30,8 @@ import {
 	sandboxUploadArchive,
 	type APIClient,
 } from '@agentuity/server';
-import type { Logger, FileToWrite } from '@agentuity/core';
+import type { Logger } from '@agentuity/core';
+import type { FileToWrite } from '@agentuity/server';
 
 const POLL_INTERVAL_MS = 500;
 const MAX_POLL_ATTEMPTS = 600;

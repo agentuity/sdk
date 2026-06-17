@@ -1,21 +1,4 @@
-export {
-	StreamStorageService,
-	StreamStorage,
-	Stream,
-	type CreateStreamProps,
-	type ListStreamsParams,
-	type ListStreamsResponse,
-	type StreamInfo,
-	type StreamSortField,
-	STREAM_MIN_TTL_SECONDS,
-	STREAM_MAX_TTL_SECONDS,
-	STREAM_DEFAULT_TTL_SECONDS,
-	CreateStreamPropsSchema,
-	ListStreamsParamsSchema,
-	ListStreamsResponseSchema,
-	StreamInfoSchema,
-	StreamSortFieldSchema,
-} from '@agentuity/core/stream';
+export * from './service.ts';
 
 import {
 	StreamStorageService,
@@ -24,19 +7,17 @@ import {
 	type ListStreamsResponse,
 	type StreamInfo,
 	type Stream,
-} from '@agentuity/core/stream';
-import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/adapter';
-import { createMinimalLogger } from '@agentuity/core';
-import { getEnv } from '@agentuity/core';
-import { getServiceUrls } from '@agentuity/core/config';
+} from './service.ts';
+import { getServiceUrls } from '@agentuity/config';
+import {
+	createServiceAdapter,
+	isLogger,
+	resolveApiKey,
+	resolveRegion,
+	resolveServiceUrl,
+	type Logger,
+} from '@agentuity/client';
 import { z } from 'zod';
-
-const isLogger = (val: unknown): val is Logger =>
-	typeof val === 'object' &&
-	val !== null &&
-	['info', 'warn', 'error', 'debug', 'trace'].every(
-		(m) => typeof (val as Record<string, unknown>)[m] === 'function'
-	);
 
 export const StreamClientOptionsSchema = z.object({
 	apiKey: z.string().optional().describe('API key for authentication'),
@@ -51,21 +32,17 @@ export class StreamClient {
 
 	constructor(options: StreamClientOptions = {}) {
 		const validatedOptions = StreamClientOptionsSchema.parse(options);
-		const apiKey =
-			validatedOptions.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
-		const region = getEnv('AGENTUITY_REGION') ?? 'usc';
-		const serviceUrls = getServiceUrls(region);
-
-		const url = validatedOptions.url || getEnv('AGENTUITY_STREAM_URL') || serviceUrls.stream;
-
-		const logger = validatedOptions.logger ?? createMinimalLogger();
-
-		const headers = buildClientHeaders({
-			apiKey,
-			orgId: validatedOptions.orgId,
+		const serviceUrls = getServiceUrls(resolveRegion());
+		const url = resolveServiceUrl({
+			url: validatedOptions.url,
+			envKey: 'AGENTUITY_STREAM_URL',
+			fallback: serviceUrls.stream,
 		});
-
-		const adapter = createServerFetchAdapter({ headers }, logger);
+		const { adapter } = createServiceAdapter({
+			apiKey: resolveApiKey(validatedOptions.apiKey),
+			orgId: validatedOptions.orgId,
+			logger: validatedOptions.logger,
+		});
 		this.#service = new StreamStorageService(url, adapter);
 	}
 

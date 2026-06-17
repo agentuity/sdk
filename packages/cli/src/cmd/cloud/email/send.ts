@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
-import type { EmailAttachment } from '@agentuity/core';
+import type { EmailAttachment } from '@agentuity/email';
 import { getContentType } from '@agentuity/server';
 import { z } from 'zod';
 import { pathExists } from '../../../node-compat/fs.ts';

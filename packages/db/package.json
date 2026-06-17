@@ -25,6 +25,10 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
+		"@agentuity/adapter": "workspace:*",
+		"@agentuity/api": "workspace:*",
+		"@agentuity/client": "workspace:*",
+		"@agentuity/config": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"zod": "^4.3.5"
 	},

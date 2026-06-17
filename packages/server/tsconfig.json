@@ -7,5 +7,15 @@
 	},
 	"include": ["src/**/*"],
 	"exclude": ["test/**/*"],
-	"references": [{ "path": "../adapter" }, { "path": "../core" }, { "path": "../schema" }]
+	"references": [
+		{ "path": "../adapter" },
+		{ "path": "../api" },
+		{ "path": "../client" },
+		{ "path": "../config" },
+		{ "path": "../core" },
+		{ "path": "../keyvalue" },
+		{ "path": "../queue" },
+		{ "path": "../sandbox" },
+		{ "path": "../schema" }
+	]
 }

@@ -13,8 +13,8 @@ Standalone package for the Agentuity Vector storage service. Provides a simple, 
 ## Architecture
 
 - **Runtime**: Node.js and Bun compatible
-- **Exports**: VectorClient and all types from @agentuity/core/vector
-- **Dependencies**: @agentuity/core, zod
+- **Exports**: VectorClient and all types from `@agentuity/vector`
+- **Dependencies**: `@agentuity/adapter`, `@agentuity/client`, `@agentuity/config`, zod
 
 ## Usage
 
@@ -40,4 +40,4 @@ const results = await client.search('products', {
 ## Publishing
 
 1. Run `bun run build`
-2. Must publish **after** @agentuity/core
+2. Publish after `@agentuity/adapter`, `@agentuity/client`, `@agentuity/config` (no `@agentuity/core` dep)

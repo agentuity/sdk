@@ -1,65 +1,5 @@
-export {
-	TaskStorageService,
-	type Task,
-	type Comment,
-	type Tag,
-	type TaskChangelogEntry,
-	type TaskChangelogResult,
-	type CreateTaskParams,
-	type UpdateTaskParams,
-	type ListTasksParams,
-	type ListTasksResult,
-	type BatchDeleteTasksParams,
-	type BatchDeleteTasksResult,
-	type CreateUserParams,
-	type CreateProjectParams,
-	type ListCommentsResult,
-	type ListTagsResult,
-	type Attachment,
-	type CreateAttachmentParams,
-	type PresignUploadResponse,
-	type PresignDownloadResponse,
-	type ListAttachmentsResult,
-	type ListUsersResult,
-	type ListProjectsResult,
-	type TaskActivityParams,
-	type TaskActivityResult,
-	type TaskPriority,
-	type TaskType,
-	type TaskStatus,
-	type EntityRef,
-	type UserEntityRef,
-	type UserType,
-	TaskSchema,
-	TaskPrioritySchema,
-	TaskTypeSchema,
-	TaskStatusSchema,
-	EntityRefSchema,
-	UserTypeSchema,
-	UserEntityRefSchema,
-	CommentSchema,
-	TagSchema,
-	TaskChangelogEntrySchema,
-	CreateTaskParamsSchema,
-	UpdateTaskParamsSchema,
-	ListTasksParamsSchema,
-	ListTasksResultSchema,
-	BatchDeleteTasksParamsSchema,
-	BatchDeleteTasksResultSchema,
-	TaskChangelogResultSchema,
-	ListCommentsResultSchema,
-	ListTagsResultSchema,
-	AttachmentSchema,
-	CreateAttachmentParamsSchema,
-	PresignUploadResponseSchema,
-	PresignDownloadResponseSchema,
-	ListAttachmentsResultSchema,
-	ListUsersResultSchema,
-	ListProjectsResultSchema,
-	TaskActivityParamsSchema,
-	TaskActivityResultSchema,
-	normalizeTaskStatus,
-} from '@agentuity/core/task';
+export * from './service.ts';
+export * from './types.ts';
 
 import {
 	TaskStorageService,
@@ -82,19 +22,17 @@ import {
 	type TaskActivityParams,
 	type Attachment,
 	type EntityRef,
-} from '@agentuity/core/task';
-import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/adapter';
-import { createMinimalLogger } from '@agentuity/core';
-import { getEnv } from '@agentuity/core';
-import { getServiceUrls } from '@agentuity/core/config';
+} from './service.ts';
+import { getServiceUrls } from '@agentuity/config';
+import {
+	createServiceAdapter,
+	isLogger,
+	resolveApiKey,
+	resolveRegion,
+	resolveServiceUrl,
+	type Logger,
+} from '@agentuity/client';
 import { z } from 'zod';
-
-const isLogger = (val: unknown): val is Logger =>
-	typeof val === 'object' &&
-	val !== null &&
-	['info', 'warn', 'error', 'debug', 'trace'].every(
-		(m) => typeof (val as Record<string, unknown>)[m] === 'function'
-	);
 
 export const TaskClientOptionsSchema = z.object({
 	apiKey: z.string().optional().describe('API key for authentication'),
@@ -109,21 +47,17 @@ export class TaskClient {
 
 	constructor(options: TaskClientOptions = {}) {
 		const validatedOptions = TaskClientOptionsSchema.parse(options);
-		const apiKey =
-			validatedOptions.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
-		const region = getEnv('AGENTUITY_REGION') ?? 'usc';
-		const serviceUrls = getServiceUrls(region);
-
-		const url = validatedOptions.url || getEnv('AGENTUITY_TASK_URL') || serviceUrls.catalyst;
-
-		const logger = validatedOptions.logger ?? createMinimalLogger();
-
-		const headers = buildClientHeaders({
-			apiKey,
-			orgId: validatedOptions.orgId,
+		const serviceUrls = getServiceUrls(resolveRegion());
+		const url = resolveServiceUrl({
+			url: validatedOptions.url,
+			envKey: 'AGENTUITY_TASK_URL',
+			fallback: serviceUrls.catalyst,
 		});
-
-		const adapter = createServerFetchAdapter({ headers }, logger);
+		const { adapter } = createServiceAdapter({
+			apiKey: resolveApiKey(validatedOptions.apiKey),
+			orgId: validatedOptions.orgId,
+			logger: validatedOptions.logger,
+		});
 		this.#service = new TaskStorageService(url, adapter);
 	}
 

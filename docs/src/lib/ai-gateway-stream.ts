@@ -3,7 +3,7 @@ import {
 	getAIGatewayStreamDeltaText,
 	type AIGatewayChatCompletionParams,
 	type AIGatewayResponseMetadata,
-} from '@agentuity/core/aigateway';
+} from '@agentuity/aigateway';
 
 export interface AIGatewayTextStream {
 	textStream: AsyncIterable<string>;

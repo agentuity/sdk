@@ -1,4 +1,5 @@
-import { DbQueryLogSchema, dbLogs, listOrgResources } from '@agentuity/server';
+import { DbQueryLogSchema, dbLogs } from '@agentuity/db';
+import { listOrgResources } from '@agentuity/server';
 import { z } from 'zod';
 import { getResourceInfo, setResourceInfo } from '../../../cache/index.ts';
 import { getCommand } from '../../../command-prefix.ts';

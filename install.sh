@@ -336,6 +336,81 @@ install_cli() {
     fi
     print_message debug "Installing from local package $AGENTUITY_CLI_PACKAGE"
 
+    cli_tarball_dir=$(cd "$(dirname "$AGENTUITY_CLI_PACKAGE")" && pwd)
+    manifest_file="$cli_tarball_dir/.cli-install-manifest"
+    if [ -f "$manifest_file" ]; then
+      install_root="${AGENTUITY_CLI_INSTALL_ROOT:-${BUN_INSTALL:-$HOME/.bun}/install/agentuity-local}"
+      mkdir -p "$install_root"
+
+      INSTALL_DIR="$install_root" TARBALL_DIR="$cli_tarball_dir" MANIFEST="$manifest_file" bun -e '
+import { mkdirSync, readFileSync, writeFileSync } from "fs";
+import { join } from "path";
+
+const installDir = process.env.INSTALL_DIR!;
+const tarballDir = process.env.TARBALL_DIR!;
+const manifest = readFileSync(process.env.MANIFEST!, "utf8")
+  .trim()
+  .split("\n")
+  .filter(Boolean);
+
+const dependencies: Record<string, string> = {};
+const overrides: Record<string, string> = {};
+for (const line of manifest) {
+  const isCli = line.startsWith("cli:");
+  const file = isCli ? line.slice(4) : line;
+  const base = file.replace(/^agentuity-/, "").replace(/-[0-9].*\.tgz$/, "");
+  const pkgName = `@agentuity/${base}`;
+  const fileRef = `file:${tarballDir}/${file}`;
+  dependencies[pkgName] = fileRef;
+  overrides[pkgName] = fileRef;
+}
+
+mkdirSync(installDir, { recursive: true });
+writeFileSync(
+  join(installDir, "package.json"),
+  JSON.stringify(
+    { name: "agentuity-cli-install", private: true, dependencies, overrides },
+    null,
+    "\t"
+  ) + "\n"
+);
+'
+      manifest_prepare_result=$?
+      if [ $manifest_prepare_result -ne 0 ]; then
+        set -e
+        print_message error "Failed to prepare local CLI workspace from $manifest_file"
+        exit 1
+      fi
+
+      install_output=$(cd "$install_root" && bun install 2>&1)
+      install_result=$?
+
+      if [ $install_result -ne 0 ]; then
+        set -e
+        print_message error "Failed to install local CLI workspace from $manifest_file"
+        printf "%s\n" "$install_output"
+        exit 1
+      fi
+
+      if [ "$verbose" = "true" ]; then
+        printf "%s\n" "$install_output"
+      fi
+
+      cli_entrypoint="$install_root/node_modules/@agentuity/cli/bin/cli.js"
+      if [ ! -f "$cli_entrypoint" ]; then
+        set -e
+        print_message error "Installed CLI entrypoint not found at $cli_entrypoint"
+        exit 1
+      fi
+
+      mkdir -p "$BUN_INSTALL_BIN"
+      ln -sf "$cli_entrypoint" "$BUN_INSTALL_BIN/agentuity"
+      set -e
+      create_bun_entrypoint_shim
+      print_message debug "Agentuity CLI installed successfully!"
+      return 0
+    fi
+
     install_output=$(bun add -g "file:$AGENTUITY_CLI_PACKAGE" 2>&1)
     install_result=$?
 

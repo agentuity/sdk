@@ -1,4 +1,4 @@
-import { oauthClientRotateSecret } from '@agentuity/core';
+import { oauthClientRotateSecret } from '@agentuity/server';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix.ts';
 import { ErrorCode } from '../../../errors.ts';

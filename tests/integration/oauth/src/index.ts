@@ -7,7 +7,7 @@
 
 import { Hono } from 'hono';
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
-import { buildAuthorizeUrl, exchangeToken, fetchUserInfo } from '@agentuity/core/oauth';
+import { buildAuthorizeUrl, exchangeToken, fetchUserInfo } from '@agentuity/server';
 
 const app = new Hono();
 

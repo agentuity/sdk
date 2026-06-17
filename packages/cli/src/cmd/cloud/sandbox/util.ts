@@ -1,7 +1,8 @@
 import { fstatSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathExists } from '../../../node-compat/fs.ts';
-import type { FileToWrite, Logger } from '@agentuity/core';
+import type { Logger } from '@agentuity/core';
+import type { FileToWrite } from '@agentuity/server';
 import { APIClient, getServiceUrls, sandboxGet, sandboxResolve } from '@agentuity/server';
 import { deleteResourceRegion, getResourceInfo, setResourceInfo } from '../../../cache/index.ts';
 import { getGlobalCatalystAPIClient } from '../../../config.ts';

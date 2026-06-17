@@ -23,16 +23,47 @@ export async function getCurrentBranch(): Promise<string> {
  * Access Agentuity KV storage via CLI.
  * All calls are wrapped in try/catch — returns null on failure.
  */
+async function withCliTimeout<T>(
+	promise: Promise<T>,
+	proc: Subprocess,
+	timeoutMs: number
+): Promise<T | null> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		return await Promise.race([
+			promise,
+			new Promise<null>((resolve) => {
+				timer = setTimeout(() => {
+					proc.kill();
+					resolve(null);
+				}, timeoutMs);
+			}),
+		]);
+	} catch {
+		return null;
+	} finally {
+		if (timer) clearTimeout(timer);
+	}
+}
+
+type Subprocess = ReturnType<typeof Bun.spawn>;
+
 async function kvGet(namespace: string, key: string): Promise<unknown | null> {
 	try {
 		const proc = Bun.spawn(['agentuity', 'cloud', 'kv', 'get', namespace, key, '--json'], {
 			stdout: 'pipe',
 			stderr: 'pipe',
 		});
-		const output = await new Response(proc.stdout).text();
-		const exitCode = await proc.exited;
-		if (exitCode !== 0) return null;
-		return JSON.parse(output);
+		return await withCliTimeout(
+			(async () => {
+				const output = await new Response(proc.stdout).text();
+				const exitCode = await proc.exited;
+				if (exitCode !== 0) return null;
+				return JSON.parse(output);
+			})(),
+			proc,
+			2_000
+		);
 	} catch {
 		return null;
 	}
@@ -44,7 +75,7 @@ async function kvSet(namespace: string, key: string, value: unknown): Promise<bo
 			['agentuity', 'cloud', 'kv', 'set', namespace, key, JSON.stringify(value)],
 			{ stdout: 'pipe', stderr: 'pipe' }
 		);
-		const exitCode = await proc.exited;
+		const exitCode = await withCliTimeout(proc.exited, proc, 2_000);
 		return exitCode === 0;
 	} catch {
 		return false;

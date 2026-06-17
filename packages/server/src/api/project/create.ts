@@ -1,0 +1,50 @@
+import { z } from 'zod';
+import { type APIClient, APIResponseSchema } from '@agentuity/api';
+import { ProjectResponseError } from './util.ts';
+
+export const CreateProjectRequestSchema = z.object({
+	name: z.string().max(255).min(1).describe('the name of the new project'),
+	description: z.string().max(255).min(0).optional().describe('the description of the project'),
+	tags: z.array(z.string()).optional().describe('tags for the project'),
+	orgId: z.string().max(255).min(1).describe('the organization id to create the project in'),
+	cloudRegion: z.string().describe('the cloud region to create the project'),
+	domains: z.array(z.string()).optional().describe('the custom domains for this project'),
+	generation: z.string().optional().describe('the platform generation for this project'),
+	provider: z.string().optional().describe('the runtime provider for this project'),
+	framework: z.string().optional().describe('the framework used by this project'),
+});
+
+export const NewProjectSchema = z.object({
+	id: z.string().describe('the unique id for the project'),
+	sdkKey: z.string().describe('the SDK key for the project'),
+});
+
+export const CreateProjectResponseSchema = APIResponseSchema(NewProjectSchema);
+
+export type CreateProjectRequest = z.infer<typeof CreateProjectRequestSchema>;
+export type CreateProjectResponse = z.infer<typeof CreateProjectResponseSchema>;
+export type NewProject = z.infer<typeof NewProjectSchema>;
+
+/**
+ * Create a new Project
+ *
+ * @param client
+ * @param body
+ * @returns
+ */
+export async function projectCreate(
+	client: APIClient,
+	body: CreateProjectRequest
+): Promise<NewProject> {
+	const resp = await client.request<CreateProjectResponse, CreateProjectRequest>(
+		'POST',
+		'/cli/project',
+		CreateProjectResponseSchema,
+		body,
+		CreateProjectRequestSchema
+	);
+	if (resp.success) {
+		return resp.data;
+	}
+	throw new ProjectResponseError({ message: resp.message });
+}

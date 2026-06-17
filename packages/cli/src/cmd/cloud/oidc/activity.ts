@@ -1,4 +1,4 @@
-import { oauthClientActivity } from '@agentuity/core';
+import { oauthClientActivity } from '@agentuity/server';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix.ts';
 import * as tui from '../../../tui.ts';

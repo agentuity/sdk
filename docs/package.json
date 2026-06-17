@@ -24,7 +24,9 @@
 	},
 	"dependencies": {
 		"@agentuity/aigateway": "workspace:*",
+		"@agentuity/coder": "workspace:*",
 		"@agentuity/core": "workspace:*",
+		"@agentuity/db": "workspace:*",
 		"@agentuity/email": "workspace:*",
 		"@agentuity/hono": "workspace:*",
 		"@agentuity/keyvalue": "workspace:*",

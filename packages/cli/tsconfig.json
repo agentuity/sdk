@@ -8,12 +8,36 @@
 		"types": ["node"],
 		"resolveJsonModule": true,
 		"paths": {
+			"@agentuity/coder": ["../coder/src"],
+			"@agentuity/config": ["../config/src"],
 			"@agentuity/core": ["../core/src"],
+			"@agentuity/db": ["../db/src"],
+			"@agentuity/aigateway": ["../aigateway/src"],
+			"@agentuity/email": ["../email/src"],
+			"@agentuity/keyvalue": ["../keyvalue/src"],
+			"@agentuity/schedule": ["../schedule/src"],
 			"@agentuity/server": ["../server/src"],
-			"@agentuity/storage": ["../storage/src"]
+			"@agentuity/storage": ["../storage/src"],
+			"@agentuity/stream": ["../stream/src"],
+			"@agentuity/task": ["../task/src"],
+			"@agentuity/vector": ["../vector/src"]
 		}
 	},
 	"include": ["src/**/*"],
 	"exclude": ["test/**/*", "src/**/*.test.ts", "src/cmd/project/templates/**/*"],
-	"references": [{ "path": "../core" }, { "path": "../server" }, { "path": "../storage" }]
+	"references": [
+		{ "path": "../aigateway" },
+		{ "path": "../coder" },
+		{ "path": "../config" },
+		{ "path": "../core" },
+		{ "path": "../db" },
+		{ "path": "../email" },
+		{ "path": "../keyvalue" },
+		{ "path": "../schedule" },
+		{ "path": "../server" },
+		{ "path": "../storage" },
+		{ "path": "../stream" },
+		{ "path": "../task" },
+		{ "path": "../vector" }
+	]
 }

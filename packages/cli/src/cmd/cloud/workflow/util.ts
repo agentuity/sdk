@@ -1,4 +1,4 @@
-import { type Logger, WorkflowService } from '@agentuity/core';
+import { type Logger, WorkflowService } from '@agentuity/server';
 import { createServerFetchAdapter } from '@agentuity/server';
 import { getCatalystUrl } from '../../../catalyst.ts';
 import { defaultProfileName, getDefaultRegion } from '../../../config.ts';

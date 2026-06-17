@@ -3,7 +3,7 @@ import { stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { ValidationOutputError } from '@agentuity/core';
-import { CoderClient, type CoderSessionListItem } from '@agentuity/core/coder';
+import { CoderClient, type CoderSessionListItem } from '@agentuity/coder';
 import { z } from 'zod';
 import { toCoderHubWsUrl } from '../../coder-hub-url.ts';
 import { getCommand } from '../../command-prefix.ts';

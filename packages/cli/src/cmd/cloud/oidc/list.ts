@@ -1,4 +1,4 @@
-import { oauthClientList } from '@agentuity/core';
+import { oauthClientList } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix.ts';
 import * as tui from '../../../tui.ts';
 import { createSubcommand } from '../../../types.ts';

@@ -1,0 +1,43 @@
+{
+	"name": "@agentuity/client",
+	"version": "3.0.11",
+	"license": "Apache-2.0",
+	"author": "Agentuity employees and contributors",
+	"description": "Shared client wiring for Agentuity service packages",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"scripts": {
+		"build": "tsgo --build --force",
+		"typecheck": "tsgo --noEmit",
+		"clean": "rm -rf dist *.tsbuildinfo"
+	},
+	"dependencies": {
+		"@agentuity/adapter": "workspace:*",
+		"@agentuity/config": "workspace:*",
+		"zod": "^4.3.5"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"typescript": "^6.0.2"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/agentuity/sdk.git",
+		"directory": "packages/client"
+	}
+}

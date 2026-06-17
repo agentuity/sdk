@@ -1,6 +1,8 @@
 #!/bin/bash
 # Build (if needed) and pack @agentuity/cli for install.sh CI/local tests.
-# Writes the absolute tarball path to dist/packages/.cli-install-tarball.
+# Packs the CLI dependency closure with semver-resolved package.json files and
+# writes dist/packages/.cli-install-manifest for flat local installation.
+# Writes the relative CLI tarball path to dist/packages/.cli-install-tarball.
 
 set -euo pipefail
 
@@ -8,36 +10,45 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TARBALL_DIR="$SDK_ROOT/dist/packages"
 MARKER="$TARBALL_DIR/.cli-install-tarball"
+MANIFEST="$TARBALL_DIR/.cli-install-manifest"
 
 source "$SDK_ROOT/scripts/lib/ensure-cli-built.sh"
+source "$SDK_ROOT/scripts/lib/pack-file-deps.sh"
 
 mkdir -p "$TARBALL_DIR"
-rm -f "$TARBALL_DIR"/agentuity-cli-*.tgz
+rm -f "$TARBALL_DIR"/agentuity-*.tgz "$MANIFEST"
 
-cd "$SDK_ROOT/packages/cli"
-version=$(grep '"version"' package.json | head -1 | awk -F'"' '{print $4}')
-if [ -z "$version" ]; then
-	echo "ERROR: could not read version from packages/cli/package.json" >&2
+PACK_ORDER=()
+while IFS= read -r pkg; do
+	[ -n "$pkg" ] && PACK_ORDER+=("$pkg")
+done < <(pack_file_deps_order cli)
+if [ ${#PACK_ORDER[@]} -eq 0 ]; then
+	echo "ERROR: no workspace packages found for CLI install pack" >&2
 	exit 1
 fi
 
-sed 's/"workspace:\*"/"'"$version"'"/g' package.json > package.json.tmp
-if grep -q 'workspace:\*' package.json.tmp; then
-	echo "ERROR: sed did not replace all workspace:* deps in package.json" >&2
-	rm -f package.json.tmp
-	exit 1
-fi
-if ! grep -q "\"$version\"" package.json.tmp; then
-	echo "ERROR: packed package.json missing expected version $version" >&2
-	rm -f package.json.tmp
-	exit 1
-fi
-mv package.json package.json.bak
-mv package.json.tmp package.json
+for pkg in "${PACK_ORDER[@]}"; do
+	if [ ! -d "$SDK_ROOT/packages/$pkg/dist" ]; then
+		echo "ERROR: packages/$pkg/dist missing; run bun run build first" >&2
+		exit 1
+	fi
+done
 
-npm pack --pack-destination "$TARBALL_DIR" >/dev/null
-
-mv package.json.bak package.json
+for pkg in "${PACK_ORDER[@]}"; do
+	pack_workspace_package_with_resolved_versions "$pkg" "$TARBALL_DIR"
+	version=$(node -p "require('$SDK_ROOT/packages/$pkg/package.json').version")
+	tarball_name="agentuity-${pkg}-${version}.tgz"
+	if [ ! -f "$TARBALL_DIR/$tarball_name" ]; then
+		echo "ERROR: expected tarball missing after packing packages/$pkg: $tarball_name" >&2
+		ls -la "$TARBALL_DIR" >&2 || true
+		exit 1
+	fi
+	if [ "$pkg" = "cli" ]; then
+		printf 'cli:%s\n' "$tarball_name" >>"$MANIFEST"
+	else
+		printf '%s\n' "$tarball_name" >>"$MANIFEST"
+	fi
+done
 
 tarball_path=$(ls -1 "$TARBALL_DIR"/agentuity-cli-*.tgz 2>/dev/null | head -1 || true)
 if [ -z "$tarball_path" ] || [ ! -f "$tarball_path" ]; then
@@ -45,6 +56,7 @@ if [ -z "$tarball_path" ] || [ ! -f "$tarball_path" ]; then
 	ls -la "$TARBALL_DIR" >&2 || true
 	exit 1
 fi
+
 tarball_name=$(basename "$tarball_path")
 tarball_rel="dist/packages/$tarball_name"
 printf '%s\n' "$tarball_rel" >"$MARKER"

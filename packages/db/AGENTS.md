@@ -13,8 +13,8 @@ Standalone package for the Agentuity Database service. Provides a simple, ergono
 ## Architecture
 
 - **Runtime**: Node.js and Bun compatible
-- **Exports**: DBClient and all types from @agentuity/core/db
-- **Dependencies**: @agentuity/core, @agentuity/server, zod
+- **Exports**: DBClient and all types from `@agentuity/db`
+- **Dependencies**: `@agentuity/adapter`, `@agentuity/api`, `@agentuity/client`, `@agentuity/config`, zod
 
 ## Usage
 
@@ -34,4 +34,4 @@ const tables = await client.tables();
 ## Publishing
 
 1. Run `bun run build`
-2. Must publish **after** @agentuity/core
+2. Publish after `@agentuity/adapter`, `@agentuity/api`, `@agentuity/client`, `@agentuity/config`

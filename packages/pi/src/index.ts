@@ -11,11 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { delimiter, join } from 'node:path';
 import { createMinimalLogger, StructuredError } from '@agentuity/core';
-import {
-	AIGatewayService,
-	type AIGatewayModel,
-	type AIGatewayModels,
-} from '@agentuity/core/aigateway';
+import { AIGatewayService, type AIGatewayModel, type AIGatewayModels } from '@agentuity/aigateway';
 import { createServerFetchAdapter } from '@agentuity/adapter';
 import type {
 	ExtensionAPI,

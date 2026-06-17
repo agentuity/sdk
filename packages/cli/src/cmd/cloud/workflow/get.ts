@@ -3,7 +3,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createWorkflowAdapter } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { WorkflowGetResultSchema } from '@agentuity/core';
+import { WorkflowGetResultSchema } from '@agentuity/server';
 
 export const getSubcommand = createCommand({
 	name: 'get',

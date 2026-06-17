@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { CoderSSEClient, streamCoderSessionSSE } from '../src/services/coder/sse.ts';
+import { CoderSSEClient, streamCoderSessionSSE } from '@agentuity/coder';
 
 const OriginalFetch = globalThis.fetch;
 

@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test';
-import { StreamStorageService } from '../src/services/stream/service.ts';
+import { StreamStorageService } from '@agentuity/stream';
 import { createMockAdapter } from '@agentuity/test-utils';
-import { ServiceException } from '../src/services/exception.ts';
+import { ServiceException } from '@agentuity/adapter';
 
 describe('StreamStorageService', () => {
 	const baseUrl = 'https://api.example.com/stream';

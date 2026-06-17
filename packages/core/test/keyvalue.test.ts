@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test';
-import { KeyValueStorageService } from '../src/services/keyvalue/index.ts';
+import { KeyValueStorageService } from '@agentuity/keyvalue';
 import { createMockAdapter } from '@agentuity/test-utils';
-import { ServiceException } from '../src/services/exception.ts';
+import { ServiceException } from '@agentuity/adapter';
 
 describe('KeyValueStorageService', () => {
 	const baseUrl = 'https://api.example.com';

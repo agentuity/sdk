@@ -8,7 +8,7 @@ import {
 	type MachineMonitorState,
 	type MonitorMessage,
 	type MonitorScope,
-} from '@agentuity/core';
+} from '@agentuity/server';
 import { getAPIBaseURL } from '../../api.ts';
 import { getCommand } from '../../command-prefix.ts';
 import { createSubcommand } from '../../types.ts';

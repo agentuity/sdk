@@ -13,8 +13,8 @@ Standalone package for the Agentuity Coder service. Provides a simple, ergonomic
 ## Architecture
 
 - **Runtime**: Node.js and Bun compatible
-- **Exports**: CoderClient and all types from @agentuity/core/coder
-- **Dependencies**: @agentuity/core
+- **Exports**: CoderClient, WebSocket/SSE clients, and types from this package (`api-reference` stays in core for docs)
+- **Dependencies**: @agentuity/adapter, @agentuity/api, @agentuity/client, @agentuity/config, @agentuity/sandbox, zod
 
 ## Usage
 
@@ -40,4 +40,4 @@ console.log(`Created session: ${session.sessionId}`);
 ## Publishing
 
 1. Run `bun run build`
-2. Must publish **after** @agentuity/core
+2. Publish after `@agentuity/adapter`, `@agentuity/api`, `@agentuity/client`, `@agentuity/config`, `@agentuity/sandbox`

@@ -9,14 +9,14 @@ Use Sign in with Agentuity when users should authenticate with their Agentuity a
 The v3 OAuth helpers are flow helpers, not a full session framework. They build authorization URLs, exchange codes, fetch user info, refresh tokens, and store tokens when you need scoped access. Your framework still creates cookies, sessions, redirects, roles, and app-specific authorization.
 
 ```bash
-npm install @agentuity/core hono
+npm install @agentuity/server hono
 ```
 
 ```typescript title="src/index.ts"
 import { Hono } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
-import { buildAuthorizeUrl, exchangeToken, fetchUserInfo } from '@agentuity/core/oauth';
-import type { OAuthFlowConfig } from '@agentuity/core/oauth';
+import { buildAuthorizeUrl, exchangeToken, fetchUserInfo } from '@agentuity/server';
+import type { OAuthFlowConfig } from '@agentuity/server';
 
 interface AppUser {
   readonly id: string;
@@ -190,7 +190,7 @@ The examples on this page use confidential clients. Do not put the client secret
 
 ## Configure Environment Variables
 
-The `@agentuity/core/oauth` helpers read `OAUTH_*` variables by default:
+The `@agentuity/server` helpers read `OAUTH_*` variables by default:
 
 ```env
 OAUTH_ISSUER=https://auth.agentuity.cloud
@@ -259,8 +259,8 @@ npm install @agentuity/keyvalue
 
 ```typescript
 import { KeyValueClient } from '@agentuity/keyvalue';
-import { KeyValueTokenStorage, isTokenExpired } from '@agentuity/core/oauth';
-import type { OAuthFlowConfig, OAuthTokenResponse } from '@agentuity/core/oauth';
+import { KeyValueTokenStorage, isTokenExpired } from '@agentuity/server';
+import type { OAuthFlowConfig, OAuthTokenResponse } from '@agentuity/server';
 
 const kv = new KeyValueClient();
 
@@ -320,8 +320,8 @@ When a user disconnects the app, call `tokenStore.invalidate(userId)` to remove 
 **`refreshToken(refreshTokenValue, config?)`** exchanges a refresh token for a new access token:
 
 ```typescript
-import { refreshToken } from '@agentuity/core/oauth';
-import type { OAuthFlowConfig, OAuthTokenResponse } from '@agentuity/core/oauth';
+import { refreshToken } from '@agentuity/server';
+import type { OAuthFlowConfig, OAuthTokenResponse } from '@agentuity/server';
 
 // Uses OAUTH_* env vars when config is omitted
 export async function manualRefresh(
@@ -337,8 +337,8 @@ export async function manualRefresh(
 **`logout(token, config?)`** revokes an access or refresh token per RFC 7009:
 
 ```typescript
-import { logout } from '@agentuity/core/oauth';
-import type { OAuthFlowConfig } from '@agentuity/core/oauth';
+import { logout } from '@agentuity/server';
+import type { OAuthFlowConfig } from '@agentuity/server';
 
 export async function revokeAccess(
   token: string,

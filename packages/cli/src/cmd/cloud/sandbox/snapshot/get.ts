@@ -1,4 +1,4 @@
-import type { SandboxInfo } from '@agentuity/core';
+import type { SandboxInfo } from '@agentuity/server';
 import type { SnapshotFileInfo } from '@agentuity/server';
 import { sandboxList, snapshotGet } from '@agentuity/server';
 import { z } from 'zod';

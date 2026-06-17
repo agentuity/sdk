@@ -1,1 +1,13 @@
-export * from '@agentuity/core';
+export {
+	APIClient,
+	APIError,
+	APIResponseSchema,
+	APIResponseSchemaNoData,
+	APIResponseSchemaOptionalData,
+	PaymentRequiredError,
+	UpgradeRequiredError,
+	getAPIBaseURL,
+	getAppBaseURL,
+	ValidationInputError,
+	ValidationOutputError,
+} from '@agentuity/api';

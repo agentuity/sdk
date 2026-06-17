@@ -4,7 +4,7 @@ import * as tui from '../../../tui.ts';
 import { createStorageAdapter, resolveMeId, parseDuration, truncate } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
 import { isDryRunMode, outputDryRun } from '../../../explain.ts';
-import type { TaskPriority, TaskStatus, TaskType, BatchDeletedTask } from '@agentuity/core';
+import type { TaskPriority, TaskStatus, TaskType, BatchDeletedTask } from '@agentuity/task';
 
 // Re-export for testing
 export { parseDuration } from './util.ts';

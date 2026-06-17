@@ -137,7 +137,9 @@ export const replSubcommand = createCommand({
 						}
 					} else {
 						const allStats = await storage.getAllStats();
-						const entries = Object.entries(allStats);
+						const statsByNamespace =
+							'namespaces' in allStats ? allStats.namespaces : allStats;
+						const entries = Object.entries(statsByNamespace);
 						if (entries.length === 0) {
 							ctx.info('No namespaces found');
 						} else {

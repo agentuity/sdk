@@ -1,12 +1,35 @@
 export {
+	DbLogsAPIResponseSchema,
+	DbLogsRequestSchema,
+	DbLogsResponseSchema,
+	type DbQueryLog,
+	DbQueryLogSchema,
+	type DbQueryLogs,
+	dbLogs,
+} from './logs.ts';
+export {
+	DbLogStatsAPIResponseSchema,
+	DbLogStatsCommandBreakdownSchema,
+	type DbLogStatsCommandBreakdown,
+	DbLogStatsQueryPatternSchema,
+	type DbLogStatsQueryPattern,
+	DbLogStatsRequestSchema,
+	DbLogStatsResponseSchema,
+	type DbLogStatsResponse,
+	DbLogStatsSummarySchema,
+	type DbLogStatsSummary,
+	DbLogStatsTimeSeriesPointSchema,
+	type DbLogStatsTimeSeriesPoint,
+	dbLogStats,
+} from './stats.ts';
+export {
 	dbQuery,
 	type QueryColumn,
 	QueryColumnSchema,
+	QueryResponseSchema,
 	type QueryResult,
 	QueryResultSchema,
-	QueryResponseSchema,
-} from '@agentuity/core/db';
-
+} from './query.ts';
 export {
 	dbTables,
 	generateCreateTableSQL,
@@ -15,51 +38,25 @@ export {
 	type TableSchema,
 	TableSchemaSchema,
 	TablesResponseSchema,
-} from '@agentuity/core/db';
+} from './tables.ts';
+export { DbExecuteQueryRequestSchema, type DbExecuteQueryRequest } from './types.ts';
+export { DbInvalidArgumentError, DbResponseError } from './util.ts';
 
-export {
-	dbLogs,
-	type DbQueryLog,
-	DbQueryLogSchema,
-	type DbQueryLogs,
-	DbLogsAPIResponseSchema,
-	DbLogsRequestSchema,
-	DbLogsResponseSchema,
-} from '@agentuity/core/db';
-
-export {
-	dbLogStats,
-	type DbLogStatsResponse,
-	type DbLogStatsSummary,
-	type DbLogStatsCommandBreakdown,
-	type DbLogStatsQueryPattern,
-	type DbLogStatsTimeSeriesPoint,
-	DbLogStatsAPIResponseSchema,
-	DbLogStatsCommandBreakdownSchema,
-	DbLogStatsQueryPatternSchema,
-	DbLogStatsRequestSchema,
-	DbLogStatsResponseSchema,
-	DbLogStatsSummarySchema,
-	DbLogStatsTimeSeriesPointSchema,
-} from '@agentuity/core/db';
-
-export { DbInvalidArgumentError, DbResponseError } from '@agentuity/core/db';
-
-import { APIClient } from '@agentuity/core/api';
-import { createMinimalLogger, type Logger } from '@agentuity/core';
-import { getEnv } from '@agentuity/core';
-import { getServiceUrls } from '@agentuity/core/config';
-import { z } from 'zod';
+import { APIClient } from '@agentuity/api';
+import { getServiceUrls } from '@agentuity/config';
 import {
-	dbQuery,
-	dbTables,
-	dbLogs,
-	dbLogStats,
-	type QueryResult,
-	type TableSchema,
-	type DbQueryLogs,
-	type DbLogStatsResponse,
-} from '@agentuity/core/db';
+	createMinimalLogger,
+	isLogger,
+	resolveApiKey,
+	resolveRegion,
+	resolveServiceUrl,
+	type Logger,
+} from '@agentuity/client';
+import { z } from 'zod';
+import { dbQuery, type QueryResult } from './query.ts';
+import { dbTables, type TableSchema } from './tables.ts';
+import { dbLogs, type DbQueryLogs } from './logs.ts';
+import { dbLogStats, type DbLogStatsResponse } from './stats.ts';
 
 export const DBClientOptionsSchema = z.object({
 	apiKey: z.string().optional().describe('API key for authentication'),
@@ -67,7 +64,7 @@ export const DBClientOptionsSchema = z.object({
 	database: z.string().describe('Database name'),
 	orgId: z.string().describe('Organization ID'),
 	region: z.string().optional().describe('Cloud region'),
-	logger: z.custom<Logger>().optional().describe('Custom logger instance'),
+	logger: z.custom<Logger>(isLogger).optional().describe('Custom logger instance'),
 });
 export type DBClientOptions = z.infer<typeof DBClientOptionsSchema>;
 
@@ -85,12 +82,14 @@ export class DBClient {
 			throw new Error('orgId is required for DBClient');
 		}
 
-		const apiKey = options.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
-		const region = options.region || (getEnv('AGENTUITY_REGION') ?? 'usc');
+		const apiKey = resolveApiKey(options.apiKey);
+		const region = options.region || resolveRegion();
 		const serviceUrls = getServiceUrls(region);
-
-		const url = options.url || getEnv('AGENTUITY_DB_URL') || serviceUrls.catalyst;
-
+		const url = resolveServiceUrl({
+			url: options.url,
+			envKey: 'AGENTUITY_DB_URL',
+			fallback: serviceUrls.catalyst,
+		});
 		const logger = options.logger ?? createMinimalLogger();
 
 		this.#client = new APIClient(url, logger, apiKey ?? '');

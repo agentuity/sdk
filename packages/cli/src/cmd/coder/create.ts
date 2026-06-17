@@ -1,9 +1,5 @@
 import { z } from 'zod';
-import {
-	CoderClient,
-	type CoderCreateSessionRequest,
-	normalizeVisibility,
-} from '@agentuity/core/coder';
+import { CoderClient, type CoderCreateSessionRequest, normalizeVisibility } from '@agentuity/coder';
 import { ValidationOutputError } from '@agentuity/core';
 import { toCoderHubWsUrl } from '../../coder-hub-url.ts';
 import { createSubcommand } from '../../types.ts';

@@ -1,4 +1,4 @@
-import { dbQuery } from '@agentuity/server';
+import { dbQuery } from '@agentuity/db';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix.ts';
 import { getCatalystAPIClient } from '../../../config.ts';

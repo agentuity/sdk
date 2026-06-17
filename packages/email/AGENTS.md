@@ -13,8 +13,8 @@ Standalone package for the Agentuity Email service. Provides a simple, ergonomic
 ## Architecture
 
 - **Runtime**: Node.js and Bun compatible
-- **Exports**: EmailClient and all types from @agentuity/core/email
-- **Dependencies**: @agentuity/core, zod
+- **Exports**: EmailClient and all types from `@agentuity/email`
+- **Dependencies**: `@agentuity/adapter`, `@agentuity/client`, `@agentuity/config`, zod
 
 ## Usage
 
@@ -38,4 +38,4 @@ await client.send({
 ## Publishing
 
 1. Run `bun run build`
-2. Must publish **after** @agentuity/core
+2. Publish after `@agentuity/adapter`, `@agentuity/client`, `@agentuity/config` (no `@agentuity/core` dep)

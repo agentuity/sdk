@@ -134,7 +134,7 @@ source of truth.
 
 To update REST API docs:
 
-1. Edit the owning schema, type, or `packages/core/src/services/*/api-reference.ts` file.
+1. Edit the owning package catalog (`packages/{service}/src/api-reference.ts` or `packages/server/src/api-reference/*.ts`) or its Zod schemas.
 2. Run `bun run scripts/generate-api-reference.ts` from `docs/`.
 3. Commit the generated `reference/api/*.mdx` output if it changes.
 

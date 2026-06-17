@@ -1,11 +1,11 @@
 import { describe, test, expect } from 'bun:test';
-import { VectorStorageService } from '../src/services/vector/index.ts';
+import { VectorStorageService } from '@agentuity/vector';
 import type {
 	VectorResult,
 	VectorSearchParams,
 	VectorSearchResult,
 	VectorUpsertParams,
-} from '../src/services/vector/index.ts';
+} from '@agentuity/vector';
 import { createMockAdapter } from '@agentuity/test-utils';
 
 describe('VectorStorageService', () => {

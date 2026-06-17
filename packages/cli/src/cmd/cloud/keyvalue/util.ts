@@ -1,5 +1,5 @@
-import { KeyValueStorageService, type Logger } from '@agentuity/core';
-import { createServerFetchAdapter } from '@agentuity/server';
+import { KeyValueClient } from '@agentuity/keyvalue';
+import type { Logger } from '@agentuity/core';
 import { getCatalystUrl } from '../../../catalyst.ts';
 import * as tui from '../../../tui.ts';
 import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types.ts';
@@ -26,16 +26,11 @@ export function createStorageAdapter(
 		);
 	}
 
-	const adapter = createServerFetchAdapter(
-		{
-			headers: {
-				Authorization: `Bearer ${ctx.auth.apiKey}`,
-				'x-agentuity-orgid': orgId,
-			},
-		},
-		ctx.logger
-	);
-
 	const baseUrl = getCatalystUrl(ctx.region, ctx.config?.overrides);
-	return new KeyValueStorageService(baseUrl, adapter);
+	return new KeyValueClient({
+		apiKey: ctx.auth.apiKey,
+		orgId,
+		url: baseUrl,
+		logger: ctx.logger,
+	});
 }

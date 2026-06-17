@@ -1,4 +1,4 @@
-import type { Logger } from '@agentuity/core';
+import type { Logger } from '@agentuity/server';
 import { getGlobalCatalystAPIClient } from '../../../config.ts';
 import * as tui from '../../../tui.ts';
 import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types.ts';

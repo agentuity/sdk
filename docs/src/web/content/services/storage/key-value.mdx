@@ -120,8 +120,8 @@ const allStats = await kv.getAllStats({ limit: 100, sort: 'size' });
 
 `getStats()` returns size in bytes (`sum`), record `count`, and optional `createdAt` and `lastUsedAt` timestamps. `getAllStats()` paginates across every namespace and supports filters by name, project, agent, and sort field.
 
-<Callout type="info" title="Use local KV for basic storage checks">
-`@agentuity/local` is useful when you want local reads and writes without managed credentials. For search, key listing, stats, or namespace operations, test against the managed KV service.
+<Callout type="info" title="Use the managed service for full KV behavior">
+Search, key listing, stats, and namespace operations require the managed KV service. Run `agentuity dev` with your project configured for end-to-end local development.
 </Callout>
 
 ## Namespace Management

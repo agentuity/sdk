@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CoderClient } from '@agentuity/core/coder';
+import { CoderClient } from '@agentuity/coder';
 import { ValidationOutputError } from '@agentuity/core';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';

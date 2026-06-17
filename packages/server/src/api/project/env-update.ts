@@ -1,0 +1,55 @@
+import { z } from 'zod';
+import { type APIClient, APIResponseSchema } from '@agentuity/api';
+import type { Project } from './get.ts';
+import { projectGet } from './get.ts';
+import { ProjectResponseError } from './util.ts';
+
+export const ProjectEnvUpdateRequestSchema = z.object({
+	id: z.string().describe('the project id'),
+	env: z.record(z.string(), z.string()).optional().describe('environment variables to set/update'),
+	secrets: z.record(z.string(), z.string()).optional().describe('secrets to set/update'),
+});
+
+export const ProjectEnvUpdateResponseSchema = APIResponseSchema(
+	z
+		.object({
+			id: z.string().describe('the project id'),
+			orgId: z.string().describe('the organization id'),
+			api_key: z.string().optional().describe('the SDK api key for the project'),
+			env: z.record(z.string(), z.string()).optional().describe('the environment key/values'),
+			secrets: z.record(z.string(), z.string()).optional().describe('the secrets key/values'),
+		})
+		.optional()
+);
+
+type ProjectEnvUpdateRequest = z.infer<typeof ProjectEnvUpdateRequestSchema>;
+type ProjectEnvUpdateResponse = z.infer<typeof ProjectEnvUpdateResponseSchema>;
+
+/**
+ * Update environment variables and/or secrets for a project.
+ * This will merge the provided env/secrets with existing values.
+ * Keys starting with 'AGENTUITY_' should be filtered out before calling this function.
+ */
+export async function projectEnvUpdate(
+	client: APIClient,
+	request: ProjectEnvUpdateRequest
+): Promise<Project> {
+	const { id, env, secrets } = request;
+
+	const resp = await client.request<ProjectEnvUpdateResponse, Omit<ProjectEnvUpdateRequest, 'id'>>(
+		'PUT',
+		`/cli/project/${id}/env`,
+		ProjectEnvUpdateResponseSchema,
+		{
+			env,
+			secrets,
+		}
+	);
+
+	if (!resp.success) {
+		throw new ProjectResponseError({ message: resp.message ?? 'failed to update project env' });
+	}
+
+	// Fetch the updated project to ensure we have complete data including name
+	return projectGet(client, { id, mask: false });
+}

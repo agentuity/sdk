@@ -4,9 +4,9 @@ import {
 	QueueValidationError,
 	QueueNotFoundError,
 	QueuePublishResultSchema,
-} from '../src/services/queue/service.ts';
+} from '@agentuity/queue';
 import { createMockAdapter } from '@agentuity/test-utils';
-import { ServiceException } from '../src/services/exception.ts';
+import { ServiceException } from '@agentuity/adapter';
 
 describe('QueueStorageService', () => {
 	const baseUrl = 'https://api.example.com';

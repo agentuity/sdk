@@ -3,7 +3,7 @@ import {
 	CoderClient,
 	CoderSessionArchivedError,
 	CoderSessionNotFoundError,
-} from '@agentuity/core/coder';
+} from '@agentuity/coder';
 import { ValidationOutputError } from '@agentuity/core';
 
 import { createSubcommand } from '../../types.ts';

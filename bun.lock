@@ -21,7 +21,9 @@
       "version": "3.0.0-alpha.7",
       "dependencies": {
         "@agentuity/aigateway": "workspace:*",
+        "@agentuity/coder": "workspace:*",
         "@agentuity/core": "workspace:*",
+        "@agentuity/db": "workspace:*",
         "@agentuity/email": "workspace:*",
         "@agentuity/hono": "workspace:*",
         "@agentuity/keyvalue": "workspace:*",
@@ -101,7 +103,7 @@
       "name": "@agentuity/adapter",
       "version": "3.0.10",
       "dependencies": {
-        "@agentuity/core": "workspace:*",
+        "zod": "^4.3.5",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -113,7 +115,8 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
-        "@agentuity/core": "workspace:*",
+        "@agentuity/client": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -132,6 +135,19 @@
         "typescript": "^5.9.0",
       },
     },
+    "packages/api": {
+      "name": "@agentuity/api",
+      "version": "3.0.5",
+      "dependencies": {
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/config": "workspace:*",
+        "zod": "^4.3.5",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^6.0.2",
+      },
+    },
     "packages/claude-code": {
       "name": "@agentuity/claude-code",
       "version": "3.0.10",
@@ -148,10 +164,20 @@
         "agentuity": "./bin/cli.js",
       },
       "dependencies": {
+        "@agentuity/aigateway": "workspace:*",
+        "@agentuity/coder": "workspace:*",
         "@agentuity/coder-tui": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
+        "@agentuity/db": "workspace:*",
+        "@agentuity/email": "workspace:*",
+        "@agentuity/keyvalue": "workspace:*",
+        "@agentuity/schedule": "workspace:*",
         "@agentuity/server": "workspace:*",
         "@agentuity/storage": "workspace:*",
+        "@agentuity/stream": "workspace:*",
+        "@agentuity/task": "workspace:*",
+        "@agentuity/vector": "workspace:*",
         "@types/yazl": "^3.3.1",
         "cli-table3": "^0.6.5",
         "commander": "^14.0.2",
@@ -176,16 +202,34 @@
         "hono": "^4.7.13",
       },
     },
+    "packages/client": {
+      "name": "@agentuity/client",
+      "version": "3.0.5",
+      "dependencies": {
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/config": "workspace:*",
+        "zod": "^4.3.5",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^6.0.2",
+      },
+    },
     "packages/coder": {
       "name": "@agentuity/coder",
       "version": "3.0.10",
       "dependencies": {
-        "@agentuity/core": "workspace:*",
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/api": "workspace:*",
+        "@agentuity/client": "workspace:*",
+        "@agentuity/config": "workspace:*",
+        "@agentuity/sandbox": "workspace:*",
+        "zod": "^4.3.5",
       },
       "devDependencies": {
         "@types/bun": "latest",
         "@types/node": "^22.0.0",
-        "typescript": "^5.9.0",
+        "typescript": "^6.0.2",
       },
     },
     "packages/coder-tui": {
@@ -204,14 +248,34 @@
         "typescript": "^5.9.0",
       },
     },
-    "packages/core": {
-      "name": "@agentuity/core",
-      "version": "3.0.10",
+    "packages/config": {
+      "name": "@agentuity/config",
+      "version": "3.0.5",
       "dependencies": {
         "zod": "^4.3.5",
       },
       "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^6.0.2",
+      },
+    },
+    "packages/core": {
+      "name": "@agentuity/core",
+      "version": "3.0.10",
+      "dependencies": {
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/api": "workspace:*",
+        "@agentuity/config": "workspace:*",
+        "@agentuity/keyvalue": "workspace:*",
+        "zod": "^4.3.5",
+      },
+      "devDependencies": {
+        "@agentuity/aigateway": "workspace:*",
+        "@agentuity/coder": "workspace:*",
+        "@agentuity/queue": "workspace:*",
+        "@agentuity/stream": "workspace:*",
         "@agentuity/test-utils": "workspace:*",
+        "@agentuity/vector": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
@@ -232,6 +296,10 @@
       "name": "@agentuity/db",
       "version": "3.0.10",
       "dependencies": {
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/api": "workspace:*",
+        "@agentuity/client": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
@@ -261,7 +329,8 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
-        "@agentuity/core": "workspace:*",
+        "@agentuity/client": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -299,24 +368,14 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
-        "@agentuity/core": "workspace:*",
+        "@agentuity/client": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
         "@types/bun": "latest",
         "@types/node": "^22.0.0",
         "typescript": "^6.0.2",
-      },
-    },
-    "packages/local": {
-      "name": "@agentuity/local",
-      "version": "3.0.10",
-      "dependencies": {
-        "@agentuity/core": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/bun": "latest",
-        "typescript": "^5.9.0",
       },
     },
     "packages/migrate": {
@@ -387,7 +446,8 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
-        "@agentuity/core": "workspace:*",
+        "@agentuity/client": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -407,7 +467,11 @@
       "name": "@agentuity/sandbox",
       "version": "3.0.10",
       "dependencies": {
-        "@agentuity/core": "workspace:*",
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/api": "workspace:*",
+        "@agentuity/client": "workspace:*",
+        "@agentuity/config": "workspace:*",
+        "zod": "^4.3.5",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -420,7 +484,8 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
-        "@agentuity/core": "workspace:*",
+        "@agentuity/client": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -446,7 +511,13 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
+        "@agentuity/api": "workspace:*",
+        "@agentuity/client": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
+        "@agentuity/keyvalue": "workspace:*",
+        "@agentuity/queue": "workspace:*",
+        "@agentuity/sandbox": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -473,7 +544,8 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
-        "@agentuity/core": "workspace:*",
+        "@agentuity/client": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -487,7 +559,8 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
-        "@agentuity/core": "workspace:*",
+        "@agentuity/client": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -539,7 +612,8 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
-        "@agentuity/core": "workspace:*",
+        "@agentuity/client": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -580,7 +654,8 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
-        "@agentuity/core": "workspace:*",
+        "@agentuity/client": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -684,7 +759,7 @@
       "name": "oauth-app",
       "version": "0.0.1",
       "dependencies": {
-        "@agentuity/core": "workspace:*",
+        "@agentuity/server": "workspace:*",
         "hono": "^4.7.13",
       },
       "devDependencies": {
@@ -836,13 +911,19 @@
 
     "@agentuity/analytics": ["@agentuity/analytics@workspace:packages/analytics"],
 
+    "@agentuity/api": ["@agentuity/api@workspace:packages/api"],
+
     "@agentuity/claude-code": ["@agentuity/claude-code@workspace:packages/claude-code"],
 
     "@agentuity/cli": ["@agentuity/cli@workspace:packages/cli"],
 
+    "@agentuity/client": ["@agentuity/client@workspace:packages/client"],
+
     "@agentuity/coder": ["@agentuity/coder@workspace:packages/coder"],
 
     "@agentuity/coder-tui": ["@agentuity/coder-tui@workspace:packages/coder-tui"],
+
+    "@agentuity/config": ["@agentuity/config@workspace:packages/config"],
 
     "@agentuity/core": ["@agentuity/core@workspace:packages/core"],
 
@@ -855,8 +936,6 @@
     "@agentuity/hono": ["@agentuity/hono@workspace:packages/hono"],
 
     "@agentuity/keyvalue": ["@agentuity/keyvalue@workspace:packages/keyvalue"],
-
-    "@agentuity/local": ["@agentuity/local@workspace:packages/local"],
 
     "@agentuity/migrate": ["@agentuity/migrate@workspace:packages/migrate"],
 
@@ -3804,8 +3883,6 @@
 
     "@agentuity/cli/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
-    "@agentuity/coder/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
-
     "@agentuity/coder-tui/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "@agentuity/core/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
@@ -3813,8 +3890,6 @@
     "@agentuity/drizzle/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "@agentuity/hono/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
-
-    "@agentuity/local/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "@agentuity/migrate/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
