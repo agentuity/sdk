@@ -41,54 +41,6 @@
 		"./api": {
 			"types": "./dist/services/api.d.ts",
 			"default": "./dist/services/api.js"
-		},
-		"./apikey": {
-			"types": "./dist/services/apikey/index.d.ts",
-			"default": "./dist/services/apikey/index.js"
-		},
-		"./machine": {
-			"types": "./dist/services/machine/index.d.ts",
-			"default": "./dist/services/machine/index.js"
-		},
-		"./monitoring": {
-			"types": "./dist/services/monitoring/index.d.ts",
-			"default": "./dist/services/monitoring/index.js"
-		},
-		"./oauth": {
-			"types": "./dist/services/oauth/index.d.ts",
-			"default": "./dist/services/oauth/index.js"
-		},
-		"./org": {
-			"types": "./dist/services/org/index.d.ts",
-			"default": "./dist/services/org/index.js"
-		},
-		"./project": {
-			"types": "./dist/services/project/index.d.ts",
-			"default": "./dist/services/project/index.js"
-		},
-		"./region": {
-			"types": "./dist/services/region/index.d.ts",
-			"default": "./dist/services/region/index.js"
-		},
-		"./session": {
-			"types": "./dist/services/session/index.d.ts",
-			"default": "./dist/services/session/index.js"
-		},
-		"./storage": {
-			"types": "./dist/services/storage/index.d.ts",
-			"default": "./dist/services/storage/index.js"
-		},
-		"./thread": {
-			"types": "./dist/services/thread/index.d.ts",
-			"default": "./dist/services/thread/index.js"
-		},
-		"./user": {
-			"types": "./dist/services/user/index.d.ts",
-			"default": "./dist/services/user/index.js"
-		},
-		"./workflow": {
-			"types": "./dist/services/workflow/index.d.ts",
-			"default": "./dist/services/workflow/index.js"
 		}
 	},
 	"typesVersions": {
@@ -110,42 +62,6 @@
 			],
 			"api": [
 				"./dist/services/api.d.ts"
-			],
-			"apikey": [
-				"./dist/services/apikey/index.d.ts"
-			],
-			"machine": [
-				"./dist/services/machine/index.d.ts"
-			],
-			"monitoring": [
-				"./dist/services/monitoring/index.d.ts"
-			],
-			"oauth": [
-				"./dist/services/oauth/index.d.ts"
-			],
-			"org": [
-				"./dist/services/org/index.d.ts"
-			],
-			"project": [
-				"./dist/services/project/index.d.ts"
-			],
-			"region": [
-				"./dist/services/region/index.d.ts"
-			],
-			"session": [
-				"./dist/services/session/index.d.ts"
-			],
-			"storage": [
-				"./dist/services/storage/index.d.ts"
-			],
-			"thread": [
-				"./dist/services/thread/index.d.ts"
-			],
-			"user": [
-				"./dist/services/user/index.d.ts"
-			],
-			"workflow": [
-				"./dist/services/workflow/index.d.ts"
 			]
 		}
 	},

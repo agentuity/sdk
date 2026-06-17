@@ -11,7 +11,7 @@ export {
 // Note: Full re-export maintained for backward compatibility with CLI and other packages
 export * from '@agentuity/core';
 
-// Platform APIs owned by @agentuity/server (core copies retained for subpath exports until Phase 5)
+// Platform APIs owned by @agentuity/server
 export * from './api/user/index.ts';
 export * from './api/org/index.ts';
 export * from './api/project/index.ts';

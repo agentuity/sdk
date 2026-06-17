@@ -5,7 +5,7 @@ import {
 	type SessionStartEvent,
 	type SessionCompleteEvent,
 	type SessionEventProvider,
-} from '../src/services/session/events.ts';
+} from '../src/api/session/events.ts';
 
 describe('Session event schemas', () => {
 	test('should validate SessionStartEvent', () => {

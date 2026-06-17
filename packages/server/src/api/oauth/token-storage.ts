@@ -111,7 +111,7 @@ function toStoredToken(token: OAuthTokenResponse): StoredToken {
  *
  * @example
  * ```typescript
- * import { KeyValueTokenStorage } from '@agentuity/core/oauth';
+ * import { KeyValueTokenStorage } from '@agentuity/server';
  * import { KeyValueClient } from '@agentuity/keyvalue';
  *
  * const kv = new KeyValueClient();

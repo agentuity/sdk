@@ -181,14 +181,14 @@ Per service checklist:
 - [x] Wire sandbox runtime through `@agentuity/sandbox` on server; move `cliSandboxList` into server; drop sandbox from core main barrel
 - [x] Trim platform symbols from `@agentuity/core` main barrel (subpath copies retained until Phase 5)
 - [ ] Point CLI service imports at `@agentuity/{service}` instead of `@agentuity/core` types where applicable
-- [ ] Remove service implementations from `@agentuity/core` main barrel (Phase 5)
+- [x] Remove service implementations from `@agentuity/core` main barrel (Phase 5)
 
 **Exit:** platform code lives in `@agentuity/server`; core main barrel is runtime services
 only. Ready to publish as **3.1.0** once remaining CLI/docs cleanup and verification pass.
 
 ### 3.1.0 release checklist
 
-- [x] Monorepo typecheck, test, and publish order verified (`bun run all` passed 2026-06-15)
+- [x] Monorepo typecheck, test, and publish order verified (`bun run build`, `typecheck`, `test` passed 2026-06-17)
 - [ ] Changelog: internal refactor + new packages; **no** required import changes on supported app paths (generated at publish via `scripts/publish.ts`)
 - [x] No remaining in-repo imports of `@agentuity/core/{service}` from CLI, docs, or tests (grep clean; comments/docs examples excepted)
 - [x] `@agentuity/server` uses `@agentuity/api` for platform HTTP (not `@agentuity/core/api`)
@@ -200,8 +200,8 @@ Can land in **3.1.0** or a follow-up **3.x minor** once the monorepo no longer i
 internal paths. Not blocked on external migration — there is no supported external use of
 `@agentuity/core/{service}`.
 
-- [x] Delete runtime duplicates under `packages/core/src/services/{service}/` (shims in place; api-reference + doc-only platform types for queue/webhook/stream remain)
-- [x] Remove `@agentuity/core/{service}` subpath exports from core `package.json`
+- [x] Delete platform admin duplicates from `packages/core/src/services/` (oauth, project, org, session, …)
+- [x] Remove platform subpath exports from core `package.json` (foundation subpaths only)
 - [ ] Replace with thin re-exports only where cycles still require a core entry (goal: none)
 - [x] Update docs API reference generator to read from service packages and `@agentuity/server`
 - [ ] Delete this file

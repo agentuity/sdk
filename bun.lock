@@ -758,7 +758,7 @@
       "name": "oauth-app",
       "version": "0.0.1",
       "dependencies": {
-        "@agentuity/core": "workspace:*",
+        "@agentuity/server": "workspace:*",
         "hono": "^4.7.13",
       },
       "devDependencies": {
