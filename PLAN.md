@@ -64,7 +64,7 @@ Cross-service deps inside core (affects migration order):
 
 ## Target Architecture
 
-```
+```text
 @agentuity/adapter       StructuredError, safeStringify, Logger, FetchAdapter, ServiceException
 @agentuity/config        region + service URL resolution
 @agentuity/client        shared *Client factory / options base

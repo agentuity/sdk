@@ -30,122 +30,122 @@ export interface ApiReferenceRegistryEntry {
 	routeTitle: string;
 }
 
-export const apiReferenceRegistry: ApiReferenceRegistryEntry[] = [
+export const apiReferenceRegistry = [
 	{
-		service: aiGatewayService as Service,
+		service: aiGatewayService,
 		icon: 'Cpu',
 		routeTitle: 'AI Gateway',
 	},
 	{
-		service: apiKeysService as Service,
+		service: apiKeysService,
 		icon: 'Key',
 		routeTitle: 'API Keys',
 	},
 	{
-		service: coderService as Service,
+		service: coderService,
 		icon: 'BrainCircuit',
 		routeTitle: 'Coder',
 	},
 	{
-		service: databaseService as Service,
+		service: databaseService,
 		icon: 'Table',
 		routeTitle: 'Database',
 	},
 	{
-		service: streamsService as Service,
+		service: streamsService,
 		icon: 'Activity',
 		routeTitle: 'Durable Streams',
 	},
 	{
-		service: emailService as Service,
+		service: emailService,
 		icon: 'Mail',
 		routeTitle: 'Email',
 	},
 	{
-		service: kvService as Service,
+		service: kvService,
 		icon: 'Database',
 		routeTitle: 'Key-Value Storage',
 	},
 	{
-		service: machinesService as Service,
+		service: machinesService,
 		icon: 'Server',
 		routeTitle: 'Machines',
 	},
 	{
-		service: queuesService as Service,
+		service: queuesService,
 		icon: 'Layers',
 		routeTitle: 'Message Queues',
 	},
 	{
-		service: oauthService as Service,
+		service: oauthService,
 		icon: 'Shield',
 		routeTitle: 'OAuth Applications',
 	},
 	{
-		service: objectStorageService as Service,
+		service: objectStorageService,
 		icon: 'HardDrive',
 		routeTitle: 'Object Storage',
 	},
 	{
-		service: organizationsService as Service,
+		service: organizationsService,
 		icon: 'Building',
 		routeTitle: 'Organizations',
 	},
 	{
-		service: projectsService as Service,
+		service: projectsService,
 		icon: 'FolderKanban',
 		routeTitle: 'Projects',
 	},
 	{
-		service: regionService as Service,
+		service: regionService,
 		icon: 'Globe',
 		routeTitle: 'Regions',
 	},
 	{
-		service: sandboxesService as Service,
+		service: sandboxesService,
 		icon: 'Box',
 		routeTitle: 'Sandboxes',
 	},
 	{
-		service: schedulesService as Service,
+		service: schedulesService,
 		icon: 'Clock',
 		routeTitle: 'Schedules',
 	},
 	{
-		service: sessionsService as Service,
+		service: sessionsService,
 		icon: 'Timer',
 		routeTitle: 'Sessions',
 	},
 	{
-		service: tasksService as Service,
+		service: tasksService,
 		icon: 'ListTodo',
 		routeTitle: 'Tasks',
 	},
 	{
-		service: threadService as Service,
+		service: threadService,
 		icon: 'MessageSquare',
 		routeTitle: 'Threads',
 	},
 	{
-		service: userService as Service,
+		service: userService,
 		icon: 'User',
 		routeTitle: 'User',
 	},
 	{
-		service: vectorService as Service,
+		service: vectorService,
 		icon: 'Search',
 		routeTitle: 'Vector Search',
 	},
 	{
-		service: webhooksService as Service,
+		service: webhooksService,
 		icon: 'Webhook',
 		routeTitle: 'Webhooks',
 	},
 	{
-		service: workflowsService as Service,
+		service: workflowsService,
 		icon: 'Workflow',
 		routeTitle: 'Workflows',
 	},
-];
+] satisfies ApiReferenceRegistryEntry[];
 
 export const apiReferenceServices: Service[] = apiReferenceRegistry.map((entry) => entry.service);

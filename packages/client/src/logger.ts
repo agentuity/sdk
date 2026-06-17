@@ -14,7 +14,11 @@ export function createMinimalLogger(): Logger {
 		error: console.error.bind(console),
 		fatal(...args: unknown[]): never {
 			console.error(...args);
-			throw new Error(String(args[0] ?? 'fatal'));
+			const first = args[0];
+			if (first instanceof Error) {
+				throw first;
+			}
+			throw new Error(String(first ?? 'fatal'));
 		},
 		child() {
 			return createMinimalLogger();

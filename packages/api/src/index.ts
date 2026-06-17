@@ -451,7 +451,13 @@ export class APIClient {
 			});
 		}
 
-		const canRetry = !isReadableStreamBody(body); // we cannot safely retry a ReadableStream as body
+		const methodUpper = method.toUpperCase();
+		const isIdempotent =
+			methodUpper === 'GET' ||
+			methodUpper === 'HEAD' ||
+			methodUpper === 'PUT' ||
+			methodUpper === 'DELETE';
+		const canRetry = !isReadableStreamBody(body) && isIdempotent;
 
 		let attempt = 0;
 		while (true) {
@@ -677,7 +683,10 @@ export class APIClient {
 					this.#logger.debug('  Method:', method);
 					this.#logger.debug('  Status:', response.status, response.statusText);
 					this.#logger.debug('  Headers:', JSON.stringify(sanitizedHeaders, null, 2));
-					this.#logger.debug('  Response:', responseBody);
+					this.#logger.debug(
+						'  Response body omitted from logs (length: %d bytes)',
+						responseBody.length
+					);
 
 					// HTTP 426 always forces upgrade (cannot be skipped - emergency upgrade path)
 					if (response.status === 426) {

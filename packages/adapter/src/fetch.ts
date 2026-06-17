@@ -16,12 +16,14 @@ export type FetchSuccessResponse<TData> = {
 export const FetchErrorResponseSchema = z
 	.object({
 		ok: z.literal(false).describe('Indicates the fetch request failed.'),
-		data: z.never().describe('No data is available for failed requests.'),
 		response: z.instanceof(Response).describe('The raw Response object.'),
 	})
 	.describe('Error response from a fetch request.');
 
-export type FetchErrorResponse = z.infer<typeof FetchErrorResponseSchema>;
+export type FetchErrorResponse = {
+	ok: false;
+	response: Response;
+};
 
 export const FetchResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
 	z.union([FetchErrorResponseSchema, FetchSuccessResponseSchema(dataSchema)]);

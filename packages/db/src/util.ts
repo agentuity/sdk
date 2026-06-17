@@ -1,4 +1,4 @@
-import { StructuredError } from '@agentuity/adapter';
+import { StructuredError } from '@agentuity/core';
 
 export const DbResponseError = StructuredError('DbResponseError')<{ database: string }>();
 

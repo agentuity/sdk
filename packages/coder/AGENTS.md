@@ -14,7 +14,7 @@ Standalone package for the Agentuity Coder service. Provides a simple, ergonomic
 
 - **Runtime**: Node.js and Bun compatible
 - **Exports**: CoderClient, WebSocket/SSE clients, and types from this package (`api-reference` stays in core for docs)
-- **Dependencies**: @agentuity/core, @agentuity/config, @agentuity/client, @agentuity/sandbox, zod
+- **Dependencies**: @agentuity/adapter, @agentuity/api, @agentuity/client, @agentuity/config, @agentuity/sandbox, zod
 
 ## Usage
 

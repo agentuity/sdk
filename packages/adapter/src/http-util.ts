@@ -157,12 +157,18 @@ export async function toPayload(data: unknown): Promise<[Body, string | undefine
 		case 'boolean':
 		case 'number':
 			return [JSON.stringify(data), jsonContentType];
+		case 'function':
+			return toPayload((data as () => unknown)());
 		case 'object': {
 			if (data instanceof ArrayBuffer) {
 				return [data, binaryContentType];
 			}
 			if (data instanceof Uint8Array) {
-				return [data.buffer as ArrayBuffer, binaryContentType];
+				const buffer =
+					data.byteOffset === 0 && data.byteLength === data.buffer.byteLength
+						? data.buffer
+						: data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+				return [buffer as ArrayBuffer, binaryContentType];
 			}
 			if (data instanceof Blob) {
 				return [data, data.type || binaryContentType];
@@ -176,9 +182,6 @@ export async function toPayload(data: unknown): Promise<[Body, string | undefine
 			if (data instanceof Promise) {
 				return toPayload(await data);
 			}
-			if (data instanceof Function) {
-				return toPayload(data());
-			}
 			return [safeStringify(data), jsonContentType];
 		}
 	}
@@ -190,7 +193,14 @@ export async function fromResponse<T>(response: Response): Promise<T> {
 	const contentType = rawContentType.toLowerCase();
 
 	if (!contentType || contentType.includes('json')) {
-		return (await response.json()) as T;
+		if (response.status === 204 || response.status === 205 || response.status === 304) {
+			return undefined as T;
+		}
+		const text = await response.text();
+		if (!text.trim()) {
+			return undefined as T;
+		}
+		return JSON.parse(text) as T;
 	}
 
 	if (contentType.startsWith('text/')) {

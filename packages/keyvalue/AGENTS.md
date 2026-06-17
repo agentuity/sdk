@@ -14,7 +14,7 @@ Standalone package for the Agentuity Key-Value storage service. Provides a simpl
 
 - **Runtime**: Node.js and Bun compatible
 - **Exports**: KeyValueClient, KeyValueStorageService, and all KV types/schemas
-- **Dependencies**: @agentuity/adapter, @agentuity/core (env/config/pagination only), zod
+- **Dependencies**: @agentuity/adapter, @agentuity/client, @agentuity/config, zod
 - **Note**: Implementation lives in this package (`src/service.ts`).
 
 ## Usage
@@ -37,4 +37,4 @@ if (result.exists) {
 ## Publishing
 
 1. Run `bun run build`
-2. Must publish **after** @agentuity/core
+2. Publish after `@agentuity/adapter`, `@agentuity/client`, `@agentuity/config`
