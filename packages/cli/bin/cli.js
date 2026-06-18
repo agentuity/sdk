@@ -1,5 +1,8 @@
 #!/bin/sh
-':'; //; command -v bun >/dev/null 2>&1 && exec bun "$0" "$@"; exec node "$0" "$@"
+':' /*
+command -v bun >/dev/null 2>&1 && exec bun "$0" "$@"
+exec node "$0" "$@"
+*/
 /**
  * Published polyglot CLI entry for `@agentuity/cli`.
  *

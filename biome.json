@@ -19,7 +19,8 @@
 			"!**/generated/*.ts",
 			"!**/routeTree.gen.ts",
 			"!bun.lock",
-			"!**/*.sh"
+			"!**/*.sh",
+			"!packages/cli/bin/cli.js"
 		]
 	},
 	"formatter": {
