@@ -1,4 +1,5 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach } from 'bun:test';
+import { createMockPostgresPool } from '@agentuity/test-utils';
 import {
 	__clearHotReloadCacheForTests,
 	__setHotReloadEnabledForTests,
@@ -17,15 +18,6 @@ function clearRegistry() {
 	}
 }
 
-function createMockPool(options: { ended?: boolean; shuttingDown?: boolean } = {}) {
-	return {
-		shutdown: mock(() => {}),
-		close: mock(() => Promise.resolve()),
-		ended: options.ended ?? false,
-		shuttingDown: options.shuttingDown ?? false,
-	};
-}
-
 describe('hot-reload', () => {
 	beforeEach(() => {
 		__setHotReloadEnabledForTests(undefined);
@@ -41,15 +33,12 @@ describe('hot-reload', () => {
 				maxLifetimeSeconds: 240,
 				connectionTimeoutMillis: 5000,
 			});
-			expect(key).toContain('postgres://example/db');
-			expect(key).toContain('5');
-			expect(key).toContain('240');
-			expect(key).toContain('5000');
+			expect(key).toBe('postgres://example/db\x005\x00240\x005000');
 		});
 
 		test('normalizes string config', () => {
-			expect(computePoolHotReloadKey('postgres://example/db')).toContain(
-				'postgres://example/db'
+			expect(computePoolHotReloadKey('postgres://example/db')).toBe(
+				'postgres://example/db\x0010\x00\x00'
 			);
 		});
 	});
@@ -58,8 +47,8 @@ describe('hot-reload', () => {
 		test('closes superseded pool with the same hot-reload key', () => {
 			__setHotReloadEnabledForTests(true);
 			const key = computePoolHotReloadKey({ connectionString: 'postgres://example/db', max: 3 });
-			const first = createMockPool();
-			const second = createMockPool();
+			const first = createMockPostgresPool();
+			const second = createMockPostgresPool();
 
 			registerClient(first, { hotReloadKey: key });
 			registerClient(second, { hotReloadKey: key });
@@ -72,8 +61,8 @@ describe('hot-reload', () => {
 		test('does not close pools when hot reload is disabled', () => {
 			__setHotReloadEnabledForTests(false);
 			const key = computePoolHotReloadKey({ connectionString: 'postgres://example/db', max: 3 });
-			const first = createMockPool();
-			const second = createMockPool();
+			const first = createMockPostgresPool();
+			const second = createMockPostgresPool();
 
 			registerClient(first, { hotReloadKey: key });
 			registerClient(second, { hotReloadKey: key });
@@ -84,7 +73,7 @@ describe('hot-reload', () => {
 		test('unregister removes cached shared pool reference', () => {
 			__setHotReloadEnabledForTests(true);
 			const key = computePoolHotReloadKey({ connectionString: 'postgres://example/db', max: 3 });
-			const pool = createMockPool();
+			const pool = createMockPostgresPool();
 
 			registerClient(pool, { hotReloadKey: key });
 			expect(getSharedHotReloadPool(key)).toBe(pool);
@@ -97,14 +86,14 @@ describe('hot-reload', () => {
 	describe('getSharedHotReloadPool', () => {
 		test('returns cached pool while open', () => {
 			const key = 'test-key';
-			const pool = createMockPool();
+			const pool = createMockPostgresPool();
 			supersedeHotReloadConnection(pool, key);
 			expect(getSharedHotReloadPool(key)).toBe(pool);
 		});
 
 		test('ignores ended pools', () => {
 			const key = 'test-key';
-			const pool = createMockPool({ ended: true });
+			const pool = createMockPostgresPool({ ended: true });
 			supersedeHotReloadConnection(pool, key);
 			expect(getSharedHotReloadPool(key)).toBeUndefined();
 		});
@@ -114,7 +103,7 @@ describe('hot-reload', () => {
 		test('still clears registry after hot reload registrations', async () => {
 			__setHotReloadEnabledForTests(true);
 			const key = computePoolHotReloadKey({ connectionString: 'postgres://example/db', max: 3 });
-			const pool = createMockPool();
+			const pool = createMockPostgresPool();
 			registerClient(pool, { hotReloadKey: key });
 
 			await shutdownAll();
