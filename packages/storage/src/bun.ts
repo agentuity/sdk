@@ -29,6 +29,32 @@ export type { BucketConfig, S3ClientLike } from './types.ts';
 export { bucketConfigFromEnv } from './types.ts';
 
 /**
+ * Normalize a write body into a shape `Bun.S3Client.write` stores
+ * losslessly.
+ *
+ * Bun 1.3.x's `S3Client.write` does not consume a Web `ReadableStream`:
+ * it string-coerces it to the 23-byte literal `"[object ReadableStream]"`
+ * and stores that instead of the stream's bytes. Buffer a stream to bytes
+ * first (a `Uint8Array` round-trips correctly); every other accepted
+ * shape (string/Uint8Array/ArrayBuffer/Blob) is already stored losslessly
+ * and passes through untouched.
+ *
+ * Exported for regression testing: Bun's built-in `bun` module can't be
+ * overridden via `mock.module`, so the buffering is verified here rather
+ * than through a mocked `write`.
+ */
+export async function normalizeWriteBody(
+	body: S3Body
+): Promise<Exclude<S3Body, ReadableStream<Uint8Array>>> {
+	if (body instanceof ReadableStream) {
+		// Buffer the stream to bytes; a Uint8Array round-trips correctly
+		// where a raw Web stream is silently corrupted.
+		return new Uint8Array(await new Response(body).arrayBuffer());
+	}
+	return body;
+}
+
+/**
  * Create an S3 client backed by `Bun.S3Client`.
  *
  * Endpoints are bucket-scoped (virtual-hosted-style), so we do not pass
@@ -106,10 +132,10 @@ export function createS3Client(bucket: BucketConfig): S3ClientLike {
 		},
 
 		async write(key: string, body: S3Body, opts?: S3WriteOptions): Promise<number> {
-			// `Bun.S3Client.write` accepts string, Uint8Array, ArrayBuffer,
-			// Blob, ReadableStream, or Response. We accept the same shapes
-			// minus Response (callers should pass the underlying stream).
-			return client.write(key, body as any, opts);
+			// `Bun.S3Client.write` cannot consume a Web `ReadableStream` (it
+			// string-coerces it to "[object ReadableStream]"), so normalize
+			// the body to a shape Bun stores losslessly before writing.
+			return client.write(key, await normalizeWriteBody(body), opts);
 		},
 
 		async delete(key: string): Promise<void> {
