@@ -9,7 +9,18 @@
  *
  * Automatically registers process shutdown hooks (beforeExit, SIGTERM, SIGINT)
  * so all postgres clients/pools are closed during graceful shutdown.
+ *
+ * During Bun hot reload (`import.meta.hot`), registering a pool with the same
+ * hot-reload key closes the superseded pool so module re-evaluation does not
+ * leak connections.
  */
+
+import {
+	isHotReloadEnabled,
+	removeHotReloadCachedConnection,
+	supersedeHotReloadConnection,
+	clearSharedHotReloadCache,
+} from './hot-reload.ts';
 
 /**
  * Common interface for registrable PostgreSQL connections.
@@ -30,6 +41,14 @@ export interface Registrable {
 	 * Close the connection.
 	 */
 	close(): Promise<void>;
+}
+
+export interface RegisterClientOptions {
+	/**
+	 * Stable key for Bun hot reload deduplication. When a new connection
+	 * registers with the same key, the previous one is closed.
+	 */
+	hotReloadKey?: string;
 }
 
 /**
@@ -60,7 +79,10 @@ function getRegistry(): Set<Registrable> {
  * @param connection - The client or pool to register
  * @internal
  */
-export function registerClient(connection: Registrable): void {
+export function registerClient(connection: Registrable, options?: RegisterClientOptions): void {
+	if (options?.hotReloadKey && isHotReloadEnabled()) {
+		supersedeHotReloadConnection(connection, options.hotReloadKey);
+	}
 	getRegistry().add(connection);
 }
 
@@ -73,6 +95,9 @@ export function registerClient(connection: Registrable): void {
  */
 export function unregisterClient(connection: Registrable): void {
 	getRegistry().delete(connection);
+	if (isHotReloadEnabled()) {
+		removeHotReloadCachedConnection(connection);
+	}
 }
 
 /**
@@ -157,6 +182,7 @@ export async function shutdownAll(timeoutMs?: number): Promise<void> {
 
 	// Clear the registry
 	registry.clear();
+	clearSharedHotReloadCache();
 }
 
 /**
