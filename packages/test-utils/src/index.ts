@@ -13,3 +13,8 @@ export {
 	type MockAdapterResponse,
 	type MockAdapterConfig,
 } from './mock-adapter';
+export {
+	createMockPostgresPool,
+	type MockPostgresPool,
+	type MockPostgresPoolOptions,
+} from './mock-postgres-pool';

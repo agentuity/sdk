@@ -73,6 +73,7 @@ export type {
 	PoolConfig,
 	PoolStats,
 	PoolSSLConfig,
+	CreatePoolOptions,
 } from './types.ts';
 
 // Errors

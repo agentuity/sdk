@@ -407,6 +407,19 @@ export interface PoolConfig extends pg.PoolConfig {
 }
 
 /**
+ * Options for {@link createPool}.
+ */
+export interface CreatePoolOptions {
+	/**
+	 * Reuse one pool per connection profile across Bun hot reloads.
+	 * Avoids reconnect churn during local development.
+	 *
+	 * @default false
+	 */
+	shared?: boolean;
+}
+
+/**
  * Statistics about the pool state and reconnection history.
  */
 export interface PoolStats {
