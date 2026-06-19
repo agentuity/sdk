@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import pg from 'pg';
-import type { PoolConfig, PoolStats } from './types.ts';
+import type { PoolConfig, PoolStats, CreatePoolOptions } from './types.ts';
 import {
 	ConnectionClosedError,
 	PostgresError,
@@ -10,6 +10,11 @@ import {
 } from './errors.ts';
 import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect.ts';
 import { registerClient, unregisterClient, type Registrable } from './registry.ts';
+import {
+	computePoolHotReloadKey,
+	getSharedHotReloadPool,
+	isHotReloadEnabled,
+} from './hot-reload.ts';
 
 /**
  * A resilient PostgreSQL connection pool with automatic reconnection.
@@ -82,7 +87,7 @@ export class PostgresPool extends EventEmitter implements Registrable {
 		this._registerShutdownHandlers();
 
 		// Register this pool in the global registry for coordinated shutdown
-		registerClient(this);
+		registerClient(this, { hotReloadKey: computePoolHotReloadKey(this._config) });
 
 		// If preconnect is enabled, establish connection immediately
 		if (this._config.preconnect) {
@@ -769,12 +774,24 @@ export class PostgresPool extends EventEmitter implements Registrable {
 
 /**
  * Creates a new PostgresPool.
- * This is an alias for `new PostgresPool(config)` for convenience.
  *
  * @param config - Connection configuration
- * @returns A new PostgresPool instance
+ * @param options - Pool creation options. Set `shared: true` during Bun hot reload
+ *                  development to reuse one pool across module re-evaluations.
+ * @returns A PostgresPool instance
  */
-export function createPool(config?: string | PoolConfig): PostgresPool {
+export function createPool(
+	config?: string | PoolConfig,
+	options?: CreatePoolOptions
+): PostgresPool {
+	if (options?.shared && isHotReloadEnabled()) {
+		const key = computePoolHotReloadKey(config);
+		const cached = getSharedHotReloadPool(key);
+		if (cached) {
+			return cached as PostgresPool;
+		}
+	}
+
 	return new PostgresPool(config);
 }
 
