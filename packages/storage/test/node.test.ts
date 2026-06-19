@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { Buffer } from 'node:buffer';
 import { createS3Client } from '../src/node.ts';
 import { bucketConfigFromEnv } from '../src/types.ts';
 
 interface CapturedState {
 	readonly clientConfigs: unknown[];
 	readonly commands: S3Command[];
+	/** Bytes drained from each upload command's `Body`, in call order. */
+	readonly uploadedBodies: Uint8Array[];
 }
 
 const captured: CapturedState = {
 	clientConfigs: [],
 	commands: [],
+	uploadedBodies: [],
 };
 
 class S3Command {
@@ -20,6 +24,22 @@ class S3Command {
 	}
 }
 
+/**
+ * Drain a mocked upload `Body` into bytes, mirroring what the real S3
+ * SDK reads off the wire. Handles fixed bodies and the Node `Readable`
+ * that `node.ts` produces for streaming uploads.
+ */
+async function drainBody(body: unknown): Promise<Uint8Array> {
+	if (body == null) return new Uint8Array();
+	if (typeof body === 'string') return new Uint8Array(Buffer.from(body, 'utf-8'));
+	if (body instanceof Uint8Array) return new Uint8Array(body);
+	const chunks: Buffer[] = [];
+	for await (const chunk of body as AsyncIterable<Buffer>) {
+		chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+	}
+	return new Uint8Array(Buffer.concat(chunks));
+}
+
 mock.module('@aws-sdk/client-s3', () => {
 	class S3Client {
 		constructor(config: unknown) {
@@ -28,6 +48,10 @@ mock.module('@aws-sdk/client-s3', () => {
 
 		async send(command: S3Command): Promise<Record<string, unknown>> {
 			captured.commands.push(command);
+			const input = command.input as { Body?: unknown } | null;
+			if (input && 'Body' in input && input.Body != null) {
+				captured.uploadedBodies.push(await drainBody(input.Body));
+			}
 			return { Contents: [], IsTruncated: false };
 		}
 	}
@@ -133,5 +157,40 @@ describe('Node S3 client endpoint resolution', () => {
 				secret_key: 'secret',
 			})
 		).toThrow('BucketConfig accepts either `endpoint` or `host`+`bucket`, not both.');
+	});
+});
+
+describe('Node S3 client upload body handling', () => {
+	beforeEach(() => {
+		captured.clientConfigs.length = 0;
+		captured.commands.length = 0;
+		captured.uploadedBodies.length = 0;
+	});
+
+	test('streams a Web ReadableStream body as exact bytes (parity with the Bun fix)', async () => {
+		const storage = createS3Client({
+			endpoint: 'https://example-bucket.storage.example.test',
+			access_key: 'access',
+			secret_key: 'secret',
+		});
+		// Length deliberately != 23 so a "[object ReadableStream]" corruption
+		// would be unmistakable.
+		const payload = new TextEncoder().encode('node-stream-payload-ABCDEFGHIJKLMNOP-0123456789\n');
+		const stream = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(payload);
+				controller.close();
+			},
+		});
+
+		const wrote = await storage.write('obj.txt', stream, { type: 'text/plain' });
+
+		// node.ts streams via a counting passthrough: both the returned byte
+		// count and the bytes that reach PutObjectCommand.Body must equal the
+		// payload — never the 23-byte string Bun would have stored.
+		expect(wrote).toBe(payload.byteLength);
+		expect(captured.uploadedBodies).toHaveLength(1);
+		const sent = captured.uploadedBodies[0];
+		expect(sent).toEqual(payload);
 	});
 });
