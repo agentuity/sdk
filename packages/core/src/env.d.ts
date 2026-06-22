@@ -172,6 +172,9 @@ declare global {
 			/** Deployment name/identifier */
 			AGENTUITY_DEPLOYMENT?: string;
 
+			/** JSON metadata merged onto the deployment record during deploy (Genesis managed rollouts) */
+			AGENTUITY_DEPLOY_METADATA?: string;
+
 			// ============================================================================
 			// Database
 			// ============================================================================
