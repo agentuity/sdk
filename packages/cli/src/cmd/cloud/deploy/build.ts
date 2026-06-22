@@ -185,7 +185,10 @@ export function buildBuildStep(params: BuildStepParams): Step {
 					if (registeredProjectName) {
 						build.project.name = registeredProjectName;
 					}
-					build = mergeDeployRolloutMetadata(build, resolveDeployRolloutMetadata(deployOptions));
+					build = mergeDeployRolloutMetadata(
+						build,
+						resolveDeployRolloutMetadata(deployOptions)
+					);
 				} else {
 					build = await generateDeployMetadata({
 						buildResult,

@@ -167,7 +167,10 @@ const DeployResponseSchema = z.object({
 	success: z.boolean().describe('Whether deployment succeeded'),
 	deploymentId: z.string().describe('Deployment ID'),
 	projectId: z.string().describe('Project ID'),
-	rolloutId: z.string().optional().describe('Genesis managed rollout id when fan-out was triggered'),
+	rolloutId: z
+		.string()
+		.optional()
+		.describe('Genesis managed rollout id when fan-out was triggered'),
 	logs: z.array(z.string()).optional().describe('The deployment startup logs'),
 	urls: z
 		.object({

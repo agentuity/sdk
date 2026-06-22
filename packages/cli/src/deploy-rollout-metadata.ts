@@ -11,7 +11,7 @@ export const DeployRolloutMetadataSchema = z
 export type DeployRolloutMetadata = z.infer<typeof DeployRolloutMetadataSchema>;
 
 export function parseDeployRolloutMetadata(
-	raw: string | undefined,
+	raw: string | undefined
 ): DeployRolloutMetadata | undefined {
 	const value = raw?.trim();
 	if (!value) {
