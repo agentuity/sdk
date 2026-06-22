@@ -54,7 +54,11 @@ for pkg_dir in "$SDK_ROOT"/packages/*; do
 		is_source_only=$(package_json_flag "$pkg_dir/package.json" "agentuity.sourceOnly")
 		
 		if [ "$is_private" = "yes" ] && [ "$has_build" = "no" ]; then
-			SKIPPED+=("$pkg_name (source-only)")
+			reason="private/no-build"
+			if [ "$is_source_only" = "yes" ]; then
+				reason="source-only"
+			fi
+			SKIPPED+=("$pkg_name ($reason)")
 			continue
 		fi
 		
@@ -72,7 +76,7 @@ done
 
 if [ ${#SKIPPED[@]} -gt 0 ]; then
 	echo ""
-	echo "Skipped ${#SKIPPED[@]} source-only packages:"
+	echo "Skipped ${#SKIPPED[@]} packages:"
 	for pkg in "${SKIPPED[@]}"; do
 		echo "  • $pkg"
 	done

@@ -1,7 +1,8 @@
-import { existsSync } from 'node:fs';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { StructuredError } from '@agentuity/core';
 import yaml from 'yaml';
+import { pathExists } from '../node-compat/fs.ts';
 import { getVersion } from '../version.ts';
 import {
 	SKILLS_GITIGNORE_ENTRIES,
@@ -11,6 +12,11 @@ import {
 	SKILLS_NPM_VERSION,
 	SKILLS_PACKAGE,
 } from './constants.ts';
+
+const PackageJsonNotFoundError = StructuredError('PackageJsonNotFoundError')<{
+	message: string;
+	projectDir: string;
+}>();
 
 interface PackageJson {
 	devDependencies?: Record<string, string>;
@@ -63,7 +69,7 @@ export function mergePrepareScript(scripts: Record<string, string>): boolean {
 export async function appendSkillsGitignore(projectDir: string): Promise<boolean> {
 	const gitignorePath = join(projectDir, '.gitignore');
 	let content = '';
-	if (existsSync(gitignorePath)) {
+	if (await pathExists(gitignorePath)) {
 		content = await readFile(gitignorePath, 'utf-8');
 	}
 
@@ -89,8 +95,11 @@ export async function wireSkillsToProject(options: WireSkillsOptions): Promise<W
 	} = options;
 
 	const pkgPath = join(projectDir, 'package.json');
-	if (!existsSync(pkgPath)) {
-		throw new Error(`No package.json found in ${projectDir}`);
+	if (!(await pathExists(pkgPath))) {
+		throw new PackageJsonNotFoundError({
+			message: `No package.json found in ${projectDir}`,
+			projectDir,
+		});
 	}
 
 	const pkg = JSON.parse(await readFile(pkgPath, 'utf-8')) as PackageJson;
@@ -121,7 +130,7 @@ export async function wireSkillsToProject(options: WireSkillsOptions): Promise<W
 
 	if (writeConfig) {
 		const configPath = join(projectDir, SKILLS_NPM_CONFIG_FILE);
-		if (!existsSync(configPath)) {
+		if (!(await pathExists(configPath))) {
 			await writeFile(configPath, SKILLS_NPM_CONFIG_CONTENT);
 			changed = true;
 		}
@@ -143,7 +152,7 @@ export interface BundledSkillInfo {
 
 export async function listBundledSkills(projectDir: string): Promise<BundledSkillInfo[]> {
 	const skillsRoot = join(projectDir, 'node_modules', SKILLS_PACKAGE, 'skills');
-	if (!existsSync(skillsRoot)) {
+	if (!(await pathExists(skillsRoot))) {
 		return [];
 	}
 
@@ -153,7 +162,7 @@ export async function listBundledSkills(projectDir: string): Promise<BundledSkil
 	for (const entry of entries) {
 		if (!entry.isDirectory()) continue;
 		const skillPath = join(skillsRoot, entry.name, 'SKILL.md');
-		if (!existsSync(skillPath)) continue;
+		if (!(await pathExists(skillPath))) continue;
 
 		const content = await readFile(skillPath, 'utf-8');
 		const meta = parseFrontmatter(content);

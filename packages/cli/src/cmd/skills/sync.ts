@@ -25,6 +25,17 @@ export const syncSubcommand = createSubcommand({
 		const exitCode = await runSkillsNpm({ cwd: projectDir });
 
 		if (exitCode !== 0) {
+			if (isJSONMode(options)) {
+				outputJSON({
+					success: false,
+					error: {
+						code: ErrorCode.RUNTIME_ERROR,
+						message:
+							'Failed to sync skills — ensure @agentuity/skills and skills-npm are installed',
+					},
+				});
+				return;
+			}
 			logger.fatal(
 				'Failed to sync skills — ensure @agentuity/skills and skills-npm are installed',
 				ErrorCode.RUNTIME_ERROR
