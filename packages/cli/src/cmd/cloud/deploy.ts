@@ -808,6 +808,8 @@ export const deploySubcommand = createSubcommand({
 			if (deployResultFile) {
 				try {
 					const resultData = {
+						source_blob_id: deployment.id,
+						source_deployment_id: deployment.id,
 						urls: complete?.publicUrls
 							? {
 									deployment:
@@ -826,9 +828,22 @@ export const deploySubcommand = createSubcommand({
 				}
 			}
 
+			if (process.env.CI === 'true') {
+				console.log(
+					JSON.stringify({
+						source_blob_id: deployment.id,
+						source_deployment_id: deployment.id,
+						deployment_id: deployment.id,
+						project_id: project.projectId,
+					})
+				);
+			}
+
 			return {
 				success: true,
 				deploymentId: deployment.id,
+				sourceBlobId: deployment.id,
+				sourceDeploymentId: deployment.id,
 				projectId: project.projectId,
 				logs,
 				urls: complete?.publicUrls
