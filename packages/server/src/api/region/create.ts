@@ -153,8 +153,6 @@ export function validateNamespaceName(name: string): { valid: boolean; error?: s
 	return { valid: true };
 }
 
-export const KEYVALUE_NAMESPACE_ENV_KEY = 'KEYVALUE_NAMESPACE';
-
 export const ResourceSpec = z.object({
 	type: z.enum(['db', 's3', 'kv']).describe('the resource type'),
 	name: z.string().optional().describe('optional custom name for db, s3, or kv'),

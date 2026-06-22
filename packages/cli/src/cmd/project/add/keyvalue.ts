@@ -85,18 +85,23 @@ export const keyvalueSubcommand = createSubcommand({
 		let selectedNamespace: (typeof availableNamespaces)[0] | undefined;
 
 		if (args.name) {
-			const validation = validateNamespaceName(args.name);
+			const namespaceName = args.name.trim();
+			const validation = validateNamespaceName(namespaceName);
 			if (!validation.valid) {
 				tui.fatal(validation.error ?? 'Invalid namespace name', ErrorCode.INVALID_ARGUMENT);
 			}
 
-			selectedNamespace = availableNamespaces.find((namespace) => namespace.name === args.name);
+			selectedNamespace = availableNamespaces.find(
+				(namespace) => namespace.name === namespaceName
+			);
 			if (!selectedNamespace) {
 				const created = await tui.spinner({
-					message: `Creating key-value namespace ${args.name}`,
+					message: `Creating key-value namespace ${namespaceName}`,
 					clearOnSuccess: true,
 					callback: async () =>
-						createResources(catalystClient, orgId, region, [{ type: 'kv', name: args.name }]),
+						createResources(catalystClient, orgId, region, [
+							{ type: 'kv', name: namespaceName },
+						]),
 				});
 				const createdNamespace = created[0];
 				if (!createdNamespace) {
