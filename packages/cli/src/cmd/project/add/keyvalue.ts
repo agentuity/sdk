@@ -18,6 +18,7 @@ import { createSubcommand } from '../../../types.ts';
 
 export const KEYVALUE_NAMESPACE_ENV_KEY = 'AGENTUITY_KEYVALUE_NAMESPACE';
 
+const CREATE_NEW_NAMESPACE_SENTINEL = '__create_new_namespace__';
 const namespaceNameSchema = z.string().min(1).max(64);
 
 export const keyvalueSubcommand = createSubcommand({
@@ -115,7 +116,7 @@ export const keyvalueSubcommand = createSubcommand({
 			const selected = await prompt.select<string>({
 				message: 'Select a key-value namespace to link',
 				options: [
-					{ value: 'Create New', label: 'Create a new namespace' },
+					{ value: CREATE_NEW_NAMESPACE_SENTINEL, label: 'Create a new namespace' },
 					...existingNamespaces.map((name) => ({
 						value: name,
 						label: `${tui.tuiColors.primary(name)}`,
@@ -131,7 +132,7 @@ export const keyvalueSubcommand = createSubcommand({
 				tui.fatal('Operation cancelled', ErrorCode.USER_CANCELLED);
 			}
 
-			if (selected === 'Create New') {
+			if (selected === CREATE_NEW_NAMESPACE_SENTINEL) {
 				const nameInput = await prompt.text({
 					message: 'Namespace name',
 					hint: '1-64 characters',
