@@ -9,14 +9,17 @@ import { getCommand } from '../../command-prefix.ts';
 
 export const command = createCommand({
 	name: 'profile',
-	description: 'Manage configuration profiles',
+	description: 'Manage configuration profiles for --profile and AGENTUITY_PROFILE',
 	tags: ['read-only', 'fast'],
-	hidden: true,
 	examples: [
 		{ command: getCommand('profile list'), description: 'List all profiles' },
 		{
 			command: getCommand('profile use production'),
 			description: 'Switch to production profile',
+		},
+		{
+			command: getCommand('--profile staging auth whoami'),
+			description: 'Run a command with a specific profile',
 		},
 	],
 	subcommands: [
