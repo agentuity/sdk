@@ -10,7 +10,9 @@ export const DeployRolloutMetadataSchema = z
 
 export type DeployRolloutMetadata = z.infer<typeof DeployRolloutMetadataSchema>;
 
-export function parseDeployRolloutMetadata(raw: string | undefined): DeployRolloutMetadata | undefined {
+export function parseDeployRolloutMetadata(
+	raw: string | undefined,
+): DeployRolloutMetadata | undefined {
 	const value = raw?.trim();
 	if (!value) {
 		return undefined;
@@ -20,7 +22,7 @@ export function parseDeployRolloutMetadata(raw: string | undefined): DeployRollo
 		parsed = JSON.parse(value);
 	} catch (error) {
 		throw new Error(
-			`Invalid deploy metadata JSON: ${error instanceof Error ? error.message : String(error)}`,
+			`Invalid deploy metadata JSON: ${error instanceof Error ? error.message : String(error)}`
 		);
 	}
 	const result = DeployRolloutMetadataSchema.safeParse(parsed);
@@ -42,7 +44,7 @@ export function resolveDeployRolloutMetadata(options?: {
 
 export function mergeDeployRolloutMetadata<T extends { deployment?: Record<string, unknown> }>(
 	build: T,
-	rolloutMetadata: DeployRolloutMetadata | undefined,
+	rolloutMetadata: DeployRolloutMetadata | undefined
 ): T {
 	if (!rolloutMetadata || !build.deployment) {
 		return build;
