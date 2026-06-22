@@ -4,6 +4,13 @@ import * as tui from '../../../tui.ts';
 import { projectDeploymentUndeploy } from '@agentuity/server';
 import { resolveProjectId } from './utils.ts';
 import { getCommand } from '../../../command-prefix.ts';
+
+const DeploymentUndeployResponseSchema = z.object({
+	success: z.boolean().describe('Whether the undeploy succeeded'),
+	projectId: z.string().describe('Project ID'),
+	message: z.string().describe('Human-readable operation result'),
+});
+
 export const undeploySubcommand = createSubcommand({
 	name: 'undeploy',
 	description: 'Undeploy the latest deployment',
@@ -31,24 +38,32 @@ export const undeploySubcommand = createSubcommand({
 			projectId: z.string().optional().describe('filter by project id'),
 			force: z.boolean().default(false).describe('Force undeploy without confirmation'),
 		}),
+		response: DeploymentUndeployResponseSchema,
 	},
 	async handler(ctx) {
 		const projectId = resolveProjectId(ctx, { projectId: ctx.opts.projectId });
-		const { apiClient, opts } = ctx;
+		const { apiClient, opts, options } = ctx;
 
 		if (!opts.force) {
 			const confirmed = await tui.confirm(
 				'Are you sure you want to undeploy? This will stop the active deployment.'
 			);
 			if (!confirmed) {
-				tui.info('Operation cancelled');
-				return;
+				const message = 'Operation cancelled';
+				if (!options.json) {
+					tui.info(message);
+				}
+				return { success: false, projectId, message };
 			}
 		}
 
 		try {
 			await projectDeploymentUndeploy(apiClient, projectId);
-			tui.success('Undeployed successfully.');
+			const message = 'Undeployed successfully.';
+			if (!options.json) {
+				tui.success(message);
+			}
+			return { success: true, projectId, message };
 		} catch (ex) {
 			tui.fatal(`Failed to undeploy: ${ex}`);
 		}
