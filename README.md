@@ -39,7 +39,14 @@ Available skills:
 
 | Skill | Description |
 |-------|-------------|
-| **agentuity-cli** | Project scaffolding, dev server, deployment, cloud services |
+| **agentuity-project** | Create, import, run, build, and deploy framework apps |
+| **agentuity-frameworks** | Use framework-native route, page, server function, and config locations |
+| **agentuity-ai** | Build model-backed features with AI Gateway, structured output, streaming, tools, and app-owned state |
+| **agentuity-services** | Choose and use Agentuity service clients from server-side app code |
+| **agentuity-database** | Add relational data with managed Postgres and app-owned database clients |
+| **agentuity-background-work** | Add queues, schedules, webhooks, tasks, durable output, and status handles |
+| **agentuity-cloud** | Manage deployments, logs, env, regions, resources, SSH, and debugging through the CLI |
+| **agentuity-cli** | Use CLI auth, profiles, JSON, schemas, structured input, and command discovery |
 
 See [`skills/README.md`](./skills/README.md) for details.
 

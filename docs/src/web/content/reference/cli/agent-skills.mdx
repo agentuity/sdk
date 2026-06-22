@@ -1,0 +1,83 @@
+---
+title: Agent Skills
+short_title: Agent Skills
+description: Install and sync Agentuity Agent Skills from npm
+---
+
+Use `agentuity skills` to wire Agentuity's npm-distributed [Agent Skills](https://agentskills.io/) into a project. New Agentuity projects include this wiring by default unless created with `--no-skills`.
+
+## Set Up Skills
+
+Run setup in a project that has a `package.json`:
+
+```bash
+agentuity skills setup
+```
+
+The command adds:
+
+| File or package | Purpose |
+|---|---|
+| `@agentuity/skills` | Bundled Agentuity skill content |
+| `skills-npm` | Discovers npm-bundled skills and symlinks them for coding agents |
+| `skills-npm.config.ts` | Limits sync to `@agentuity/skills` |
+| `prepare` script | Runs `skills-npm --yes` after install |
+| `.gitignore` entries | Keeps generated skill symlinks out of git |
+
+Skip the immediate sync when dependencies have not been installed yet:
+
+```bash
+agentuity skills setup --no-sync
+npm install
+agentuity skills sync
+```
+
+## Sync and List
+
+Re-sync after installs, lockfile changes, or agent directory cleanup:
+
+```bash
+agentuity skills sync
+```
+
+List installed bundled skills:
+
+```bash
+agentuity skills list
+agentuity --json skills list
+```
+
+## New Projects
+
+Skills are enabled by default in new Agentuity projects:
+
+```bash
+agentuity create --name my-app --framework nextjs
+```
+
+Skip skill wiring:
+
+```bash
+agentuity create --name my-app --framework nextjs --no-skills
+```
+
+## Manual npm Setup
+
+The CLI setup command is equivalent to:
+
+```bash
+npm install -D @agentuity/skills skills-npm
+npx skills-npm --yes
+```
+
+Add `skills-npm --yes` to your `prepare` script so skills stay synced after installs.
+
+## Release Blocker
+
+This rollout is blocked until the SDK `agentic flow` CLI gap issues are resolved or explicitly waived: [#1575](https://github.com/agentuity/sdk/issues/1575), [#1576](https://github.com/agentuity/sdk/issues/1576), [#1577](https://github.com/agentuity/sdk/issues/1577), [#1578](https://github.com/agentuity/sdk/issues/1578), [#1579](https://github.com/agentuity/sdk/issues/1579), [#1580](https://github.com/agentuity/sdk/issues/1580), and [#1581](https://github.com/agentuity/sdk/issues/1581). See the [`agentic flow` label](https://github.com/agentuity/sdk/issues?q=label%3A%22agentic+flow%22) for the full blocker set.
+
+## Next Steps
+
+- [Agentuity CLI](/reference/cli/getting-started): install and authenticate the CLI
+- [Project lifecycle](/reference/cli/deployment): build and deploy registered projects
+- [Agent Skills package](https://www.npmjs.com/package/@agentuity/skills): npm package once published

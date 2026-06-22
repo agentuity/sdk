@@ -52,7 +52,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for the
 
 ## Service Client Example
 
-Route handlers use standalone service clients. They do not need an Agentuity-owned router or `createApp()`.
+Route handlers use standalone service clients directly in server-side code.
 
 ```bash
 npm install @agentuity/keyvalue
@@ -165,7 +165,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 Use the model `id` exactly as it appears in the [AI Gateway model catalog](/services/ai-gateway#model-catalog). Use a provider SDK directly only when the route depends on provider-specific APIs such as OpenAI Responses state or Anthropic `tool_use` blocks.
 
 <Callout type="tip" title="Keep handlers in app/api/**/route.ts">
-Agentuity does not require `createApp()` or an Agentuity-owned router for Next.js projects. Standard App Router route handlers work as-is.
+Standard App Router route handlers work as-is. Put Agentuity client calls in the route handler or a server-only module it imports.
 </Callout>
 
 ## Run Locally

@@ -9,7 +9,7 @@ Because agents are app code, they use the same dependencies as the rest of the a
 
 ## The Minimal Shape
 
-Start with a plain typed function. It accepts validated input, returns typed output, and does not call `createAgent()`.
+Start with a plain typed function. It accepts validated input, returns typed output, and can be called from any server-side trigger.
 
 ```bash
 npm install @agentuity/aigateway @agentuity/keyvalue zod
@@ -193,20 +193,6 @@ export async function POST(request: Request): Promise<Response> {
 ```
 
 Unit tests call `triageMessage()` directly with plain objects, so you do not need to build a `Request`.
-
-## Migration Boundary
-
-The current Agentuity shape is a normal app where routes, schedules, queues, and scripts call plain server-side functions. If you are copying code from previous SDK versions, use [Migration](/migration) first when you see the older patterns below.
-
-| Concern | Current Agentuity app | Previous SDK versions |
-|---|---|---|
-| Agent entry point | Plain `async function` | `createAgent()` |
-| File location | Anywhere in your project | `src/agent/*` |
-| Storage access | `new KeyValueClient()` or `c.var.kv` in Hono | `ctx.kv` |
-| Calling an agent | Call the function directly | `agent.run(input)` |
-| Route ownership | You own it | Runtime-managed |
-
-See [Migrating Runtime Apps to Frameworks](/migration/runtime-to-frameworks) when an existing app still has runtime-managed agents.
 
 ## Use Hono Middleware for Shared Clients
 
