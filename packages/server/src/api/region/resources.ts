@@ -33,6 +33,17 @@ export const ResourceListResponse = z.object({
 				.describe('whether this is a system-managed database (KV/Vector/Queue)'),
 		})
 	),
+	kv: z
+		.array(
+			z.object({
+				name: z.string().describe('the key-value namespace name'),
+				env: z
+					.record(z.string(), z.string())
+					.describe('environment variables for the resource'),
+				internal: z.boolean().describe('whether this is a system-managed namespace'),
+			})
+		)
+		.default([]),
 	redis: z
 		.object({
 			url: z.string().describe('the Redis connection URL'),

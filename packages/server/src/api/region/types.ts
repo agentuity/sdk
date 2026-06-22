@@ -14,14 +14,14 @@ export type RegionInfoApi = z.infer<typeof RegionInfoApiSchema>;
 
 /** Request body for POST /resource/{orgId}/{region} (create resources) */
 export const CreateResourcesApiRequestSchema = z.object({
-	resources: z.array(z.any()).describe("Array of { type: 'db'|'s3', name?, description? }"),
+	resources: z.array(z.any()).describe("Array of { type: 'db'|'s3'|'kv', name?, description? }"),
 });
 
 export type CreateResourcesApiRequest = z.infer<typeof CreateResourcesApiRequestSchema>;
 
 /** Request body for DELETE /resource/{orgId}/{region} (delete resources) */
 export const DeleteResourcesApiRequestSchema = z.object({
-	resources: z.array(z.any()).describe("Array of { type: 'db'|'s3', name }"),
+	resources: z.array(z.any()).describe("Array of { type: 'db'|'s3'|'kv', name }"),
 });
 
 export type DeleteResourcesApiRequest = z.infer<typeof DeleteResourcesApiRequestSchema>;
