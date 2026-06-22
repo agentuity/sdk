@@ -1,5 +1,7 @@
 import { StructuredError } from '@agentuity/core';
-import type { ProjectConfig } from '../../../types.ts';
+import { ErrorCode, getExitCode } from '../../../errors.ts';
+import { canPrompt, createErrorResponse, outputJSON } from '../../../output.ts';
+import type { GlobalOptions, Logger, ProjectConfig } from '../../../types.ts';
 
 const ProjectIDRequiredError = StructuredError(
 	'ProjectIDRequiredError',
@@ -17,4 +19,26 @@ export function resolveProjectId(
 		return ctx.project.projectId;
 	}
 	throw new ProjectIDRequiredError();
+}
+
+export function requireForceForNonInteractiveDestructiveAction(
+	options: GlobalOptions,
+	logger: Logger,
+	action: string
+): void {
+	if (canPrompt(options)) {
+		return;
+	}
+
+	const message = `--force is required to ${action} in non-interactive mode.`;
+	if (options.json) {
+		outputJSON(
+			createErrorResponse(ErrorCode.CONFIG_INVALID, message, {
+				requiredFlag: '--force',
+			})
+		);
+		process.exit(getExitCode(ErrorCode.CONFIG_INVALID));
+	}
+
+	logger.fatal(message, ErrorCode.CONFIG_INVALID);
 }
