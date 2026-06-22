@@ -47,6 +47,10 @@ import {
 import { encryptFIPSKEMDEMStream } from '../../crypto/box';
 import * as domain from '../../domain';
 import {
+	mergeDeployRolloutMetadata,
+	resolveDeployRolloutMetadata,
+} from '../../deploy-rollout-metadata';
+import {
 	filterAgentuitySdkKeys,
 	findExistingEnvFile,
 	readEnvFile,
@@ -83,6 +87,10 @@ const DeployResponseSchema = z.object({
 	success: z.boolean().describe('Whether deployment succeeded'),
 	deploymentId: z.string().describe('Deployment ID'),
 	projectId: z.string().describe('Project ID'),
+	rolloutId: z
+		.string()
+		.optional()
+		.describe('Genesis managed rollout id when fan-out was triggered'),
 	logs: z.array(z.string()).optional().describe('The deployment startup logs'),
 	urls: z
 		.object({
@@ -403,6 +411,7 @@ export const deploySubcommand = createSubcommand({
 			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
 			if (opts.skipDnsValidation) childArgs.push('--skip-dns-validation');
 			if (opts.skipTypeCheck) childArgs.push('--skip-type-check');
+			if (opts.metadata) childArgs.push(`--metadata=${opts.metadata}`);
 
 			const result = await runForkedDeploy({
 				projectDir,
@@ -686,6 +695,10 @@ export const deploySubcommand = createSubcommand({
 								});
 								capturedOutput = [...capturedOutput, ...bundleResult.output];
 								build = await loadBuildMetadata(join(projectDir, '.agentuity'));
+								build = mergeDeployRolloutMetadata(
+									build,
+									resolveDeployRolloutMetadata(opts)
+								);
 								instructions = await projectDeploymentUpdate(
 									apiClient,
 									deployment.id,
@@ -1369,6 +1382,7 @@ export const deploySubcommand = createSubcommand({
 				success: true,
 				deploymentId: deployment.id,
 				projectId: project.projectId,
+				rolloutId: complete?.rolloutId,
 				logs,
 				urls: complete?.publicUrls
 					? {
