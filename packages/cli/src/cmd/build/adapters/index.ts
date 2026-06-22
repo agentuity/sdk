@@ -9,6 +9,7 @@
 import type { BuildAdapter } from './types.ts';
 import { genericAdapter } from './generic.ts';
 import { nextjsAdapter } from './nextjs.ts';
+import { tanstackStartAdapter } from './tanstack-start.ts';
 
 /**
  * Registry of framework-specific build adapters.
@@ -16,14 +17,15 @@ import { nextjsAdapter } from './nextjs.ts';
  */
 const adapters: Record<string, BuildAdapter> = {
 	nextjs: nextjsAdapter,
+	'tanstack-start': tanstackStartAdapter,
 };
 
 /**
  * Get the build adapter for a detected framework.
  * Falls back to the generic adapter if no specific one exists.
  */
-export function getAdapter(frameworkName: string): BuildAdapter {
-	return adapters[frameworkName] ?? genericAdapter;
+export function getAdapter(frameworkSlug: string): BuildAdapter {
+	return adapters[frameworkSlug] ?? genericAdapter;
 }
 
 // Re-export types
