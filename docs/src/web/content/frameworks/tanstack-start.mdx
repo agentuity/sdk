@@ -55,6 +55,49 @@ export default defineConfig({
 
 `nitro()` emits the server bundle that your deployed `start` script points at. `agentuity()` supports public local dev and HMR through `agentuity dev --public`; it is a no-op when the Agentuity dev hostname is not present. Agentuity preserves the Nitro output and uses your `start` script when it packages the app.
 
+## CDN static assets
+
+Agentuity uploads hashed browser assets to a CDN at deploy time. TanStack Start must rewrite SSR asset URLs at runtime and emit relative client chunk paths so lazy-loaded routes stay on the CDN during client navigation. See [TanStack Start CDN asset URLs](https://tanstack.com/start/latest/docs/framework/react/guide/cdn-asset-urls).
+
+When you run `agentuity build` or `agentuity deploy` on a TanStack Start project **without** an existing `src/server.ts`, the CLI generates a server entry for the build that wires TanStack `transformAssets` to the platform CDN origin. It also sets Vite `base: ''` in `vite.config.ts` for the duration of the build when `base` is unset or `'/'`.
+
+At runtime the server reads:
+
+| Variable | Purpose |
+| --- | --- |
+| `AGENTUITY_CDN_ORIGIN` | Preferred CDN prefix when the platform injects it |
+| `AGENTUITY_CLOUD_DEPLOYMENT_ID` | Fallback prefix: `https://cdn.agentuity.com/{id}` |
+
+Local `vite dev` and `agentuity dev` leave asset URLs unchanged (no CDN prefix).
+
+### Custom server entry
+
+If you already maintain `src/server.ts`, add CDN wiring yourself:
+
+```ts title="src/server.ts"
+import {
+	createStartHandler,
+	defaultStreamHandler,
+} from '@tanstack/react-start/server';
+import { createServerEntry } from '@tanstack/react-start/server-entry';
+
+const cdnOrigin = process.env.AGENTUITY_CDN_ORIGIN
+	?? (process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID
+		? `https://cdn.agentuity.com/${process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID}`
+		: undefined);
+
+const handler = createStartHandler({
+	handler: defaultStreamHandler,
+	transformAssets: cdnOrigin
+		? { prefix: cdnOrigin, crossOrigin: 'anonymous' }
+		: undefined,
+});
+
+export default createServerEntry({ fetch: handler });
+```
+
+Set Vite `base: ''` in `vite.config.ts` when using the CDN. Remove a generated `src/server.ts` from your repo if you prefer the CLI to create one during `agentuity build` only.
+
 <Callout type="tip" title="Existing app?">
 See [Add Agentuity to an existing app](/get-started/import-existing-app) for validation, import, the `Invalid project folder` deploy case, and first deploy.
 </Callout>
@@ -144,6 +187,8 @@ Configure the variables your deployed app needs. Direct `AIGatewayClient` calls 
 | Variable | Used by |
 | --- | --- |
 | `AGENTUITY_SDK_KEY` | Agentuity service clients and `@agentuity/aigateway` |
+| `AGENTUITY_CLOUD_DEPLOYMENT_ID` | CDN asset prefix fallback in the TanStack server entry |
+| `AGENTUITY_CDN_ORIGIN` | CDN asset prefix when injected by the platform |
 | `DATABASE_URL` | database server routes |
 | `AWS_*` | object storage server routes; see [Object Storage](/services/storage/object) for exact variables |
 
@@ -187,12 +232,14 @@ Do not deploy until `.agentuity/launch.json` points at the server bundle emitted
 | `launch.json` shows static-only server | Verify the build emits a Nitro server bundle under `.output/server/`; check [TanStack Start Hosting](https://tanstack.com/start/latest/docs/framework/react/guide/hosting) for supported adapters |
 | Launch command points at a missing file | Compare the command in `launch.json` against files emitted under `.agentuity` |
 | App detected as `vite` instead of `tanstack-start` | Confirm `@tanstack/react-start` is installed in the app package and rerun `agentuity build` |
+| Static assets load from app origin, not CDN | Run `agentuity build`/`deploy` so CDN wiring runs; add `src/server.ts` with `transformAssets` if you maintain a custom server entry |
 
 ## Framework Docs
 
 - [TanStack Start Getting Started](https://tanstack.com/start/latest/docs/framework/react/getting-started): scaffold with the TanStack CLI
 - [TanStack Start Server Routes](https://tanstack.com/start/latest/docs/framework/react/guide/server-routes): `createFileRoute` server handlers reference
 - [TanStack Start Hosting](https://tanstack.com/start/latest/docs/framework/react/guide/hosting): Nitro and platform-specific deployment adapters
+- [TanStack Start CDN asset URLs](https://tanstack.com/start/latest/docs/framework/react/guide/cdn-asset-urls): `transformAssets` and Vite `base` requirements
 
 ## Next Steps
 

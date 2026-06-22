@@ -155,6 +155,12 @@ declare global {
 			AGENTUITY_CLOUD_DEPLOYMENT_ID?: string;
 
 			/**
+			 * CDN origin for static assets (platform-injected in production).
+			 * Example: https://cdn.agentuity.com/deploy_abc123
+			 */
+			AGENTUITY_CDN_ORIGIN?: string;
+
+			/**
 			 * Cloud domains configuration.
 			 * JSON array of domain strings.
 			 */
