@@ -133,10 +133,32 @@ function isIPv4Address(s: string): boolean {
 	return true;
 }
 
+const MAX_NAMESPACE_NAME_LENGTH = 64;
+const MIN_NAMESPACE_NAME_LENGTH = 1;
+
+/**
+ * Validates a key-value namespace name.
+ * Matches the HTTP KV API path parameter limit in catalyst.
+ */
+export function validateNamespaceName(name: string): { valid: boolean; error?: string } {
+	if (name.length < MIN_NAMESPACE_NAME_LENGTH) {
+		return { valid: false, error: 'namespace name is too short (minimum 1 character)' };
+	}
+	if (name.length > MAX_NAMESPACE_NAME_LENGTH) {
+		return {
+			valid: false,
+			error: `namespace name is too long (maximum ${MAX_NAMESPACE_NAME_LENGTH} characters)`,
+		};
+	}
+	return { valid: true };
+}
+
+export const KEYVALUE_NAMESPACE_ENV_KEY = 'KEYVALUE_NAMESPACE';
+
 export const ResourceSpec = z.object({
-	type: z.enum(['db', 's3']).describe('the resource type'),
-	name: z.string().optional().describe('optional custom name for db'),
-	description: z.string().optional().describe('optional description for db'),
+	type: z.enum(['db', 's3', 'kv']).describe('the resource type'),
+	name: z.string().optional().describe('optional custom name for db, s3, or kv'),
+	description: z.string().optional().describe('optional description for db or s3'),
 });
 
 export const CreateResourcesRequest = z.object({
@@ -160,7 +182,7 @@ export type CreateResourcesResponse = z.infer<typeof CreateResourcesResponseSche
 export type CreatedResource = z.infer<typeof CreatedResource>;
 
 /**
- * Create one or more resources (DB or S3) for an organization in a specific region
+ * Create one or more resources (DB, S3, or KV) for an organization in a specific region
  * Requires CLI authentication
  *
  * @param client - Catalyst API client
@@ -173,7 +195,7 @@ export async function createResources(
 	client: APIClient,
 	orgId: string,
 	region: string,
-	resources: Array<{ type: 'db' | 's3'; name?: string; description?: string }>
+	resources: Array<{ type: 'db' | 's3' | 'kv'; name?: string; description?: string }>
 ): Promise<CreatedResource[]> {
 	// Validate resource names before sending to server
 	for (const resource of resources) {
@@ -185,6 +207,12 @@ export async function createResources(
 		}
 		if (resource.type === 's3' && resource.name) {
 			const validation = validateBucketName(resource.name);
+			if (!validation.valid) {
+				throw new RegionResponseError({ message: validation.error! });
+			}
+		}
+		if (resource.type === 'kv' && resource.name) {
+			const validation = validateNamespaceName(resource.name);
 			if (!validation.valid) {
 				throw new RegionResponseError({ message: validation.error! });
 			}

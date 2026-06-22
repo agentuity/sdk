@@ -1,8 +1,12 @@
-import { projectEnvUpdate } from '@agentuity/server';
+import {
+	createResources,
+	listResources,
+	projectEnvUpdate,
+	validateNamespaceName,
+} from '@agentuity/server';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix.ts';
 import { getCatalystAPIClient } from '../../../config.ts';
-import { createStorageAdapter } from '../../cloud/keyvalue/util.ts';
 import {
 	addResourceEnvVars,
 	filterAgentuitySdkKeys,
@@ -16,10 +20,7 @@ import * as tui from '../../../tui.ts';
 import { createPrompt } from '../../../tui.ts';
 import { createSubcommand } from '../../../types.ts';
 
-export const KEYVALUE_NAMESPACE_ENV_KEY = 'AGENTUITY_KEYVALUE_NAMESPACE';
-
 const CREATE_NEW_NAMESPACE_SENTINEL = '__create_new_namespace__';
-const namespaceNameSchema = z.string().min(1).max(64);
 
 export const keyvalueSubcommand = createSubcommand({
 	name: 'keyvalue',
@@ -54,7 +55,7 @@ export const keyvalueSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, args, region, auth, options, projectDir, project } = ctx;
+		const { logger, args, orgId, region, auth, options, projectDir, project } = ctx;
 
 		if (isDryRunMode(options)) {
 			const message = args.name
@@ -71,35 +72,43 @@ export const keyvalueSubcommand = createSubcommand({
 			};
 		}
 
-		const kv = await createStorageAdapter(ctx);
-		const existingNamespaces = await tui.spinner({
+		const catalystClient = getCatalystAPIClient(logger, auth, region, undefined, ctx.config);
+
+		const resources = await tui.spinner({
 			message: 'Fetching key-value namespaces',
 			clearOnSuccess: true,
-			callback: async () => kv.getNamespaces(),
+			callback: async () => listResources(catalystClient, orgId, region),
 		});
 
-		let namespaceName: string | undefined;
+		const availableNamespaces = (resources.kv ?? []).filter((namespace) => !namespace.internal);
+
+		let selectedNamespace: (typeof availableNamespaces)[0] | undefined;
 
 		if (args.name) {
-			const parsed = namespaceNameSchema.safeParse(args.name);
-			if (!parsed.success) {
-				tui.fatal(
-					`Invalid namespace name "${args.name}". Namespace names must be 1-64 characters.`,
-					ErrorCode.INVALID_ARGUMENT
-				);
+			const validation = validateNamespaceName(args.name);
+			if (!validation.valid) {
+				tui.fatal(validation.error ?? 'Invalid namespace name', ErrorCode.INVALID_ARGUMENT);
 			}
-			namespaceName = parsed.data;
 
-			if (!existingNamespaces.includes(namespaceName)) {
-				await tui.spinner({
-					message: `Creating key-value namespace ${namespaceName}`,
+			selectedNamespace = availableNamespaces.find((namespace) => namespace.name === args.name);
+			if (!selectedNamespace) {
+				const created = await tui.spinner({
+					message: `Creating key-value namespace ${args.name}`,
 					clearOnSuccess: true,
-					callback: async () => {
-						await kv.createNamespace(namespaceName!);
-					},
+					callback: async () =>
+						createResources(catalystClient, orgId, region, [{ type: 'kv', name: args.name }]),
 				});
+				const createdNamespace = created[0];
+				if (!createdNamespace) {
+					tui.fatal('Failed to create key-value namespace', ErrorCode.INTERNAL_ERROR);
+				}
+				selectedNamespace = {
+					name: createdNamespace.name,
+					env: createdNamespace.env,
+					internal: false,
+				};
 				if (!options.json) {
-					tui.success(`Created key-value namespace: ${tui.bold(namespaceName)}`);
+					tui.success(`Created key-value namespace: ${tui.bold(createdNamespace.name)}`);
 				}
 			}
 		} else {
@@ -117,9 +126,9 @@ export const keyvalueSubcommand = createSubcommand({
 				message: 'Select a key-value namespace to link',
 				options: [
 					{ value: CREATE_NEW_NAMESPACE_SENTINEL, label: 'Create a new namespace' },
-					...existingNamespaces.map((name) => ({
-						value: name,
-						label: `${tui.tuiColors.primary(name)}`,
+					...availableNamespaces.map((namespace) => ({
+						value: namespace.name,
+						label: `${tui.tuiColors.primary(namespace.name)}`,
 					})),
 				],
 			});
@@ -141,8 +150,8 @@ export const keyvalueSubcommand = createSubcommand({
 						if (trimmed === '') {
 							return 'Namespace name is required';
 						}
-						const result = namespaceNameSchema.safeParse(trimmed);
-						return result.success ? true : 'Namespace name must be 1-64 characters';
+						const result = validateNamespaceName(trimmed);
+						return result.valid ? true : (result.error ?? 'Invalid namespace name');
 					},
 				});
 
@@ -150,87 +159,104 @@ export const keyvalueSubcommand = createSubcommand({
 					process.stdin.pause();
 				}
 
-				namespaceName = namespaceNameSchema.parse(nameInput.trim());
-
-				if (!existingNamespaces.includes(namespaceName)) {
-					await tui.spinner({
+				const namespaceName = nameInput.trim();
+				selectedNamespace = availableNamespaces.find(
+					(namespace) => namespace.name === namespaceName
+				);
+				if (!selectedNamespace) {
+					const created = await tui.spinner({
 						message: `Creating key-value namespace ${namespaceName}`,
 						clearOnSuccess: true,
-						callback: async () => {
-							await kv.createNamespace(namespaceName!);
-						},
+						callback: async () =>
+							createResources(catalystClient, orgId, region, [
+								{ type: 'kv', name: namespaceName },
+							]),
 					});
+					const createdNamespace = created[0];
+					if (!createdNamespace) {
+						tui.fatal('Failed to create key-value namespace', ErrorCode.INTERNAL_ERROR);
+					}
+					selectedNamespace = {
+						name: createdNamespace.name,
+						env: createdNamespace.env,
+						internal: false,
+					};
 					if (!options.json) {
-						tui.success(`Created key-value namespace: ${tui.bold(namespaceName)}`);
+						tui.success(`Created key-value namespace: ${tui.bold(createdNamespace.name)}`);
 					}
 				}
 			} else {
-				namespaceName = selected;
+				selectedNamespace = availableNamespaces.find(
+					(namespace) => namespace.name === selected
+				);
 			}
 		}
 
-		if (!namespaceName) {
+		if (!selectedNamespace) {
 			tui.fatal('Failed to select key-value namespace', ErrorCode.INTERNAL_ERROR);
 		}
 
-		await addResourceEnvVars(projectDir, {
-			[KEYVALUE_NAMESPACE_ENV_KEY]: namespaceName,
-		});
-
-		if (!options.json) {
-			tui.success(`Linked key-value namespace: ${tui.bold(namespaceName)}`);
-			tui.info(`Environment variable ${KEYVALUE_NAMESPACE_ENV_KEY} written to .env`);
-		}
-
-		const isHeadless = !process.stdin.isTTY || !process.stdout.isTTY;
-		let shouldSync = true;
-
-		if (!isHeadless && !options.json) {
-			shouldSync = await tui.confirm('Sync environment variables to cloud project?', true);
-			if (process.stdin.isTTY) {
-				process.stdin.pause();
+		if (selectedNamespace.env && Object.keys(selectedNamespace.env).length > 0) {
+			await addResourceEnvVars(projectDir, selectedNamespace.env);
+			if (!options.json) {
+				tui.success(`Linked key-value namespace: ${tui.bold(selectedNamespace.name)}`);
+				tui.info('Environment variables written to .env');
 			}
-		}
 
-		if (shouldSync) {
-			const catalystClient = getCatalystAPIClient(logger, auth, region, undefined, ctx.config);
+			const isHeadless = !process.stdin.isTTY || !process.stdout.isTTY;
+			let shouldSync = true;
 
-			try {
-				const envFilePath = await findExistingEnvFile(projectDir);
-				const localEnv = await readEnvFile(envFilePath);
-				const filteredEnv = filterAgentuitySdkKeys(localEnv);
+			if (!isHeadless && !options.json) {
+				shouldSync = await tui.confirm('Sync environment variables to cloud project?', true);
+				if (process.stdin.isTTY) {
+					process.stdin.pause();
+				}
+			}
 
-				if (Object.keys(filteredEnv).length > 0) {
-					const { env, secrets } = splitEnvAndSecrets(filteredEnv);
-					await tui.spinner({
-						message: 'Syncing environment variables to cloud',
-						clearOnSuccess: true,
-						callback: async () => {
-							await projectEnvUpdate(catalystClient, {
-								id: project.projectId,
-								env,
-								secrets,
-							});
-						},
-					});
-					if (!options.json) {
-						tui.success('Environment variables synced to cloud');
+			if (shouldSync) {
+				try {
+					const envFilePath = await findExistingEnvFile(projectDir);
+					const localEnv = await readEnvFile(envFilePath);
+					const filteredEnv = filterAgentuitySdkKeys(localEnv);
+
+					if (Object.keys(filteredEnv).length > 0) {
+						const { env, secrets } = splitEnvAndSecrets(filteredEnv);
+						await tui.spinner({
+							message: 'Syncing environment variables to cloud',
+							clearOnSuccess: true,
+							callback: async () => {
+								await projectEnvUpdate(catalystClient, {
+									id: project.projectId,
+									env,
+									secrets,
+								});
+							},
+						});
+						if (!options.json) {
+							tui.success('Environment variables synced to cloud');
+						}
 					}
+				} catch (error) {
+					if (!options.json) {
+						tui.warning(
+							'Failed to sync environment variables to cloud. You can sync later with: ' +
+								tui.bold(getCommand('cloud env push'))
+						);
+					}
+					logger.debug('Failed to sync env to cloud:', error);
 				}
-			} catch (error) {
-				if (!options.json) {
-					tui.warning(
-						'Failed to sync environment variables to cloud. You can sync later with: ' +
-							tui.bold(getCommand('cloud env push'))
-					);
-				}
-				logger.debug('Failed to sync env to cloud:', error);
+			}
+		} else {
+			if (!options.json) {
+				tui.warning(
+					`Key-value namespace "${selectedNamespace.name}" has no environment variables to add`
+				);
 			}
 		}
 
 		return {
 			success: true,
-			name: namespaceName,
+			name: selectedNamespace.name,
 		};
 	},
 });

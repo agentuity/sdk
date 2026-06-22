@@ -41,7 +41,7 @@ declare global {
 			AGENTUITY_KEYVALUE_URL?: string;
 
 			/** Default key-value namespace for the project */
-			AGENTUITY_KEYVALUE_NAMESPACE?: string;
+			KEYVALUE_NAMESPACE?: string;
 
 			/** Vector storage service URL */
 			AGENTUITY_VECTOR_URL?: string;
