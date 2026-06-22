@@ -5,6 +5,9 @@
 	"author": "Agentuity",
 	"description": "Agent Skills for AI coding agents working with the Agentuity SDK",
 	"type": "module",
+	"agentuity": {
+		"sourceOnly": true
+	},
 	"files": [
 		"README.md",
 		"skills"
