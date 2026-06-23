@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { fetchProfiles, saveProfile } from '../../config.ts';
 import * as tui from '../../tui.ts';
 import { getCommand } from '../../command-prefix.ts';
+import { isJSONMode } from '../../output.ts';
 
 const ProfileUseResponseSchema = z.object({
 	success: z.boolean().describe('Whether the profile switch succeeded'),
@@ -39,6 +40,7 @@ export const useCommand = createSubcommand({
 
 	async handler(ctx) {
 		const { args, options } = ctx;
+		const json = isJSONMode(options);
 		let { name } = args;
 
 		const profiles = await fetchProfiles();
@@ -54,7 +56,7 @@ export const useCommand = createSubcommand({
 		}
 
 		await saveProfile(profile!.filename);
-		if (!options.json) {
+		if (!json) {
 			tui.success(`Switched to profile "${name}"`);
 		}
 
