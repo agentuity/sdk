@@ -1,0 +1,2 @@
+# OSV-Scanner configuration for the Go interop test fixture.
+# Add ignored vulnerabilities here only after confirming they are not exploitable.

@@ -1,0 +1,2 @@
+# OSV-Scanner configuration for the root Bun lockfile.
+# Add ignored vulnerabilities here only after confirming they are not exploitable.
