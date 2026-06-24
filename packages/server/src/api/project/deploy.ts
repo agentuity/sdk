@@ -212,6 +212,9 @@ export const BuildMetadataSchema = z.object({
 				arch: z.string().describe('the machine architecture'),
 				platform: z.string().describe('the machine os platform'),
 			}),
+			source: z.enum(['github', 'cli', 'managed']).optional(),
+			channel: z.enum(['edge', 'stable', 'commit']).optional(),
+			rollout_org_ids: z.array(z.string()).optional(),
 		})
 	),
 	launch: LaunchMetadataSchema.optional().describe(
@@ -307,6 +310,10 @@ export async function projectDeploymentUpdate(
 
 export const DeploymentCompleteSchema = z.object({
 	streamId: z.string().optional().describe('the stream id for warmup logs'),
+	rolloutId: z
+		.string()
+		.optional()
+		.describe('Genesis managed rollout id when source deploy triggered fan-out'),
 	publicUrls: z
 		.object({
 			latest: z.string().url().describe('the public url for the latest deployment'),

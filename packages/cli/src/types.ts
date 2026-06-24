@@ -619,6 +619,12 @@ export const DeployOptionsSchema = zod
 			.optional()
 			.describe('Skip custom domain DNS validation before deploying'),
 		skipTypeCheck: zod.boolean().optional().describe('Skip TypeScript validation during deploy'),
+		metadata: zod
+			.string()
+			.optional()
+			.describe(
+				'JSON deployment metadata merged onto the deployment record (e.g. Genesis managed rollout intent)'
+			),
 		wait: zod
 			.boolean()
 			.default(true)
