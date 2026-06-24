@@ -1,12 +1,14 @@
 import { createMiddleware } from 'hono/factory';
 import type { MiddlewareHandler } from 'hono';
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import {
 	createGenesisAuth,
-	GenesisAuthError,
+	isGenesisAuthError,
 	requireGenesisIdentity,
 	type GenesisAuthConfig,
 	type GenesisIdentity,
 } from '../auth/index.ts';
+import { isAnonymousAuthResult } from '../auth/types.ts';
 
 export type GenesisAuthVariables = {
 	genesisIdentity?: GenesisIdentity;
@@ -18,12 +20,12 @@ export function genesisAuth(
 	const auth = createGenesisAuth(config);
 
 	return createMiddleware(async (c, next) => {
-		await auth.ensureReady();
-
 		if (config.optional) {
 			const result = await auth.authenticate(c.req.raw);
 			if (result.ok) {
 				c.set('genesisIdentity', result.identity);
+			} else if (!isAnonymousAuthResult(result)) {
+				return c.json({ error: result.message }, result.status as ContentfulStatusCode);
 			}
 			await next();
 			return;
@@ -34,8 +36,8 @@ export function genesisAuth(
 			c.set('genesisIdentity', identity);
 			await next();
 		} catch (err) {
-			if (err instanceof GenesisAuthError) {
-				return c.json({ error: err.message }, err.status === 403 ? 403 : 401);
+			if (isGenesisAuthError(err)) {
+				return c.json({ error: err.message }, err.status as ContentfulStatusCode);
 			}
 			return c.json({ error: 'unauthorized' }, 401);
 		}

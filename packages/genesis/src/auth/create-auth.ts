@@ -6,6 +6,7 @@ import type {
 	GenesisIdentity,
 	UpstreamIdentitySigningKey,
 } from './types.ts';
+import { isAnonymousAuthResult } from './types.ts';
 import { verifyUpstreamIdentityToken } from './verify.ts';
 
 export function resolveProjectId(configured?: string): string {
@@ -27,7 +28,10 @@ export type GenesisAuth = {
 export function createGenesisAuth(config: GenesisAuthConfig = {}): GenesisAuth {
 	const projectId = resolveProjectId(config.projectId);
 	if (!projectId) {
-		throw new Error('projectId is required (set projectId or AGENTUITY_CLOUD_PROJECT_ID)');
+		throw new GenesisAuthError({
+			message: 'projectId is required (set projectId or AGENTUITY_CLOUD_PROJECT_ID)',
+			status: 500,
+		});
 	}
 
 	const authHubUrl = resolveAuthHubUrl(config.authHubUrl);
@@ -54,7 +58,13 @@ export function createGenesisAuth(config: GenesisAuthConfig = {}): GenesisAuth {
 	}
 
 	async function authenticate(request: Request): Promise<GenesisAuthResult> {
-		await ensureReady();
+		try {
+			await ensureReady();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'failed to load identity signing key';
+			return { ok: false, status: 500, message };
+		}
+
 		if (!signingKey) {
 			return { ok: false, status: 500, message: 'signing key not loaded' };
 		}
@@ -64,7 +74,7 @@ export function createGenesisAuth(config: GenesisAuthConfig = {}): GenesisAuth {
 			request.headers.get(headerName) ?? request.headers.get(headerName.toLowerCase());
 		if (!token?.trim()) {
 			if (config.optional) {
-				return { ok: false, status: 401, message: 'missing identity token' };
+				return { ok: false, anonymous: true };
 			}
 			return { ok: false, status: 401, message: 'missing identity token' };
 		}
@@ -73,10 +83,10 @@ export function createGenesisAuth(config: GenesisAuthConfig = {}): GenesisAuth {
 			const identity = await verifyUpstreamIdentityToken(signingKey, token.trim(), projectId);
 			return { ok: true, identity };
 		} catch (err) {
-			const message = err instanceof Error ? err.message : 'invalid identity token';
 			if (config.optional) {
-				return { ok: false, status: 401, message };
+				return { ok: false, anonymous: true };
 			}
+			const message = err instanceof Error ? err.message : 'invalid identity token';
 			return { ok: false, status: 401, message };
 		}
 	}
@@ -94,8 +104,11 @@ export async function requireGenesisIdentity(
 	request: Request
 ): Promise<GenesisIdentity> {
 	const result = await auth.authenticate(request);
-	if (!result.ok) {
-		throw new GenesisAuthError(result.message, result.status);
+	if (result.ok) {
+		return result.identity;
 	}
-	return result.identity;
+	if (isAnonymousAuthResult(result)) {
+		throw new GenesisAuthError({ message: 'missing identity token', status: 401 });
+	}
+	throw new GenesisAuthError({ message: result.message, status: result.status });
 }

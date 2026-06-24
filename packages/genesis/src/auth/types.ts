@@ -24,8 +24,8 @@ export type GenesisAuthConfig = {
 	/** Auth hub origin, e.g. `https://auth.agentcompany.com`. */
 	authHubUrl?: string;
 	/**
-	 * When true, missing/invalid tokens yield `null` instead of throwing.
-	 * Use for routes that support both public and authenticated access.
+	 * When true, missing or invalid tokens return `{ ok: false, anonymous: true }` instead of
+	 * a hard auth failure. Use for routes that support both public and authenticated access.
 	 */
 	optional?: boolean;
 	/** Override signing-key fetch (tests or custom deployments). */
@@ -34,4 +34,11 @@ export type GenesisAuthConfig = {
 
 export type GenesisAuthResult =
 	| { ok: true; identity: GenesisIdentity }
+	| { ok: false; anonymous: true }
 	| { ok: false; status: number; message: string };
+
+export function isAnonymousAuthResult(
+	result: GenesisAuthResult
+): result is { ok: false; anonymous: true } {
+	return result.ok === false && 'anonymous' in result && result.anonymous === true;
+}

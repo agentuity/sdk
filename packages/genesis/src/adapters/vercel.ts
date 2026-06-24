@@ -1,4 +1,5 @@
 import { createGenesisAuth, type GenesisAuthConfig, type GenesisIdentity } from '../auth/index.ts';
+import { isAnonymousAuthResult } from '../auth/types.ts';
 
 export type VercelGenesisAuthResult = {
 	/** Continue the middleware chain when undefined. */
@@ -24,12 +25,11 @@ export function genesisAuthVercel(config: GenesisAuthConfig) {
 	const auth = createGenesisAuth(config);
 
 	return async (request: Request): Promise<VercelGenesisAuthResult> => {
-		await auth.ensureReady();
 		const result = await auth.authenticate(request);
 
 		if (!result.ok) {
-			if (config.optional) {
-				return {};
+			if (isAnonymousAuthResult(result)) {
+				return { request: stripGenesisHeaders(request) };
 			}
 			return { response: new Response(result.message, { status: result.status }) };
 		}
@@ -41,8 +41,23 @@ export function genesisAuthVercel(config: GenesisAuthConfig) {
 	};
 }
 
+function stripGenesisHeaders(request: Request): Request {
+	const headers = new Headers();
+	for (const [key, value] of request.headers) {
+		if (!key.toLowerCase().startsWith('x-genesis-')) {
+			headers.set(key, value);
+		}
+	}
+	return new Request(request, { headers });
+}
+
 export function attachGenesisIdentityHeaders(request: Request, identity: GenesisIdentity): Request {
-	const headers = new Headers(request.headers);
+	const headers = new Headers();
+	for (const [key, value] of request.headers) {
+		if (!key.toLowerCase().startsWith('x-genesis-')) {
+			headers.set(key, value);
+		}
+	}
 	headers.set('x-genesis-user-id', identity.userId);
 	headers.set('x-genesis-genesis-user-id', identity.genesisUserId);
 	if (identity.email) {

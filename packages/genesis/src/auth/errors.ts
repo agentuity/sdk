@@ -1,9 +1,9 @@
-export class GenesisAuthError extends Error {
-	readonly status: number;
+import { isStructuredError, StructuredError } from '@agentuity/core';
 
-	constructor(message: string, status = 401) {
-		super(message);
-		this.name = 'GenesisAuthError';
-		this.status = status;
-	}
+export const GenesisAuthError = StructuredError('GenesisAuthError')<{ status: number }>();
+
+export type GenesisAuthErrorInstance = InstanceType<typeof GenesisAuthError>;
+
+export function isGenesisAuthError(err: unknown): err is GenesisAuthErrorInstance {
+	return isStructuredError(err) && err._tag === 'GenesisAuthError';
 }

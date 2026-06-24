@@ -7,5 +7,6 @@
 		"lib": ["DOM", "DOM.Iterable", "ESNext"]
 	},
 	"include": ["src/**/*"],
-	"exclude": ["test/**/*"]
+	"exclude": ["test/**/*"],
+	"references": [{ "path": "../core" }]
 }

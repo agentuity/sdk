@@ -1,4 +1,5 @@
 import { createGenesisAuth, type GenesisAuthConfig, type GenesisIdentity } from '../auth/index.ts';
+import { isAnonymousAuthResult } from '../auth/types.ts';
 
 export type TanStackGenesisContext = {
 	genesisIdentity?: GenesisIdentity;
@@ -24,11 +25,10 @@ export function genesisAuthTanStackStart(config: GenesisAuthConfig) {
 	const auth = createGenesisAuth(config);
 
 	return async ({ request, next, context }: TanStackMiddlewareArgs): Promise<Response> => {
-		await auth.ensureReady();
 		const result = await auth.authenticate(request);
 
 		if (!result.ok) {
-			if (config.optional) {
+			if (isAnonymousAuthResult(result)) {
 				return next({ context });
 			}
 			return new Response(result.message, { status: result.status });

@@ -33,7 +33,7 @@ export async function verifyUpstreamIdentityToken(
 	const userId = stringClaim(payload.user_id);
 	const genesisUserId = typeof payload.sub === 'string' ? payload.sub : '';
 	const orgId = stringClaim(payload.org_id);
-	const email = payload.email ? String(payload.email) : undefined;
+	const email = typeof payload.email === 'string' ? payload.email : undefined;
 
 	if (!userId || !genesisUserId || !orgId) {
 		throw new Error('token missing required claims');
