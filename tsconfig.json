@@ -17,6 +17,7 @@
 		{ "path": "./packages/db" },
 		{ "path": "./packages/drizzle" },
 		{ "path": "./packages/email" },
+		{ "path": "./packages/genesis" },
 		{ "path": "./packages/hono" },
 		{ "path": "./packages/keyvalue" },
 		{ "path": "./packages/migrate" },
