@@ -1,6 +1,7 @@
 import { createCommand } from '../../../types.ts';
 import { databaseSubcommand } from './database.ts';
 import { domainSubcommand } from './domain.ts';
+import { keyvalueSubcommand } from './keyvalue.ts';
 import { storageSubcommand } from './storage.ts';
 import { getCommand } from '../../../command-prefix.ts';
 
@@ -30,6 +31,14 @@ export const addCommand = createCommand({
 			command: getCommand('project add storage my-bucket'),
 			description: 'Link a specific storage bucket by name',
 		},
+		{
+			command: getCommand('project add keyvalue'),
+			description: 'Link a key-value namespace to the project',
+		},
+		{
+			command: getCommand('project add kv production'),
+			description: 'Link a specific key-value namespace by name',
+		},
 	],
-	subcommands: [databaseSubcommand, domainSubcommand, storageSubcommand],
+	subcommands: [databaseSubcommand, domainSubcommand, keyvalueSubcommand, storageSubcommand],
 });

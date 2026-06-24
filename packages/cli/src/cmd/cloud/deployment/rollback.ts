@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { projectDeploymentRollback, projectDeploymentList } from '@agentuity/server';
-import { resolveProjectId } from './utils.ts';
+import { requireForceForNonInteractiveDestructiveAction, resolveProjectId } from './utils.ts';
 import { getCommand } from '../../../command-prefix.ts';
 const DeploymentRollbackResponseSchema = z.object({
 	success: z.boolean().describe('Whether the rollback succeeded'),
@@ -31,6 +31,10 @@ export const rollbackSubcommand = createSubcommand({
 			command: getCommand('cloud deployment rollback --project-id=proj_abc123xyz'),
 			description: 'Rollback specific project',
 		},
+		{
+			command: getCommand('cloud deployment rollback --force'),
+			description: 'Rollback without confirmation',
+		},
 	],
 	idempotent: false,
 	requires: { auth: true, apiClient: true },
@@ -39,12 +43,13 @@ export const rollbackSubcommand = createSubcommand({
 	schema: {
 		options: z.object({
 			projectId: z.string().optional().describe('filter by project id'),
+			force: z.boolean().default(false).describe('Force rollback without confirmation'),
 		}),
 		response: DeploymentRollbackResponseSchema,
 	},
 	async handler(ctx) {
 		const projectId = resolveProjectId(ctx, { projectId: ctx.opts.projectId });
-		const { apiClient } = ctx;
+		const { apiClient, logger, options, opts } = ctx;
 
 		try {
 			// Fetch deployments to find the previous one
@@ -71,10 +76,17 @@ export const rollbackSubcommand = createSubcommand({
 				tui.fatal('No previous completed deployment found to rollback to.');
 			}
 
-			const confirmed = await tui.confirm(`Rollback to deployment ${targetDeploymentId}?`);
-			if (!confirmed) {
-				tui.info('Operation cancelled');
-				return { success: false, projectId, targetDeploymentId };
+			if (!opts.force) {
+				requireForceForNonInteractiveDestructiveAction(
+					options,
+					logger,
+					`rollback to deployment ${targetDeploymentId}`
+				);
+				const confirmed = await tui.confirm(`Rollback to deployment ${targetDeploymentId}?`);
+				if (!confirmed) {
+					tui.info('Operation cancelled');
+					return { success: false, projectId, targetDeploymentId };
+				}
 			}
 
 			await projectDeploymentRollback(apiClient, projectId, targetDeploymentId!);
