@@ -30,7 +30,7 @@ logger.info('sandbox output', {
 
 `SandboxClient` reads `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, from the environment. Pass `apiKey`, `url`, `orgId`, or `logger` only when your script needs to override the project defaults.
 
-Older runtime examples may show `ctx.sandbox` inside `createAgent()` handlers. In v3 framework apps, use `SandboxClient` directly, or `c.var.sandbox` when you are already using the Hono middleware.
+Use `SandboxClient` directly from server-side code, or `c.var.sandbox` when you are already using the Hono middleware.
 
 ## When to use sandboxes
 

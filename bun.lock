@@ -551,6 +551,10 @@
         "typescript": "^6.0.2",
       },
     },
+    "packages/skills": {
+      "name": "@agentuity/skills",
+      "version": "3.1.1",
+    },
     "packages/storage": {
       "name": "@agentuity/storage",
       "version": "3.1.1",
@@ -981,6 +985,8 @@
     "@agentuity/schema": ["@agentuity/schema@workspace:packages/schema"],
 
     "@agentuity/server": ["@agentuity/server@workspace:packages/server"],
+
+    "@agentuity/skills": ["@agentuity/skills@workspace:packages/skills"],
 
     "@agentuity/storage": ["@agentuity/storage@workspace:packages/storage"],
 

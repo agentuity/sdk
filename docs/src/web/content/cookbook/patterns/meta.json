@@ -36,7 +36,12 @@
 		},
 		{
 			"title": "App Structure",
-			"pages": ["hono-rpc-tanstack-query", "server-utilities", "tailwind-setup"]
+			"pages": [
+				"hono-rpc-tanstack-query",
+				"server-utilities",
+				"tailwind-setup",
+				"install-agent-skills-with-npm"
+			]
 		}
 	],
 	"pages": ["chat-with-history", "product-search", "running-external-coding-tools-in-sandbox"]
