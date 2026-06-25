@@ -1,6 +1,14 @@
 import { z } from 'zod';
 import { getCommand } from '../../command-prefix.ts';
-import { createSuccessResponse, isJSONMode, outputJSON, outputSuccess } from '../../output.ts';
+import { ErrorCode } from '../../errors.ts';
+import { run } from '../../node-compat/proc.ts';
+import {
+	createErrorResponse,
+	createSuccessResponse,
+	isJSONMode,
+	outputJSON,
+	outputSuccess,
+} from '../../output.ts';
 import { runSkillsNpm, wireSkillsToProject } from '../../skills/index.ts';
 import * as tui from '../../tui.ts';
 import { createSubcommand } from '../../types.ts';
@@ -43,45 +51,58 @@ export const installSubcommand = createSubcommand({
 		const { opts, logger, options } = ctx;
 		const projectDir = process.cwd();
 		const packageManager = opts.packageManager ?? (await detectPackageManager(projectDir));
+		const jsonMode = isJSONMode(options);
 
 		const result = await wireSkillsToProject({ projectDir });
 		const cmd = installCommand(packageManager);
-		const installExitCode = await tui.runCommand({
-			command: cmd.join(' '),
-			cwd: projectDir,
-			cmd,
-			clearOnSuccess: true,
-		});
+		const installExitCode = jsonMode
+			? ((await run({ cwd: projectDir, cmd })).exitCode ?? 1)
+			: await tui.runCommand({
+					command: cmd.join(' '),
+					cwd: projectDir,
+					cmd,
+					clearOnSuccess: true,
+				});
 
 		if (installExitCode !== 0) {
-			if (isJSONMode(options)) {
+			if (jsonMode) {
+				process.exitCode = 1;
 				outputJSON(
-					createSuccessResponse({
-						...result,
-						installed: false,
-						installExitCode,
-						packageManager,
-						synced: false,
-					})
+					createErrorResponse(
+						ErrorCode.RUNTIME_ERROR,
+						`Failed to install dependencies with ${packageManager}`,
+						{
+							...result,
+							installed: false,
+							installExitCode,
+							packageManager,
+							synced: false,
+						}
+					)
 				);
 				return;
 			}
-			logger.warn(`Failed to install dependencies with ${packageManager}`);
+			logger.fatal(
+				`Failed to install dependencies with ${packageManager}`,
+				ErrorCode.RUNTIME_ERROR
+			);
 			return;
 		}
 
 		let synced = false;
 		let syncExitCode: number | undefined;
 		if (opts.sync !== false) {
-			logger.info('Syncing skills to agent directories...');
-			syncExitCode = await runSkillsNpm({ cwd: projectDir });
+			if (!jsonMode) {
+				logger.info('Syncing skills to agent directories...');
+			}
+			syncExitCode = await runSkillsNpm({ cwd: projectDir, silent: jsonMode });
 			synced = syncExitCode === 0;
-			if (!synced) {
+			if (!synced && !jsonMode) {
 				logger.warn('skills-npm sync failed — run `agentuity skills sync` after install');
 			}
 		}
 
-		if (isJSONMode(options)) {
+		if (jsonMode) {
 			outputJSON(
 				createSuccessResponse({
 					...result,

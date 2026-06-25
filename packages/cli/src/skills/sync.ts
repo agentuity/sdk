@@ -4,10 +4,11 @@ import { SKILLS_NPM_VERSION } from './constants.ts';
 export interface RunSkillsNpmOptions {
 	cwd: string;
 	args?: string[];
+	silent?: boolean;
 }
 
 export async function runSkillsNpm(options: RunSkillsNpmOptions): Promise<number> {
-	const { cwd, args = ['--yes'] } = options;
+	const { cwd, args = ['--yes'], silent = false } = options;
 
 	const local = await run({
 		cwd,
@@ -18,7 +19,7 @@ export async function runSkillsNpm(options: RunSkillsNpmOptions): Promise<number
 		return 0;
 	}
 
-	const viaNpx = await spawnInherit({
+	const viaNpx = await (silent ? run : spawnInherit)({
 		cwd,
 		cmd: ['npx', `skills-npm@${SKILLS_NPM_VERSION}`, ...args],
 	});

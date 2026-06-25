@@ -31,7 +31,7 @@ import { z } from 'zod';
 
 const gateway = new AIGatewayClient();
 const kv = new KeyValueClient();
-const TRIAGE_MODEL = 'googleai/gemini-3.5-flash';
+const TRIAGE_MODEL = 'googleai/gemini-3-flash-preview';
 
 const triageSchema = z.object({
   priority: z.enum(['low', 'normal', 'high']),
