@@ -5,6 +5,11 @@ export const DeployRolloutMetadataSchema = z
 		source: z.enum(['managed']).optional(),
 		channel: z.enum(['edge', 'stable', 'commit']).optional(),
 		rollout_org_ids: z.array(z.string().min(1)).optional(),
+		rollout_id: z
+			.string()
+			.min(1)
+			.regex(/^[A-Za-z0-9._:-]+$/)
+			.optional(),
 	})
 	.strict();
 
@@ -30,7 +35,12 @@ export function parseDeployRolloutMetadata(
 		const details = result.error.issues.map((issue) => issue.message).join(', ');
 		throw new Error(`Invalid deploy metadata: ${details}`);
 	}
-	if (!result.data.source && !result.data.channel && !result.data.rollout_org_ids?.length) {
+	if (
+		!result.data.source &&
+		!result.data.channel &&
+		!result.data.rollout_org_ids?.length &&
+		!result.data.rollout_id
+	) {
 		return undefined;
 	}
 	return result.data;
@@ -58,6 +68,9 @@ export function mergeDeployRolloutMetadata<T extends { deployment?: Record<strin
 	}
 	if (rolloutMetadata.rollout_org_ids?.length) {
 		deployment.rollout_org_ids = rolloutMetadata.rollout_org_ids;
+	}
+	if (rolloutMetadata.rollout_id) {
+		deployment.rollout_id = rolloutMetadata.rollout_id;
 	}
 	return {
 		...build,
