@@ -1,10 +1,22 @@
 import { z } from 'zod';
+import { DeploymentLogSchema } from '@agentuity/server';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
-import { projectDeploymentLogs, DeploymentLogSchema } from '@agentuity/server';
+import { projectDeploymentLogs } from '@agentuity/server';
 import { resolveProjectId } from './utils.ts';
 import { getCommand } from '../../../command-prefix.ts';
 import { ErrorCode } from '../../../errors.ts';
+import { isJSONMode } from '../../../output.ts';
+import { followDeploymentLogs, parseDurationMs } from './follow-logs.ts';
+
+const DeploymentLogsFollowResponseSchema = z.object({
+	deploymentId: z.string().describe('Deployment ID'),
+	projectId: z.string().describe('Project ID'),
+	logs: z.array(DeploymentLogSchema).describe('Log entries emitted during follow'),
+	timedOut: z.boolean().describe('Whether follow ended due to timeout'),
+	state: z.string().optional().describe('Deployment state when follow ended'),
+	bytesRead: z.number().describe('Approximate bytes read while following'),
+});
 
 export const logsSubcommand = createSubcommand({
 	name: 'logs',
@@ -15,6 +27,14 @@ export const logsSubcommand = createSubcommand({
 		{
 			command: getCommand('cloud deployment logs deploy_abc123xyz'),
 			description: 'View logs for deployment',
+		},
+		{
+			command: getCommand('cloud deployment logs deploy_abc123xyz --follow'),
+			description: 'Follow deployment logs until completion or timeout',
+		},
+		{
+			command: getCommand('cloud deployment logs deploy_abc123xyz --follow --since 10m --json'),
+			description: 'Follow recent logs with JSON events',
 		},
 		{
 			command: getCommand('cloud deployment logs deploy_abc123xyz --limit=50'),
@@ -43,40 +63,93 @@ export const logsSubcommand = createSubcommand({
 				.int()
 				.min(1)
 				.default(100)
-				.describe('Maximum number of logs to return'),
+				.describe('Maximum number of logs to return in snapshot mode'),
 			timestamps: z.boolean().default(true).describe('Show timestamps in output'),
+			follow: z.boolean().default(false).describe('Follow logs until deployment completes'),
+			since: z
+				.string()
+				.optional()
+				.describe('Only follow logs newer than this duration (e.g. 10m)'),
+			timeout: z
+				.string()
+				.default('10m')
+				.describe('Maximum time to follow logs (e.g. 30s, 10m, 1h)'),
 		}),
-		response: z.array(DeploymentLogSchema),
+		response: z.union([z.array(DeploymentLogSchema), DeploymentLogsFollowResponseSchema]),
 	},
 	idempotent: true,
 	async handler(ctx) {
-		const { apiClient, args, options } = ctx;
+		const { apiClient, args, options, logger, config } = ctx;
 		const limit = ctx.opts.limit;
 		const showTimestamps = ctx.opts.timestamps;
+		const projectId = resolveProjectId(ctx, { projectId: ctx.opts.projectId });
 
 		try {
-			const projectId = resolveProjectId(ctx, { projectId: ctx.opts.projectId });
-			const logs = await projectDeploymentLogs(apiClient, projectId, args.deployment_id, limit);
+			if (!ctx.opts.follow) {
+				const logs = await projectDeploymentLogs(
+					apiClient,
+					projectId,
+					args.deployment_id,
+					limit
+				);
 
-			if (!options.json) {
-				if (logs.length === 0) {
-					tui.info('No logs found for this deployment');
-				} else {
-					for (const log of logs) {
-						const severityColor = tui.getSeverityColor(log.severity);
-						if (showTimestamps) {
-							const timestamp = new Date(log.timestamp).toLocaleString();
-							console.log(
-								`${tui.muted(timestamp)} ${severityColor(log.severity.padEnd(5))} ${log.body}`
-							);
-						} else {
-							console.log(`${severityColor(log.severity.padEnd(5))} ${log.body}`);
+				if (!isJSONMode(options)) {
+					if (logs.length === 0) {
+						tui.info('No logs found for this deployment');
+					} else {
+						for (const log of logs) {
+							const severityColor = tui.getSeverityColor(log.severity);
+							if (showTimestamps) {
+								const timestamp = new Date(log.timestamp).toLocaleString();
+								console.log(
+									`${tui.muted(timestamp)} ${severityColor(log.severity.padEnd(5))} ${log.body}`
+								);
+							} else {
+								console.log(`${severityColor(log.severity.padEnd(5))} ${log.body}`);
+							}
 						}
 					}
 				}
+
+				return logs;
 			}
 
-			return logs;
+			const abortController = new AbortController();
+			const handleSignal = () => {
+				abortController.abort();
+			};
+			process.on('SIGINT', handleSignal);
+			process.on('SIGTERM', handleSignal);
+
+			try {
+				const sinceMs = ctx.opts.since
+					? Date.now() - parseDurationMs(ctx.opts.since)
+					: undefined;
+				const result = await followDeploymentLogs({
+					apiClient,
+					projectId,
+					deploymentId: args.deployment_id,
+					config,
+					logger,
+					sinceMs,
+					timeoutMs: parseDurationMs(ctx.opts.timeout),
+					json: isJSONMode(options),
+					showTimestamps,
+					abortSignal: abortController.signal,
+					projectDir: process.cwd(),
+				});
+
+				if (!isJSONMode(options) && result.timedOut) {
+					tui.warning(
+						`Stopped following deployment logs after ${ctx.opts.timeout} (state: ${result.state ?? 'unknown'})`
+					);
+				}
+
+				return result;
+			} finally {
+				process.off('SIGINT', handleSignal);
+				process.off('SIGTERM', handleSignal);
+			}
 		} catch (ex) {
 			tui.fatal(`Failed to fetch deployment logs: ${ex}`, ErrorCode.API_ERROR);
 		}

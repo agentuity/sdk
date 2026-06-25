@@ -12,6 +12,11 @@ describe('Adapter Registry', () => {
 		expect(adapter.name).toBe('nextjs');
 	});
 
+	test('returns tanstack-start adapter for tanstack-start framework', () => {
+		const adapter = getAdapter('tanstack-start');
+		expect(adapter.name).toBe('tanstack-start');
+	});
+
 	test('returns generic adapter for vite (no specific adapter)', () => {
 		const adapter = getAdapter('vite');
 		expect(adapter.name).toBe('generic');

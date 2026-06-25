@@ -1,9 +1,10 @@
 import { z } from 'zod';
 import { openInBrowser } from '../../system/browser.ts';
 import { createSubcommand } from '../../types.ts';
-import { getAPIBaseURL, getAppBaseURL } from '../../api.ts';
+import { getAPIBaseURL, getAppBaseURL, APIClient } from '../../api.ts';
 import { saveAuth } from '../../config.ts';
 import { generateLoginCode, pollForLoginCompletion } from './api.ts';
+import { whoami } from '@agentuity/server';
 import * as tui from '../../tui.ts';
 import { getCommand } from '../../command-prefix.ts';
 import { ErrorCode } from '../../errors.ts';
@@ -17,17 +18,68 @@ export const loginCommand = createSubcommand({
 	requires: { apiClient: true },
 	examples: [
 		{ command: getCommand('auth login'), description: 'Login to account' },
+		{
+			command: getCommand(
+				'auth login --api-key $AGENTUITY_API_KEY --user-id $AGENTUITY_USER_ID'
+			),
+			description: 'Store API key credentials without a browser',
+		},
 		{ command: getCommand('login'), description: 'Login to account' },
 	],
 	schema: {
 		options: z.object({
 			setupToken: z.string().optional().describe('Use a one-time use setup token'),
+			apiKey: z
+				.string()
+				.optional()
+				.describe('Store an API key without opening a browser (also AGENTUITY_API_KEY)'),
+			userId: z
+				.string()
+				.optional()
+				.describe('User ID to store with the API key (also AGENTUITY_USER_ID)'),
 		}),
-		response: z.object({ success: z.boolean() }),
+		response: z.object({
+			success: z.boolean(),
+			verified: z.boolean().optional(),
+			userId: z.string().optional(),
+		}),
 	},
 	async handler(ctx) {
 		const { logger, config, apiClient, options } = ctx;
 		const opts = ctx.opts ?? {};
+
+		const apiKey =
+			opts.apiKey ?? process.env.AGENTUITY_API_KEY ?? process.env.AGENTUITY_CLI_API_KEY;
+		const userId = opts.userId ?? process.env.AGENTUITY_USER_ID;
+		if (apiKey) {
+			await saveAuth({
+				apiKey,
+				userId: userId ?? '',
+				expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+			});
+			const verifyClient = new APIClient(getAPIBaseURL(config), logger, apiKey, config);
+			try {
+				await whoami(verifyClient);
+				if (!options.json) {
+					tui.success('Stored API key and verified access');
+				}
+				return {
+					success: true,
+					verified: true,
+					userId: userId ?? '',
+				};
+			} catch (error) {
+				logger.trace(error);
+				if (!options.json) {
+					tui.warning('Stored API key, but verification failed');
+				}
+				return {
+					success: true,
+					verified: false,
+					userId,
+				};
+			}
+		}
 
 		if (opts.setupToken) {
 			const url = getAPIBaseURL(config);

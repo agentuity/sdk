@@ -40,6 +40,10 @@ import { getCachedProject } from '../../../cache/index.ts';
 import { loadBuildMetadata } from '../../../config.ts';
 import { generateDeployMetadata } from '../../../deploy-metadata.ts';
 import {
+	mergeDeployRolloutMetadata,
+	resolveDeployRolloutMetadata,
+} from '../../../deploy-rollout-metadata.ts';
+import {
 	type Step,
 	type StepContext,
 	type StepOutcome,
@@ -181,6 +185,10 @@ export function buildBuildStep(params: BuildStepParams): Step {
 					if (registeredProjectName) {
 						build.project.name = registeredProjectName;
 					}
+					build = mergeDeployRolloutMetadata(
+						build,
+						resolveDeployRolloutMetadata(deployOptions)
+					);
 				} else {
 					build = await generateDeployMetadata({
 						buildResult,
@@ -198,6 +206,7 @@ export function buildBuildStep(params: BuildStepParams): Step {
 				}
 
 				logger.debug('Launch metadata: %s', JSON.stringify(build.launch, null, 2));
+				build = mergeDeployRolloutMetadata(build, resolveDeployRolloutMetadata(deployOptions));
 				state.build = build;
 
 				// 6. Send metadata to the server, get back upload URLs.

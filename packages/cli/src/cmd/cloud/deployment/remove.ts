@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { projectDeploymentDelete } from '@agentuity/server';
-import { resolveProjectId } from './utils.ts';
+import { requireForceForNonInteractiveDestructiveAction, resolveProjectId } from './utils.ts';
 import { getCommand } from '../../../command-prefix.ts';
 const DeploymentDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the deletion succeeded'),
@@ -47,9 +47,14 @@ export const removeSubcommand = createSubcommand({
 	},
 	async handler(ctx) {
 		const projectId = resolveProjectId(ctx, { projectId: ctx.opts.projectId });
-		const { apiClient, args, opts } = ctx;
+		const { apiClient, args, logger, options, opts } = ctx;
 
 		if (!opts.force) {
+			requireForceForNonInteractiveDestructiveAction(
+				options,
+				logger,
+				`delete deployment ${args.deployment_id}`
+			);
 			const confirmed = await tui.confirm(
 				`Are you sure you want to delete deployment ${args.deployment_id}?`
 			);

@@ -54,6 +54,7 @@ import { runRegister } from './deploy/register.ts';
 import type { DeployPipelineState } from './deploy/types.ts';
 import { buildEncryptUploadStep, buildProvisionStep } from './deploy/upload.ts';
 import { runWaitForDeployment } from './deploy/wait.ts';
+import { parseDurationMs, waitForDeployment } from './deployment/wait-core.ts';
 import { getProjectGithubStatus } from '../git/api.ts';
 import { runGitLink } from '../git/link.ts';
 import { runForkedDeploy } from './deploy-fork.ts';
@@ -167,6 +168,10 @@ const DeployResponseSchema = z.object({
 	success: z.boolean().describe('Whether deployment succeeded'),
 	deploymentId: z.string().describe('Deployment ID'),
 	projectId: z.string().describe('Project ID'),
+	rolloutId: z
+		.string()
+		.optional()
+		.describe('Genesis managed rollout id when fan-out was triggered'),
 	logs: z.array(z.string()).optional().describe('The deployment startup logs'),
 	urls: z
 		.object({
@@ -188,6 +193,14 @@ export const deploySubcommand = createSubcommand({
 		{
 			command: getCommand('cloud deploy --log-level=debug'),
 			description: 'Deploy with verbose output',
+		},
+		{
+			command: getCommand('cloud deploy --wait --json'),
+			description: 'Deploy and return structured wait status',
+		},
+		{
+			command: getCommand('cloud deploy --no-wait --json'),
+			description: 'Upload a deployment without waiting for readiness',
 		},
 		{
 			command: getCommand('cloud deploy --name "My Project"'),
@@ -397,6 +410,7 @@ export const deploySubcommand = createSubcommand({
 			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
 			if (opts.skipDnsValidation) childArgs.push('--skip-dns-validation');
 			if (opts.skipTypeCheck) childArgs.push('--skip-type-check');
+			if (opts.metadata) childArgs.push(`--metadata=${opts.metadata}`);
 
 			const result = await runForkedDeploy({
 				projectDir,
@@ -737,24 +751,63 @@ export const deploySubcommand = createSubcommand({
 			);
 			const dashboard = `${appUrl}/r/${deployment.id}`;
 
-			// Wait for the deployment to finish warming up. The phase handles
-			// log streaming, status polling, Ctrl+C cancellation, and the
-			// failure banner; on success it just returns and we render the
-			// success URLs below.
+			// Wait for the deployment to finish warming up unless --no-wait was
+			// passed. In JSON mode use the headless wait primitive so agents get
+			// structured status instead of TUI spinners.
+			const shouldWait = opts.wait !== false;
 			try {
-				await runWaitForDeployment({
-					apiClient,
-					deployment,
-					complete,
-					collector,
-					hasReportFile: Boolean(opts.reportFile),
-					logger,
-					config,
-					region: project.region,
-					sdkKey: sdkKey!,
-					abortSignal: deployAbortController.signal,
-					logs,
-				});
+				if (shouldWait) {
+					if (isJSONMode(options)) {
+						const waitResult = await waitForDeployment({
+							apiClient,
+							projectId: project.projectId,
+							deploymentId: deployment.id,
+							config,
+							logger,
+							timeoutMs: parseDurationMs(opts.timeout ?? '10m'),
+							abortSignal: deployAbortController.signal,
+							projectDir,
+						});
+						if (waitResult.recentLogs?.length) {
+							logs.push(...waitResult.recentLogs);
+						}
+						if (!waitResult.success) {
+							const fallbackUrl = dashboard;
+							return {
+								success: false,
+								deploymentId: deployment.id,
+								projectId: project.projectId,
+								logs,
+								urls: {
+									deployment:
+										complete?.publicUrls?.vanityDeployment ??
+										complete?.publicUrls?.deployment ??
+										fallbackUrl,
+									latest:
+										complete?.publicUrls?.vanityProject ??
+										complete?.publicUrls?.latest ??
+										fallbackUrl,
+									custom: complete?.publicUrls?.custom,
+									dashboard,
+								},
+							};
+						}
+					} else {
+						await runWaitForDeployment({
+							apiClient,
+							deployment,
+							complete,
+							collector,
+							hasReportFile: Boolean(opts.reportFile),
+							logger,
+							config,
+							region: project.region,
+							sdkKey: sdkKey!,
+							abortSignal: deployAbortController.signal,
+							logs,
+						});
+					}
+				}
 			} finally {
 				// Clean up signal handler
 				process.off('SIGINT', deployAbortHandler);
@@ -830,6 +883,7 @@ export const deploySubcommand = createSubcommand({
 				success: true,
 				deploymentId: deployment.id,
 				projectId: project.projectId,
+				rolloutId: complete?.rolloutId,
 				logs,
 				urls: complete?.publicUrls
 					? {

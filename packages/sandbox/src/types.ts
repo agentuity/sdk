@@ -343,6 +343,13 @@ export const SandboxCreateOptionsSchema = z.object({
 		.describe(
 			'Permission scopes for automatic service access (e.g., "services:read", "services:write").'
 		),
+	/** Skip workspace disk snapshots (instant checkpoints and rollback) for faster I/O. */
+	disableSnapshots: z
+		.boolean()
+		.optional()
+		.describe(
+			'Skip workspace disk snapshots (instant checkpoints and rollback) for faster I/O. Persisted snapshot restore still works.'
+		),
 });
 export type SandboxCreateOptions = z.infer<typeof SandboxCreateOptionsSchema>;
 

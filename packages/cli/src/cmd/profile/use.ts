@@ -3,6 +3,13 @@ import { z } from 'zod';
 import { fetchProfiles, saveProfile } from '../../config.ts';
 import * as tui from '../../tui.ts';
 import { getCommand } from '../../command-prefix.ts';
+import { isJSONMode } from '../../output.ts';
+
+const ProfileUseResponseSchema = z.object({
+	success: z.boolean().describe('Whether the profile switch succeeded'),
+	name: z.string().describe('Profile name'),
+	path: z.string().describe('Profile file path'),
+});
 
 export const useCommand = createSubcommand({
 	name: 'use',
@@ -28,10 +35,12 @@ export const useCommand = createSubcommand({
 		args: z.object({
 			name: z.string().optional().describe('The name of the profile to use'),
 		}),
+		response: ProfileUseResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { args } = ctx;
+		const { args, options } = ctx;
+		const json = isJSONMode(options);
 		let { name } = args;
 
 		const profiles = await fetchProfiles();
@@ -47,6 +56,14 @@ export const useCommand = createSubcommand({
 		}
 
 		await saveProfile(profile!.filename);
-		tui.success(`Switched to profile "${name}"`);
+		if (!json) {
+			tui.success(`Switched to profile "${name}"`);
+		}
+
+		return {
+			success: true,
+			name,
+			path: profile!.filename,
+		};
 	},
 });

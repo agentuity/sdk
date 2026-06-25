@@ -6,15 +6,24 @@ The auth command provides authentication and authorization functionality for the
 
 ### `auth login`
 
-Login to the Agentuity Platform using a browser-based authentication flow.
+Login to the Agentuity Platform using a browser-based authentication flow, or store API-key credentials for headless environments.
 
 ```bash
 agentuity auth login
+agentuity auth login --api-key $AGENTUITY_API_KEY --user-id $AGENTUITY_USER_ID
 # or
 agentuity login
 ```
 
-**How it works:**
+**Headless / CI auth**
+
+- Set `AGENTUITY_API_KEY` (and optionally `AGENTUITY_USER_ID`) in the environment for one-off commands.
+- Or run `agentuity auth login --api-key ... --user-id ...` to persist credentials in the active profile.
+- Run `agentuity auth verify --json` to confirm org/project access without opening a browser.
+
+Environment-only auth takes precedence over stored profile credentials. Profile auth is better for repeated local use; env auth is better for CI and sandboxes.
+
+**Browser login flow:**
 
 1. Generates a one-time password (OTP) by calling `/cli/auth/start`
 2. Displays the OTP and authentication URL to the user
@@ -32,6 +41,16 @@ auth:
 preferences:
    orgId: ''
 ```
+
+### `auth verify`
+
+Validate the current credentials without a browser.
+
+```bash
+agentuity auth verify --json
+```
+
+Returns whether credentials are valid, where they came from (`env` vs `profile`), and accessible organizations.
 
 ### `auth logout`
 

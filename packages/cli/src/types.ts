@@ -619,6 +619,22 @@ export const DeployOptionsSchema = zod
 			.optional()
 			.describe('Skip custom domain DNS validation before deploying'),
 		skipTypeCheck: zod.boolean().optional().describe('Skip TypeScript validation during deploy'),
+		metadata: zod
+			.string()
+			.optional()
+			.describe(
+				'JSON deployment metadata merged onto the deployment record (e.g. Genesis managed rollout intent)'
+			),
+		wait: zod
+			.boolean()
+			.default(true)
+			.optional()
+			.describe('Wait for deployment readiness before returning'),
+		timeout: zod
+			.string()
+			.default('10m')
+			.optional()
+			.describe('Maximum time to wait when --wait is used (e.g. 30s, 10m, 1h)'),
 	})
 	.merge(GitOptionsSchema);
 

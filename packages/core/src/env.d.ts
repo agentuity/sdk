@@ -40,6 +40,9 @@ declare global {
 			/** Key-value storage service URL */
 			AGENTUITY_KEYVALUE_URL?: string;
 
+			/** Default key-value namespace for the project */
+			KEYVALUE_NAMESPACE?: string;
+
 			/** Vector storage service URL */
 			AGENTUITY_VECTOR_URL?: string;
 
@@ -152,6 +155,12 @@ declare global {
 			AGENTUITY_CLOUD_DEPLOYMENT_ID?: string;
 
 			/**
+			 * CDN origin for static assets (platform-injected in production).
+			 * Example: https://cdn.agentuity.com/deploy_abc123
+			 */
+			AGENTUITY_CDN_ORIGIN?: string;
+
+			/**
 			 * Cloud domains configuration.
 			 * JSON array of domain strings.
 			 */
@@ -165,6 +174,9 @@ declare global {
 
 			/** Deployment name/identifier */
 			AGENTUITY_DEPLOYMENT?: string;
+
+			/** JSON metadata merged onto the deployment record during deploy (Genesis managed rollouts) */
+			AGENTUITY_DEPLOY_METADATA?: string;
 
 			// ============================================================================
 			// Database
