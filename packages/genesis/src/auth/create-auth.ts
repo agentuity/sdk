@@ -25,8 +25,8 @@ export type GenesisAuth = {
 	getSigningKey: () => UpstreamIdentitySigningKey | null;
 };
 
-export function createGenesisAuth(config: GenesisAuthConfig = {}): GenesisAuth {
-	const projectId = resolveProjectId(config.projectId);
+export function createGenesisAuth(config?: GenesisAuthConfig): GenesisAuth {
+	const projectId = resolveProjectId(config?.projectId);
 	if (!projectId) {
 		throw new GenesisAuthError({
 			message: 'projectId is required (set projectId or AGENTUITY_CLOUD_PROJECT_ID)',
@@ -34,8 +34,8 @@ export function createGenesisAuth(config: GenesisAuthConfig = {}): GenesisAuth {
 		});
 	}
 
-	const authHubUrl = resolveAuthHubUrl(config.authHubUrl);
-	const fetchKey = config.fetchSigningKey ?? ((hub) => fetchIdentitySigningKey(hub));
+	const authHubUrl = resolveAuthHubUrl(config?.authHubUrl);
+	const fetchKey = config?.fetchSigningKey ?? ((hub) => fetchIdentitySigningKey(hub));
 
 	let signingKey: UpstreamIdentitySigningKey | null = null;
 	let readyPromise: Promise<void> | null = null;
@@ -73,7 +73,7 @@ export function createGenesisAuth(config: GenesisAuthConfig = {}): GenesisAuth {
 		const token =
 			request.headers.get(headerName) ?? request.headers.get(headerName.toLowerCase());
 		if (!token?.trim()) {
-			if (config.optional) {
+			if (config?.optional) {
 				return { ok: false, anonymous: true };
 			}
 			return { ok: false, status: 401, message: 'missing identity token' };
@@ -83,7 +83,7 @@ export function createGenesisAuth(config: GenesisAuthConfig = {}): GenesisAuth {
 			const identity = await verifyUpstreamIdentityToken(signingKey, token.trim(), projectId);
 			return { ok: true, identity };
 		} catch (err) {
-			if (config.optional) {
+			if (config?.optional) {
 				return { ok: false, anonymous: true };
 			}
 			const message = err instanceof Error ? err.message : 'invalid identity token';
