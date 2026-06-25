@@ -31,7 +31,7 @@ export const listSubcommand = createSubcommand({
 
 		if (skills.length === 0) {
 			logger.info(
-				`No skills found — install ${SKILLS_PACKAGE} and run \`agentuity skills setup\``
+				`No skills found — run \`agentuity skills install\` to install ${SKILLS_PACKAGE}`
 			);
 			return;
 		}

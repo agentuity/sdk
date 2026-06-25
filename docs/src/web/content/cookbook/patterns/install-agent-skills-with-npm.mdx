@@ -10,16 +10,12 @@ Use npm-distributed Agent Skills when you want AI coding agents to load Agentuit
 In an existing project:
 
 ```bash
-agentuity skills setup
+agentuity skills install
 ```
 
-Then install dependencies if needed:
+The install command adds `@agentuity/skills`, `skills-npm`, `skills-npm.config.ts`, a `prepare` script, and `.gitignore` entries for generated skill symlinks. It then runs the detected package manager install and syncs the skills.
 
-```bash
-npm install
-```
-
-The setup command adds `@agentuity/skills`, `skills-npm`, `skills-npm.config.ts`, a `prepare` script, and `.gitignore` entries for generated skill symlinks.
+Use `agentuity skills setup --no-sync` if you only want to update project files before running your package manager manually.
 
 ## Manual Setup
 
@@ -66,10 +62,6 @@ agentuity skills list
 Or inspect generated agent directories such as `.cursor/skills/` or `.agents/skills/`, depending on which tools `skills-npm` detects.
 
 Generated `npm-*` skill symlinks should stay out of git.
-
-## Release Blocker
-
-This rollout should not be released until the SDK `agentic flow` CLI gap issues are resolved or explicitly waived: [#1575](https://github.com/agentuity/sdk/issues/1575), [#1576](https://github.com/agentuity/sdk/issues/1576), [#1577](https://github.com/agentuity/sdk/issues/1577), [#1578](https://github.com/agentuity/sdk/issues/1578), [#1579](https://github.com/agentuity/sdk/issues/1579), [#1580](https://github.com/agentuity/sdk/issues/1580), and [#1581](https://github.com/agentuity/sdk/issues/1581).
 
 ## Next Steps
 

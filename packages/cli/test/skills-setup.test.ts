@@ -81,6 +81,7 @@ describe('skills setup', () => {
 
 		expect(skills).toBeDefined();
 		expect(skills?.subcommands?.map((command) => command.name)).toEqual([
+			'install',
 			'setup',
 			'sync',
 			'list',

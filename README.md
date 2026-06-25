@@ -32,7 +32,7 @@ Visit [https://agentuity.com/](https://agentuity.com/) to learn more about Agent
 This repository includes [Agent Skills](https://agentskills.io/) that teach AI coding agents how to work with the Agentuity SDK. Install them with:
 
 ```bash
-npx skills add agentuity/sdk
+npx skills add agentuity/sdk/skills
 ```
 
 Available skills:

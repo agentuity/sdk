@@ -6,12 +6,12 @@ description: Install and sync Agentuity Agent Skills from npm
 
 Use `agentuity skills` to wire Agentuity's npm-distributed [Agent Skills](https://agentskills.io/) into a project. New Agentuity projects include this wiring by default unless created with `--no-skills`.
 
-## Set Up Skills
+## Install Skills
 
-Run setup in a project that has a `package.json`:
+Run install in a project that has a `package.json`:
 
 ```bash
-agentuity skills setup
+agentuity skills install
 ```
 
 The command adds:
@@ -24,7 +24,9 @@ The command adds:
 | `prepare` script | Runs `skills-npm --yes` after install |
 | `.gitignore` entries | Keeps generated skill symlinks out of git |
 
-Skip the immediate sync when dependencies have not been installed yet:
+It also runs the detected package manager install and syncs skills to local agent directories.
+
+Use `setup` when you only want to edit project files and run dependency installation yourself:
 
 ```bash
 agentuity skills setup --no-sync
@@ -63,7 +65,7 @@ agentuity create --name my-app --framework nextjs --no-skills
 
 ## Manual npm Setup
 
-The CLI setup command is equivalent to:
+The CLI install command is equivalent to:
 
 ```bash
 npm install -D @agentuity/skills skills-npm
@@ -71,10 +73,6 @@ npx skills-npm --yes
 ```
 
 Add `skills-npm --yes` to your `prepare` script so skills stay synced after installs.
-
-## Release Blocker
-
-This rollout is blocked until the SDK `agentic flow` CLI gap issues are resolved or explicitly waived: [#1575](https://github.com/agentuity/sdk/issues/1575), [#1576](https://github.com/agentuity/sdk/issues/1576), [#1577](https://github.com/agentuity/sdk/issues/1577), [#1578](https://github.com/agentuity/sdk/issues/1578), [#1579](https://github.com/agentuity/sdk/issues/1579), [#1580](https://github.com/agentuity/sdk/issues/1580), and [#1581](https://github.com/agentuity/sdk/issues/1581). See the [`agentic flow` label](https://github.com/agentuity/sdk/issues?q=label%3A%22agentic+flow%22) for the full blocker set.
 
 ## Next Steps
 

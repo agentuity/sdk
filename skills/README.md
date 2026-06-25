@@ -21,15 +21,15 @@ Canonical skill source lives in `packages/skills/skills/`. This root `skills/` d
 
 ```bash
 # Install all skills
-npx skills add agentuity/sdk
+npx skills add agentuity/sdk/skills
 
 # Install a specific skill
-npx skills add agentuity/sdk --skill agentuity-ai
+npx skills add agentuity/sdk/skills --skill agentuity-ai
 
 # Install to a specific agent
-npx skills add agentuity/sdk -a claude-code
-npx skills add agentuity/sdk -a pi
-npx skills add agentuity/sdk -a cursor
+npx skills add agentuity/sdk/skills -a claude-code
+npx skills add agentuity/sdk/skills -a pi
+npx skills add agentuity/sdk/skills -a cursor
 ```
 
 ## Skill Format
