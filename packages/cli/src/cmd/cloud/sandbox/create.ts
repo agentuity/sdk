@@ -62,6 +62,10 @@ export const createSubcommand = createCommand({
 			command: getCommand('cloud sandbox create --project-id proj_123'),
 			description: 'Create a sandbox associated with a specific project',
 		},
+		{
+			command: getCommand('cloud sandbox create --disable-snapshots'),
+			description: 'Create a sandbox without workspace disk snapshots for faster I/O',
+		},
 	],
 	schema: {
 		options: z.object({
@@ -114,6 +118,12 @@ export const createSubcommand = createCommand({
 				.max(60000)
 				.optional()
 				.describe('Maximum time in milliseconds to wait when --wait is used'),
+			disableSnapshots: z
+				.boolean()
+				.optional()
+				.describe(
+					'Skip workspace disk snapshots (instant checkpoints and rollback) for faster I/O'
+				),
 		}),
 		response: SandboxCreateResponseSchema,
 	},
@@ -225,6 +235,7 @@ export const createSubcommand = createCommand({
 				dependencies: opts.dependency,
 				metadata,
 				scopes: opts.scope,
+				disableSnapshots: opts.disableSnapshots,
 			},
 			orgId,
 		});

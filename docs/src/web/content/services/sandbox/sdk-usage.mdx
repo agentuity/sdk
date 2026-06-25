@@ -738,6 +738,7 @@ export default app;
 | `snapshot` | `string` | Snapshot ID or tag |
 | `metadata` | `Record<string, unknown>` | User-defined metadata |
 | `scopes` | `string[]` | Permission scopes for automatic service access |
+| `disableSnapshots` | `boolean` | Skip workspace disk snapshots for faster I/O; persisted snapshot restore still works |
 
 Pass `scopes` when the sandbox needs automatic credentials for platform services.
 

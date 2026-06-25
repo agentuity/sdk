@@ -810,6 +810,9 @@ export class CliClient {
 		if (options.snapshot) {
 			args.push('--snapshot', options.snapshot);
 		}
+		if (options.disableSnapshots) {
+			args.push('--disable-snapshots');
+		}
 		if (options.dependencies && options.dependencies.length > 0) {
 			for (const dep of options.dependencies) {
 				args.push('--dependency', dep);
@@ -1699,6 +1702,7 @@ export interface SandboxCreateOptions {
 	metadata?: Record<string, string>;
 	snapshot?: string;
 	files?: Array<{ path: string; content: string }>; // Files to write on creation (content is base64-encoded)
+	disableSnapshots?: boolean;
 }
 
 export interface SandboxListFilter {

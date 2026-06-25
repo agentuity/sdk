@@ -115,6 +115,12 @@ export const SandboxCreateRequestSchema = z
 			.describe(
 				'Permission scopes for automatic service access (e.g., "services:read", "services:write").'
 			),
+		disableSnapshots: z
+			.boolean()
+			.optional()
+			.describe(
+				'Skip workspace disk snapshots (instant checkpoints and rollback) for faster I/O'
+			),
 	})
 	.refine(
 		(data) => {
@@ -249,6 +255,9 @@ export async function sandboxCreate(
 	}
 	if (options.scopes && options.scopes.length > 0) {
 		body.scopes = options.scopes;
+	}
+	if (options.disableSnapshots) {
+		body.disableSnapshots = true;
 	}
 
 	const queryParams = new URLSearchParams();
