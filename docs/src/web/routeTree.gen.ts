@@ -139,6 +139,7 @@ import { Route as DocsReferenceCliCoderRouteImport } from './routes/_docs/refere
 import { Route as DocsReferenceCliClaudeCodePluginRouteImport } from './routes/_docs/reference/cli/claude-code-plugin'
 import { Route as DocsReferenceCliBuildConfigurationRouteImport } from './routes/_docs/reference/cli/build-configuration'
 import { Route as DocsReferenceCliAiCommandsRouteImport } from './routes/_docs/reference/cli/ai-commands'
+import { Route as DocsReferenceCliAgentSkillsRouteImport } from './routes/_docs/reference/cli/agent-skills'
 import { Route as DocsReferenceApiWorkflowsRouteImport } from './routes/_docs/reference/api/workflows'
 import { Route as DocsReferenceApiWebhooksRouteImport } from './routes/_docs/reference/api/webhooks'
 import { Route as DocsReferenceApiVectorRouteImport } from './routes/_docs/reference/api/vector'
@@ -178,6 +179,7 @@ import { Route as DocsCookbookPatternsObservingACoderSessionThroughTheHubRouteIm
 import { Route as DocsCookbookPatternsLogtapeStructuredLoggingRouteImport } from './routes/_docs/cookbook/patterns/logtape-structured-logging'
 import { Route as DocsCookbookPatternsLlmAsAJudgeRouteImport } from './routes/_docs/cookbook/patterns/llm-as-a-judge'
 import { Route as DocsCookbookPatternsLangfuseOtelTracingRouteImport } from './routes/_docs/cookbook/patterns/langfuse-otel-tracing'
+import { Route as DocsCookbookPatternsInstallAgentSkillsWithNpmRouteImport } from './routes/_docs/cookbook/patterns/install-agent-skills-with-npm'
 import { Route as DocsCookbookPatternsHonoRpcTanstackQueryRouteImport } from './routes/_docs/cookbook/patterns/hono-rpc-tanstack-query'
 import { Route as DocsCookbookPatternsCronWithStorageRouteImport } from './routes/_docs/cookbook/patterns/cron-with-storage'
 import { Route as DocsCookbookPatternsCreatingLoopModeCoderSessionsRouteImport } from './routes/_docs/cookbook/patterns/creating-loop-mode-coder-sessions'
@@ -913,6 +915,12 @@ const DocsReferenceCliAiCommandsRoute =
     path: '/reference/cli/ai-commands',
     getParentRoute: () => DocsRouteRoute,
   } as any)
+const DocsReferenceCliAgentSkillsRoute =
+  DocsReferenceCliAgentSkillsRouteImport.update({
+    id: '/reference/cli/agent-skills',
+    path: '/reference/cli/agent-skills',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
 const DocsReferenceApiWorkflowsRoute =
   DocsReferenceApiWorkflowsRouteImport.update({
     id: '/workflows',
@@ -1136,6 +1144,12 @@ const DocsCookbookPatternsLangfuseOtelTracingRoute =
   DocsCookbookPatternsLangfuseOtelTracingRouteImport.update({
     id: '/cookbook/patterns/langfuse-otel-tracing',
     path: '/cookbook/patterns/langfuse-otel-tracing',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsCookbookPatternsInstallAgentSkillsWithNpmRoute =
+  DocsCookbookPatternsInstallAgentSkillsWithNpmRouteImport.update({
+    id: '/cookbook/patterns/install-agent-skills-with-npm',
+    path: '/cookbook/patterns/install-agent-skills-with-npm',
     getParentRoute: () => DocsRouteRoute,
   } as any)
 const DocsCookbookPatternsHonoRpcTanstackQueryRoute =
@@ -1377,6 +1391,7 @@ export interface FileRoutesByFullPath {
   '/cookbook/patterns/creating-loop-mode-coder-sessions': typeof DocsCookbookPatternsCreatingLoopModeCoderSessionsRoute
   '/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute
   '/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute
+  '/cookbook/patterns/install-agent-skills-with-npm': typeof DocsCookbookPatternsInstallAgentSkillsWithNpmRoute
   '/cookbook/patterns/langfuse-otel-tracing': typeof DocsCookbookPatternsLangfuseOtelTracingRoute
   '/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute
   '/cookbook/patterns/logtape-structured-logging': typeof DocsCookbookPatternsLogtapeStructuredLoggingRoute
@@ -1416,6 +1431,7 @@ export interface FileRoutesByFullPath {
   '/reference/api/vector': typeof DocsReferenceApiVectorRoute
   '/reference/api/webhooks': typeof DocsReferenceApiWebhooksRoute
   '/reference/api/workflows': typeof DocsReferenceApiWorkflowsRoute
+  '/reference/cli/agent-skills': typeof DocsReferenceCliAgentSkillsRoute
   '/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute
   '/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute
   '/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute
@@ -1567,6 +1583,7 @@ export interface FileRoutesByTo {
   '/cookbook/patterns/creating-loop-mode-coder-sessions': typeof DocsCookbookPatternsCreatingLoopModeCoderSessionsRoute
   '/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute
   '/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute
+  '/cookbook/patterns/install-agent-skills-with-npm': typeof DocsCookbookPatternsInstallAgentSkillsWithNpmRoute
   '/cookbook/patterns/langfuse-otel-tracing': typeof DocsCookbookPatternsLangfuseOtelTracingRoute
   '/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute
   '/cookbook/patterns/logtape-structured-logging': typeof DocsCookbookPatternsLogtapeStructuredLoggingRoute
@@ -1606,6 +1623,7 @@ export interface FileRoutesByTo {
   '/reference/api/vector': typeof DocsReferenceApiVectorRoute
   '/reference/api/webhooks': typeof DocsReferenceApiWebhooksRoute
   '/reference/api/workflows': typeof DocsReferenceApiWorkflowsRoute
+  '/reference/cli/agent-skills': typeof DocsReferenceCliAgentSkillsRoute
   '/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute
   '/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute
   '/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute
@@ -1761,6 +1779,7 @@ export interface FileRoutesById {
   '/_docs/cookbook/patterns/creating-loop-mode-coder-sessions': typeof DocsCookbookPatternsCreatingLoopModeCoderSessionsRoute
   '/_docs/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute
   '/_docs/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute
+  '/_docs/cookbook/patterns/install-agent-skills-with-npm': typeof DocsCookbookPatternsInstallAgentSkillsWithNpmRoute
   '/_docs/cookbook/patterns/langfuse-otel-tracing': typeof DocsCookbookPatternsLangfuseOtelTracingRoute
   '/_docs/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute
   '/_docs/cookbook/patterns/logtape-structured-logging': typeof DocsCookbookPatternsLogtapeStructuredLoggingRoute
@@ -1800,6 +1819,7 @@ export interface FileRoutesById {
   '/_docs/reference/api/vector': typeof DocsReferenceApiVectorRoute
   '/_docs/reference/api/webhooks': typeof DocsReferenceApiWebhooksRoute
   '/_docs/reference/api/workflows': typeof DocsReferenceApiWorkflowsRoute
+  '/_docs/reference/cli/agent-skills': typeof DocsReferenceCliAgentSkillsRoute
   '/_docs/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute
   '/_docs/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute
   '/_docs/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute
@@ -1955,6 +1975,7 @@ export interface FileRouteTypes {
     | '/cookbook/patterns/creating-loop-mode-coder-sessions'
     | '/cookbook/patterns/cron-with-storage'
     | '/cookbook/patterns/hono-rpc-tanstack-query'
+    | '/cookbook/patterns/install-agent-skills-with-npm'
     | '/cookbook/patterns/langfuse-otel-tracing'
     | '/cookbook/patterns/llm-as-a-judge'
     | '/cookbook/patterns/logtape-structured-logging'
@@ -1994,6 +2015,7 @@ export interface FileRouteTypes {
     | '/reference/api/vector'
     | '/reference/api/webhooks'
     | '/reference/api/workflows'
+    | '/reference/cli/agent-skills'
     | '/reference/cli/ai-commands'
     | '/reference/cli/build-configuration'
     | '/reference/cli/claude-code-plugin'
@@ -2145,6 +2167,7 @@ export interface FileRouteTypes {
     | '/cookbook/patterns/creating-loop-mode-coder-sessions'
     | '/cookbook/patterns/cron-with-storage'
     | '/cookbook/patterns/hono-rpc-tanstack-query'
+    | '/cookbook/patterns/install-agent-skills-with-npm'
     | '/cookbook/patterns/langfuse-otel-tracing'
     | '/cookbook/patterns/llm-as-a-judge'
     | '/cookbook/patterns/logtape-structured-logging'
@@ -2184,6 +2207,7 @@ export interface FileRouteTypes {
     | '/reference/api/vector'
     | '/reference/api/webhooks'
     | '/reference/api/workflows'
+    | '/reference/cli/agent-skills'
     | '/reference/cli/ai-commands'
     | '/reference/cli/build-configuration'
     | '/reference/cli/claude-code-plugin'
@@ -2338,6 +2362,7 @@ export interface FileRouteTypes {
     | '/_docs/cookbook/patterns/creating-loop-mode-coder-sessions'
     | '/_docs/cookbook/patterns/cron-with-storage'
     | '/_docs/cookbook/patterns/hono-rpc-tanstack-query'
+    | '/_docs/cookbook/patterns/install-agent-skills-with-npm'
     | '/_docs/cookbook/patterns/langfuse-otel-tracing'
     | '/_docs/cookbook/patterns/llm-as-a-judge'
     | '/_docs/cookbook/patterns/logtape-structured-logging'
@@ -2377,6 +2402,7 @@ export interface FileRouteTypes {
     | '/_docs/reference/api/vector'
     | '/_docs/reference/api/webhooks'
     | '/_docs/reference/api/workflows'
+    | '/_docs/reference/cli/agent-skills'
     | '/_docs/reference/cli/ai-commands'
     | '/_docs/reference/cli/build-configuration'
     | '/_docs/reference/cli/claude-code-plugin'
@@ -3364,6 +3390,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsReferenceCliAiCommandsRouteImport
       parentRoute: typeof DocsRouteRoute
     }
+    '/_docs/reference/cli/agent-skills': {
+      id: '/_docs/reference/cli/agent-skills'
+      path: '/reference/cli/agent-skills'
+      fullPath: '/reference/cli/agent-skills'
+      preLoaderRoute: typeof DocsReferenceCliAgentSkillsRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
     '/_docs/reference/api/workflows': {
       id: '/_docs/reference/api/workflows'
       path: '/workflows'
@@ -3635,6 +3668,13 @@ declare module '@tanstack/react-router' {
       path: '/cookbook/patterns/langfuse-otel-tracing'
       fullPath: '/cookbook/patterns/langfuse-otel-tracing'
       preLoaderRoute: typeof DocsCookbookPatternsLangfuseOtelTracingRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/cookbook/patterns/install-agent-skills-with-npm': {
+      id: '/_docs/cookbook/patterns/install-agent-skills-with-npm'
+      path: '/cookbook/patterns/install-agent-skills-with-npm'
+      fullPath: '/cookbook/patterns/install-agent-skills-with-npm'
+      preLoaderRoute: typeof DocsCookbookPatternsInstallAgentSkillsWithNpmRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/cookbook/patterns/hono-rpc-tanstack-query': {
@@ -3957,6 +3997,7 @@ interface DocsRouteRouteChildren {
   DocsCookbookPatternsCreatingLoopModeCoderSessionsRoute: typeof DocsCookbookPatternsCreatingLoopModeCoderSessionsRoute
   DocsCookbookPatternsCronWithStorageRoute: typeof DocsCookbookPatternsCronWithStorageRoute
   DocsCookbookPatternsHonoRpcTanstackQueryRoute: typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute
+  DocsCookbookPatternsInstallAgentSkillsWithNpmRoute: typeof DocsCookbookPatternsInstallAgentSkillsWithNpmRoute
   DocsCookbookPatternsLangfuseOtelTracingRoute: typeof DocsCookbookPatternsLangfuseOtelTracingRoute
   DocsCookbookPatternsLlmAsAJudgeRoute: typeof DocsCookbookPatternsLlmAsAJudgeRoute
   DocsCookbookPatternsLogtapeStructuredLoggingRoute: typeof DocsCookbookPatternsLogtapeStructuredLoggingRoute
@@ -3973,6 +4014,7 @@ interface DocsRouteRouteChildren {
   DocsCookbookPatternsWebExplorationRoute: typeof DocsCookbookPatternsWebExplorationRoute
   DocsCookbookPatternsWebhookHandlerRoute: typeof DocsCookbookPatternsWebhookHandlerRoute
   DocsCookbookTutorialsRagAgentRoute: typeof DocsCookbookTutorialsRagAgentRoute
+  DocsReferenceCliAgentSkillsRoute: typeof DocsReferenceCliAgentSkillsRoute
   DocsReferenceCliAiCommandsRoute: typeof DocsReferenceCliAiCommandsRoute
   DocsReferenceCliBuildConfigurationRoute: typeof DocsReferenceCliBuildConfigurationRoute
   DocsReferenceCliClaudeCodePluginRoute: typeof DocsReferenceCliClaudeCodePluginRoute
@@ -4117,6 +4159,8 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
     DocsCookbookPatternsCronWithStorageRoute,
   DocsCookbookPatternsHonoRpcTanstackQueryRoute:
     DocsCookbookPatternsHonoRpcTanstackQueryRoute,
+  DocsCookbookPatternsInstallAgentSkillsWithNpmRoute:
+    DocsCookbookPatternsInstallAgentSkillsWithNpmRoute,
   DocsCookbookPatternsLangfuseOtelTracingRoute:
     DocsCookbookPatternsLangfuseOtelTracingRoute,
   DocsCookbookPatternsLlmAsAJudgeRoute: DocsCookbookPatternsLlmAsAJudgeRoute,
@@ -4147,6 +4191,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsCookbookPatternsWebhookHandlerRoute:
     DocsCookbookPatternsWebhookHandlerRoute,
   DocsCookbookTutorialsRagAgentRoute: DocsCookbookTutorialsRagAgentRoute,
+  DocsReferenceCliAgentSkillsRoute: DocsReferenceCliAgentSkillsRoute,
   DocsReferenceCliAiCommandsRoute: DocsReferenceCliAiCommandsRoute,
   DocsReferenceCliBuildConfigurationRoute:
     DocsReferenceCliBuildConfigurationRoute,
