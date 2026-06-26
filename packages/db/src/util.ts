@@ -7,3 +7,7 @@ export const DbInvalidArgumentError = StructuredError('DbInvalidArgumentError')<
 	region?: string;
 	query?: string;
 }>();
+
+export const DbWALNotEnabledError = StructuredError('DbWALNotEnabledError')<{
+	database: string;
+}>();
