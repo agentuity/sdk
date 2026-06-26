@@ -6,13 +6,14 @@ import { getCatalystUrl } from '../../../catalyst.ts';
 import { getCommand } from '../../../command-prefix.ts';
 import { getGlobalCatalystAPIClient, loadProjectSDKKey } from '../../../config.ts';
 import { ErrorCode } from '../../../errors.ts';
+import { isJSONMode } from '../../../output.ts';
 import * as tui from '../../../tui.ts';
 import { createSubcommand } from '../../../types.ts';
 
 export const walSubcommand = createSubcommand({
 	name: 'wal',
 	description: 'Get a WAL/replication connection string for a database',
-	tags: ['read-only', 'slow', 'requires-auth'],
+	tags: ['slow', 'requires-auth', 'mutating'],
 	requires: { auth: true },
 	idempotent: true,
 	examples: [
@@ -58,6 +59,7 @@ export const walSubcommand = createSubcommand({
 	},
 	async handler(ctx) {
 		const { args, opts, options, logger, auth, config, projectDir } = ctx;
+		const json = isJSONMode(options);
 		const profileName = config?.name ?? 'production';
 		const resolvedProjectDir = projectDir ?? process.cwd();
 
@@ -90,11 +92,13 @@ export const walSubcommand = createSubcommand({
 				);
 			}
 
-			const resources = await tui.spinner({
-				message: `Looking up database ${args.name}`,
-				clearOnSuccess: true,
-				callback: async () => listOrgResources(globalClient, { type: 'db', orgId }),
-			});
+			const resources = json
+				? await listOrgResources(globalClient, { type: 'db', orgId })
+				: await tui.spinner({
+						message: `Looking up database ${args.name}`,
+						clearOnSuccess: true,
+						callback: async () => listOrgResources(globalClient, { type: 'db', orgId }),
+					});
 
 			const database = resources.db.find((db) => db.name === args.name);
 			if (!database) {
@@ -113,18 +117,21 @@ export const walSubcommand = createSubcommand({
 				logger,
 			});
 
-			const connection = await tui.spinner({
-				message: opts.enable
-					? `Enabling logical replication and fetching WAL connection for ${args.name}`
-					: `Fetching WAL connection for ${args.name}`,
-				clearOnSuccess: true,
-				callback: async () => dbClient.walConnection({ enable: opts.enable }),
-			});
+			const fetchWalConnection = () => dbClient.walConnection({ enable: opts.enable });
+			const connection = json
+				? await fetchWalConnection()
+				: await tui.spinner({
+						message: opts.enable
+							? `Enabling logical replication and fetching WAL connection for ${args.name}`
+							: `Fetching WAL connection for ${args.name}`,
+						clearOnSuccess: true,
+						callback: fetchWalConnection,
+					});
 
 			const shouldShowCredentials = opts.showCredentials === true;
-			const shouldMask = !options.json && !shouldShowCredentials;
+			const shouldMask = !json && !shouldShowCredentials;
 
-			if (!options.json) {
+			if (!json) {
 				const tableData: Record<string, string> = {
 					Database: tui.bold(args.name),
 					Region: region,

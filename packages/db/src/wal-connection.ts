@@ -1,6 +1,8 @@
 import { z } from 'zod';
-import { type APIClient, APIError, APIResponseSchema } from '@agentuity/api';
+import { type APIClient, APIError, APIResponseSchema, ValidationOutputError } from '@agentuity/api';
 import { DbInvalidArgumentError, DbResponseError, DbWALNotEnabledError } from './util.ts';
+
+const WAL_NOT_ENABLED_CODE = 'wal_not_enabled';
 
 export const DbWALConnectionRequestSchema = z.object({
 	database: z.string().describe('the database name'),
@@ -44,28 +46,42 @@ export async function dbWALConnection(
 	const url = `/resource/${orgId}/${region}/${database}/connection/wal${query}`;
 
 	try {
-		const resp = await client.get<DbWALConnectionAPIResponse>(
-			url,
-			DbWALConnectionAPIResponseSchema
-		);
+		const response = await client.rawGet(url);
+		const body: unknown = await response.json().catch(() => undefined);
 
-		if (resp.success && resp.data) {
-			return resp.data;
+		if (response.ok) {
+			const resp = DbWALConnectionAPIResponseSchema.parse(body);
+			if (resp.success && resp.data) {
+				return resp.data;
+			}
+
+			throw new DbResponseError({
+				database,
+				message: extractAPIErrorMessage(body) ?? 'Failed to fetch WAL connection string',
+			});
 		}
 
 		const message =
-			'success' in resp && resp.success === false
-				? resp.message
-				: 'Failed to fetch WAL connection string';
-		throw new DbResponseError({ database, message });
-	} catch (ex) {
-		if (ex instanceof APIError && ex.status === 412) {
+			extractAPIErrorMessage(body) ??
+			`Failed to fetch WAL connection string (${response.status})`;
+
+		if (response.status === 412 && extractAPIPreconditionCode(body) === WAL_NOT_ENABLED_CODE) {
 			throw new DbWALNotEnabledError({
 				database,
 				message:
-					ex.message ??
+					message ??
 					'Logical replication is not enabled for this database. Retry with enable: true (irreversible).',
 			});
+		}
+
+		throw new DbResponseError({ database, message });
+	} catch (ex) {
+		if (
+			ex instanceof DbWALNotEnabledError ||
+			ex instanceof DbResponseError ||
+			ex instanceof ValidationOutputError
+		) {
+			throw ex;
 		}
 		if (ex instanceof APIError) {
 			throw new DbResponseError({
@@ -75,4 +91,49 @@ export async function dbWALConnection(
 		}
 		throw ex;
 	}
+}
+
+function extractAPIErrorMessage(body: unknown): string | undefined {
+	if (typeof body !== 'object' || body === null) {
+		return undefined;
+	}
+
+	const record = body as Record<string, unknown>;
+	if (typeof record.message === 'string') {
+		return record.message;
+	}
+	if (typeof record.error === 'string') {
+		return record.error;
+	}
+	if (
+		typeof record.error === 'object' &&
+		record.error !== null &&
+		'message' in record.error &&
+		typeof (record.error as { message?: unknown }).message === 'string'
+	) {
+		return (record.error as { message: string }).message;
+	}
+
+	return undefined;
+}
+
+function extractAPIPreconditionCode(body: unknown): string | undefined {
+	if (typeof body !== 'object' || body === null) {
+		return undefined;
+	}
+
+	const record = body as Record<string, unknown>;
+	if (typeof record.code === 'string') {
+		return record.code;
+	}
+	if (
+		typeof record.error === 'object' &&
+		record.error !== null &&
+		'code' in record.error &&
+		typeof (record.error as { code?: unknown }).code === 'string'
+	) {
+		return (record.error as { code: string }).code;
+	}
+
+	return undefined;
 }
