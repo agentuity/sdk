@@ -39,8 +39,15 @@ export {
 	TableSchemaSchema,
 	TablesResponseSchema,
 } from './tables.ts';
+export {
+	DbWALConnectionAPIResponseSchema,
+	DbWALConnectionRequestSchema,
+	DbWALConnectionResponseSchema,
+	type DbWALConnection,
+	dbWALConnection,
+} from './wal-connection.ts';
 export { DbExecuteQueryRequestSchema, type DbExecuteQueryRequest } from './types.ts';
-export { DbInvalidArgumentError, DbResponseError } from './util.ts';
+export { DbInvalidArgumentError, DbResponseError, DbWALNotEnabledError } from './util.ts';
 
 import { APIClient } from '@agentuity/api';
 import { getServiceUrls } from '@agentuity/config';
@@ -57,6 +64,7 @@ import { dbQuery, type QueryResult } from './query.ts';
 import { dbTables, type TableSchema } from './tables.ts';
 import { dbLogs, type DbQueryLogs } from './logs.ts';
 import { dbLogStats, type DbLogStatsResponse } from './stats.ts';
+import { dbWALConnection, type DbWALConnection } from './wal-connection.ts';
 
 export const DBClientOptionsSchema = z.object({
 	apiKey: z.string().optional().describe('API key for authentication'),
@@ -134,6 +142,15 @@ export class DBClient {
 			orgId: this.#orgId,
 			region: this.#region,
 			...params,
+		});
+	}
+
+	async walConnection(params?: { enable?: boolean }): Promise<DbWALConnection> {
+		return dbWALConnection(this.#client, {
+			database: this.#database,
+			orgId: this.#orgId,
+			region: this.#region,
+			enable: params?.enable,
 		});
 	}
 }

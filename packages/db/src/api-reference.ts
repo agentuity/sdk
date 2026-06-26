@@ -125,6 +125,42 @@ const service = {
 			examplePath: '/resource/org_abc123/usw/mydb/logs/stats',
 		},
 		{
+			id: 'get-wal-connection',
+			title: 'Get WAL Connection',
+			method: 'GET',
+			path: '/resource/{orgId}/{region}/{database}/connection/wal',
+			description:
+				'Get a direct Ion postgres connection string for logical replication / CDC. Requires SDK key authentication. Enabling logical replication is irreversible for the Neon project.',
+			pathParams: [
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: true },
+				{ name: 'region', type: 'string', description: 'Region identifier', required: true },
+				{ name: 'database', type: 'string', description: 'Database name', required: true },
+			],
+			queryParams: [
+				{
+					name: 'enable',
+					type: 'boolean',
+					description:
+						'When true, enable logical replication via Neon if not already enabled (irreversible)',
+					required: false,
+				},
+			],
+			requestBody: null,
+			responseDescription:
+				'WAL connection URL with replication role credentials and agentuity.wal=1 startup marker.',
+			statuses: [
+				{ code: 200, description: 'WAL connection returned' },
+				{ code: 401, description: 'Unauthorized — invalid or missing SDK key' },
+				{ code: 404, description: 'Database not found' },
+				{
+					code: 412,
+					description:
+						'Logical replication not enabled — retry with enable=true (wal_not_enabled)',
+				},
+			],
+			examplePath: '/resource/org_abc123/usw/mydb/connection/wal?enable=true',
+		},
+		{
 			id: 'list-tables',
 			title: 'List Tables',
 			method: 'GET',

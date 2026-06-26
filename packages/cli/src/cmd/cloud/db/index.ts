@@ -6,6 +6,7 @@ import { getSubcommand } from './get.ts';
 import { logsSubcommand } from './logs.ts';
 import { sqlSubcommand } from './sql.ts';
 import { statsSubcommand } from './stats.ts';
+import { walSubcommand } from './wal.ts';
 import { getCommand } from '../../../command-prefix.ts';
 
 export const dbCommand = createCommand({
@@ -16,6 +17,10 @@ export const dbCommand = createCommand({
 	examples: [
 		{ command: getCommand('cloud db list'), description: 'List all databases' },
 		{ command: getCommand('cloud db sql "SELECT * FROM users"'), description: 'Run SQL query' },
+		{
+			command: getCommand('cloud db wal my-database --enable'),
+			description: 'Enable logical replication and get WAL connection string',
+		},
 	],
 	subcommands: [
 		createSubcommand,
@@ -25,5 +30,6 @@ export const dbCommand = createCommand({
 		logsSubcommand,
 		sqlSubcommand,
 		statsSubcommand,
+		walSubcommand,
 	],
 });
