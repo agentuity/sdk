@@ -17,9 +17,14 @@ import { run } from '../../node-compat/proc.ts';
 
 export async function spawnWithTimeout(
 	cmd: string[],
-	options: { cwd?: string; timeout: number }
+	options: { cwd?: string; timeout: number; env?: Record<string, string | undefined> }
 ): Promise<{ exitCode: number; stdout: Buffer; stderr: Buffer }> {
-	const result = await run({ cmd, cwd: options.cwd, timeoutMs: options.timeout });
+	const result = await run({
+		cmd,
+		cwd: options.cwd,
+		timeoutMs: options.timeout,
+		env: options.env,
+	});
 
 	if (result.timedOut) {
 		throw new Error(`Command timed out after ${options.timeout}ms: ${cmd.join(' ')}`);
