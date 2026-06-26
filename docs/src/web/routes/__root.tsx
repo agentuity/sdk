@@ -2,8 +2,7 @@ import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { DocsLayout } from '../components/docs';
 import { ThemeProvider } from '../components/ThemeContext';
-
-import appCss from '../index.css?url';
+import '../index.css';
 
 const browserBootstrapScript = `(function () {
 	const stored = localStorage.getItem('theme-preference');
@@ -60,10 +59,6 @@ export const Route = createRootRoute({
 				rel: 'icon',
 				type: 'image/x-icon',
 				href: '/favicon.ico',
-			},
-			{
-				rel: 'stylesheet',
-				href: appCss,
 			},
 		],
 	}),

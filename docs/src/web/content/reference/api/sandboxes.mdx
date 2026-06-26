@@ -261,6 +261,12 @@ Sandbox creation payload.
     "type": "string[]",
     "description": "Permission scopes for automatic service access (e.g., \"services:read\", \"services:write\").",
     "required": false
+  },
+  {
+    "name": "disableSnapshots",
+    "type": "boolean",
+    "description": "Skip workspace disk snapshots (instant checkpoints and rollback) for faster I/O",
+    "required": false
   }
 ]} />
 
