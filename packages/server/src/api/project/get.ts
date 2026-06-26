@@ -25,6 +25,7 @@ export const ProjectSchema = z.object({
 			dashboard: z.string().describe('the dashboard URL for the project'),
 			app: z.string().describe('the public URL for the latest deployment'),
 			custom: z.array(z.string()).describe('custom domain URLs'),
+			cnameTarget: z.string().describe('canonical CNAME target for custom domains'),
 		})
 		.optional()
 		.describe('project URLs'),
