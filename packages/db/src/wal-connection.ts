@@ -22,7 +22,6 @@ export const DbWALConnectionResponseSchema = z.object({
 export const DbWALConnectionAPIResponseSchema = APIResponseSchema(DbWALConnectionResponseSchema);
 
 type DbWALConnectionRequest = z.infer<typeof DbWALConnectionRequestSchema>;
-type DbWALConnectionAPIResponse = z.infer<typeof DbWALConnectionAPIResponseSchema>;
 
 export type DbWALConnection = z.infer<typeof DbWALConnectionResponseSchema>;
 
