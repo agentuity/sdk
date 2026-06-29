@@ -1,0 +1,86 @@
+---
+title: Install Agent Skills with npm
+description: Add Agentuity skill guidance to an existing project with @agentuity/skills and skills-npm
+---
+
+Use npm-distributed Agent Skills when you want AI coding agents to load Agentuity guidance from project dependencies instead of a separate Git registry install.
+
+## Use the CLI
+
+In an existing project:
+
+```bash
+agentuity skills install
+```
+
+The install command adds `@agentuity/skills`, `skills-npm`, `skills-npm.config.ts`, a `prepare` script, and `.gitignore` entries for generated skill symlinks. It then runs the detected package manager install and syncs the skills.
+
+Use `agentuity skills setup --no-sync` if you only want to update project files before running your package manager manually.
+
+## Manual Setup
+
+If you are not using the Agentuity CLI command:
+
+```bash
+npm install -D @agentuity/skills skills-npm
+```
+
+Create `skills-npm.config.ts`:
+
+```typescript
+import { defineConfig } from 'skills-npm';
+
+export default defineConfig({
+  include: ['@agentuity/skills'],
+});
+```
+
+Add a prepare script:
+
+```json
+{
+  "scripts": {
+    "prepare": "skills-npm --yes"
+  }
+}
+```
+
+Run the sync:
+
+```bash
+npx skills-npm --yes
+```
+
+## Verify
+
+List the bundled skills:
+
+```bash
+agentuity skills list
+```
+
+Or inspect generated agent directories such as `.cursor/skills/` or `.agents/skills/`, depending on which tools `skills-npm` detects.
+
+Generated `npm-*` skill symlinks should stay out of git.
+
+## Git-based Install
+
+If you prefer the Git catalog instead of npm dependencies, use the `skills` CLI:
+
+```bash
+npx skills add agentuity/sdk/skills --yes
+```
+
+Install globally to `~/.agents/skills`:
+
+```bash
+npx skills add agentuity/sdk/skills --global --yes --agent cline
+```
+
+See [Agent Skills CLI](/reference/cli/agent-skills) for more `skills` CLI options.
+
+## Next Steps
+
+- [Agent Skills CLI](/reference/cli/agent-skills): use `agentuity skills`
+- [Project Structure](/get-started/project-structure): understand what Agentuity adds to framework apps
+- [Agent Skills](https://agentskills.io/): skill format specification

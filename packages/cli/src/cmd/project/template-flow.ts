@@ -73,6 +73,7 @@ interface CreateFlowOptions {
 	framework?: string;
 	noInstall: boolean;
 	noBuild: boolean;
+	includeSkills: boolean;
 	skipPrompts: boolean;
 	logger: Logger;
 	auth?: AuthData;
@@ -126,6 +127,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		database: databaseOption,
 		storage: storageOption,
 		services: servicesOption,
+		includeSkills,
 		packageManager: initialPackageManager,
 	} = options;
 
@@ -329,6 +331,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		framework: selectedFramework,
 		includeAiExample,
 		packageManager,
+		includeSkills,
 		logger,
 	});
 

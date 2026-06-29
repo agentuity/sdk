@@ -6,6 +6,8 @@ import { ErrorCode, createError, exitWithError } from '../../errors.ts';
 import { isJSONMode } from '../../output.ts';
 import * as tui from '../../tui.ts';
 import { tmpdir } from 'node:os';
+import { LOCAL_DELEGATION_GUARD_ENV } from '../../local-delegate.ts';
+import { entryScriptPath } from '../../node-compat/runtime-info.ts';
 import { getInstallationType, type InstallationType } from '../../utils/installation-type.ts';
 
 const UpgradeOptionsSchema = z.object({
@@ -107,13 +109,26 @@ async function performBunUpgrade(
 }
 
 /**
- * Verify the upgrade was successful by checking the installed version
+ * Verify the upgrade was successful by checking the installed version.
+ * Uses the global binary path directly and skips local CLI delegation so
+ * a project-local @agentuity/cli doesn't mask the upgraded global version.
+ * @internal Exported for testing
  */
-async function verifyUpgrade(expectedVersion: string): Promise<void> {
+export async function verifyUpgrade(expectedVersion: string): Promise<void> {
 	const { spawnWithTimeout } = await import('./npm-availability.ts');
 
-	// Run agentuity version to check the installed version (5s timeout — local command, sub-second normally)
-	const result = await spawnWithTimeout(['agentuity', 'version'], { timeout: 5_000 });
+	const globalBin = entryScriptPath();
+	if (!globalBin) {
+		throw new Error('Failed to verify upgrade - could not resolve global CLI path');
+	}
+
+	// Run the global binary directly (5s timeout — local command, sub-second normally).
+	// LOCAL_DELEGATION_GUARD_ENV prevents maybeDelegateToLocal from handing off to a
+	// project-local CLI when versions differ after the upgrade.
+	const result = await spawnWithTimeout([globalBin, 'version'], {
+		timeout: 5_000,
+		env: { [LOCAL_DELEGATION_GUARD_ENV]: '1' },
+	});
 
 	if (result.exitCode !== 0) {
 		throw new Error('Failed to verify upgrade - could not run agentuity version');

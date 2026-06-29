@@ -40,7 +40,9 @@ import * as tui from './tui.ts';
 import { getInstallationType } from './utils/installation-type.ts';
 import { getVersion } from './version.ts';
 
-const DELEGATED_ENV = 'AGENTUITY_DELEGATED';
+/** Env var set on a re-exec'd local CLI so it never delegates again. */
+export const LOCAL_DELEGATION_GUARD_ENV = 'AGENTUITY_DELEGATED';
+const DELEGATED_ENV = LOCAL_DELEGATION_GUARD_ENV;
 const PACKAGE_NAME = '@agentuity/cli';
 
 export interface LocalCli {

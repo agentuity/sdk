@@ -122,6 +122,10 @@ export const frontmatterByPath: Record<string, FrontmatterData> = {
 		"short_title": "Hono RPC + TanStack",
 		"description": "Share Hono route types with a React client and wrap calls in TanStack Query"
 	},
+	"/cookbook/patterns/install-agent-skills-with-npm": {
+		"title": "Install Agent Skills with npm",
+		"description": "Add Agentuity skill guidance to an existing project with @agentuity/skills and skills-npm"
+	},
 	"/cookbook/patterns/langfuse-otel-tracing": {
 		"title": "Sending Traces to Langfuse",
 		"short_title": "Langfuse Tracing",
@@ -444,6 +448,11 @@ export const frontmatterByPath: Record<string, FrontmatterData> = {
 		"title": "CLI Reference",
 		"description": "Command-line tools for framework apps, deployment, and Agentuity resources"
 	},
+	"/reference/cli/agent-skills": {
+		"title": "Agent Skills",
+		"short_title": "Agent Skills",
+		"description": "Install and sync Agentuity Agent Skills from npm or with the skills CLI"
+	},
 	"/reference/cli/ai-commands": {
 		"title": "AI Commands",
 		"description": "CLI commands for AI agents, IDE integration, and schema inspection."
@@ -724,6 +733,7 @@ export const routePaths = [
 	"/cookbook/patterns/creating-loop-mode-coder-sessions",
 	"/cookbook/patterns/cron-with-storage",
 	"/cookbook/patterns/hono-rpc-tanstack-query",
+	"/cookbook/patterns/install-agent-skills-with-npm",
 	"/cookbook/patterns/langfuse-otel-tracing",
 	"/cookbook/patterns/llm-as-a-judge",
 	"/cookbook/patterns/logtape-structured-logging",
@@ -822,6 +832,7 @@ export const routePaths = [
 	"/reference/api/webhooks",
 	"/reference/api/workflows",
 	"/reference/cli",
+	"/reference/cli/agent-skills",
 	"/reference/cli/ai-commands",
 	"/reference/cli/build-configuration",
 	"/reference/cli/claude-code-plugin",

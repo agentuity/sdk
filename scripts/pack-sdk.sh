@@ -10,13 +10,32 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TARBALL_DIR="$SDK_ROOT/dist/packages"
 
+package_json_flag() {
+	bun -e "const pkg = await Bun.file(process.argv[1]).json(); const path = process.argv[2].split('.'); let value = pkg; for (const key of path) value = value?.[key]; process.stdout.write(value === true ? 'yes' : 'no');" "$1" "$2"
+}
+
+package_has_build() {
+	bun -e "const pkg = await Bun.file(process.argv[1]).json(); process.stdout.write(pkg.scripts?.build ? 'yes' : 'no');" "$1"
+}
+
+is_source_only_package() {
+	local candidate="$1"
+	for source_pkg in "${SOURCE_ONLY_PACKAGES[@]}"; do
+		if [ "$source_pkg" = "$candidate" ]; then
+			return 0
+		fi
+	done
+	return 1
+}
+
 echo "📦 Packing SDK Packages"
 echo "======================"
 echo ""
 
-# Auto-discover all packages that should be packed (non-private with build output)
+# Auto-discover all packages that should be packed.
 echo "Discovering packages..."
 PACKAGES=()
+SOURCE_ONLY_PACKAGES=()
 SKIPPED=()
 for pkg_dir in "$SDK_ROOT"/packages/*; do
 	if [ -d "$pkg_dir" ] && [ -f "$pkg_dir/package.json" ]; then
@@ -28,17 +47,25 @@ for pkg_dir in "$SDK_ROOT"/packages/*; do
 			continue
 		fi
 		
-		# Check if package is private or has no build script (source-only)
-		has_build=$(grep -q '"build"' "$pkg_dir/package.json" && echo "yes" || echo "no")
-		is_private=$(grep -q '"private".*true' "$pkg_dir/package.json" && echo "yes" || echo "no")
+		# Publishable packages that intentionally ship source assets instead of dist/
+		# declare this marker in package.json: { "agentuity": { "sourceOnly": true } }.
+		has_build=$(package_has_build "$pkg_dir/package.json")
+		is_private=$(package_json_flag "$pkg_dir/package.json" "private")
+		is_source_only=$(package_json_flag "$pkg_dir/package.json" "agentuity.sourceOnly")
 		
-		# Skip packages that are private and have no build script (source-only packages)
 		if [ "$is_private" = "yes" ] && [ "$has_build" = "no" ]; then
-			SKIPPED+=("$pkg_name (source-only)")
+			reason="private/no-build"
+			if [ "$is_source_only" = "yes" ]; then
+				reason="source-only"
+			fi
+			SKIPPED+=("$pkg_name ($reason)")
 			continue
 		fi
 		
 		PACKAGES+=("$pkg_name")
+		if [ "$is_source_only" = "yes" ]; then
+			SOURCE_ONLY_PACKAGES+=("$pkg_name")
+		fi
 	fi
 done
 
@@ -49,7 +76,7 @@ done
 
 if [ ${#SKIPPED[@]} -gt 0 ]; then
 	echo ""
-	echo "Skipped ${#SKIPPED[@]} source-only packages:"
+	echo "Skipped ${#SKIPPED[@]} packages:"
 	for pkg in "${SKIPPED[@]}"; do
 		echo "  • $pkg"
 	done
@@ -60,6 +87,11 @@ echo ""
 echo "Verifying packages are built..."
 FAILED=0
 for pkg in "${PACKAGES[@]}"; do
+	if is_source_only_package "$pkg"; then
+		echo "  ⊘ @agentuity/$pkg (source-only)"
+		continue
+	fi
+
 	if [ ! -d "$SDK_ROOT/packages/$pkg/dist" ]; then
 		echo "  ✗ @agentuity/$pkg (not built)"
 		FAILED=1

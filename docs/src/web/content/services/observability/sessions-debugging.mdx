@@ -3,7 +3,7 @@ title: Sessions & Debugging
 description: Inspect session records, logs, and timelines
 ---
 
-Use sessions when you need to move from "something failed" to the exact request, log lines, and trace timeline. In v3 framework apps, sessions are platform observability records you inspect through the CLI, Console, or core API helpers.
+Use sessions when you need to move from "something failed" to the exact request, log lines, and trace timeline. Sessions are platform observability records you inspect through the CLI, Console, or core API helpers.
 
 ## When to use sessions
 
@@ -29,7 +29,7 @@ agentuity cloud session logs sess_abc123xyz
 
 Add `--json` when you want to pipe session output into another tool.
 
-Older runtime examples may show `ctx.session` or `ctx.thread`. Treat those as migration context. New v3 apps should use telemetry packages and platform inspection APIs.
+Use telemetry packages and platform inspection APIs for request debugging. Store application session data in your framework session layer, auth provider, database, or KV records.
 
 ## Filter Sessions
 

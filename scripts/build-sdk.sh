@@ -21,6 +21,14 @@ echo ""
 
 cd "$SDK_ROOT"
 
+package_json_flag() {
+	bun -e "const pkg = await Bun.file(process.argv[1]).json(); const path = process.argv[2].split('.'); let value = pkg; for (const key of path) value = value?.[key]; process.stdout.write(value === true ? 'yes' : 'no');" "$1" "$2"
+}
+
+package_has_build() {
+	bun -e "const pkg = await Bun.file(process.argv[1]).json(); process.stdout.write(pkg.scripts?.build ? 'yes' : 'no');" "$1"
+}
+
 # Auto-discover all packages that have a build script
 echo "Discovering packages..."
 PACKAGES=()
@@ -35,12 +43,13 @@ for pkg_dir in packages/*; do
 			continue
 		fi
 		
-		# Check if package has a build script or is marked private (source-only)
-		has_build=$(grep -q '"build"' "$pkg_dir/package.json" && echo "yes" || echo "no")
-		is_private=$(grep -q '"private".*true' "$pkg_dir/package.json" && echo "yes" || echo "no")
+		# Publishable packages that intentionally ship source assets instead of dist/
+		# declare this marker in package.json: { "agentuity": { "sourceOnly": true } }.
+		has_build=$(package_has_build "$pkg_dir/package.json")
+		is_private=$(package_json_flag "$pkg_dir/package.json" "private")
+		is_source_only=$(package_json_flag "$pkg_dir/package.json" "agentuity.sourceOnly")
 		
-		# Skip packages that are private and have no build script (source-only packages)
-		if [ "$is_private" = "yes" ] && [ "$has_build" = "no" ]; then
+		if [ "$is_source_only" = "yes" ] || { [ "$is_private" = "yes" ] && [ "$has_build" = "no" ]; }; then
 			SKIPPED+=("$pkg_name (source-only)")
 			continue
 		fi

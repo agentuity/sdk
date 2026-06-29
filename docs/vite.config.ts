@@ -20,6 +20,11 @@ import rehypeMermaid from 'rehype-mermaid';
 
 export default defineConfig({
 	root: '.',
+	// Empty base emits CDN-relative asset URLs, so lazily-loaded route chunks
+	// resolve against the CDN-hosted entry script instead of the app origin.
+	// Required for the transformAssets CDN rewrite in src/web/server.ts. Do not
+	// set to '/' or lazy chunks will 404 against the CDN in production.
+	base: '',
 	publicDir: 'src/web/public',
 	plugins: [
 		tanstackStart({

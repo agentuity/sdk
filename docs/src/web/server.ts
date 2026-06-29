@@ -1,8 +1,12 @@
 import { createStartHandler, defaultRenderHandler } from '@tanstack/react-start/server';
 import { createServerEntry } from '@tanstack/react-start/server-entry';
+import { createDocsCdnTransformAssets } from './cdn-assets';
 import { docRedirectRules, getDemoRedirectTarget } from './lib/docs-redirects';
 
-const startHandler = createStartHandler(defaultRenderHandler);
+const startHandler = createStartHandler({
+	handler: defaultRenderHandler,
+	transformAssets: createDocsCdnTransformAssets(),
+});
 
 const legacyRedirects = new Map<string, string>(
 	docRedirectRules.flatMap((rule) => rule.paths.map((path) => [path, rule.target] as const))

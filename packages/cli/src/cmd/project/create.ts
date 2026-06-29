@@ -157,6 +157,13 @@ export const createProjectSubcommand = createSubcommand({
 				.describe(
 					'Service augments to add (comma-separated). Available: db, keyvalue, queue, vector, storage. Pass --no-services or omit for none.'
 				),
+			skills: z
+				.boolean()
+				.optional()
+				.default(true)
+				.describe(
+					'Wire @agentuity/skills and skills-npm into the project (use --no-skills to skip)'
+				),
 		}),
 		response: ProjectCreateResponseSchema,
 	},
@@ -209,6 +216,7 @@ export const createProjectSubcommand = createSubcommand({
 			framework: opts.framework,
 			noInstall: opts.install === false,
 			noBuild: opts.build === false,
+			includeSkills: opts.skills !== false,
 			skipPrompts: opts.confirm === true,
 			packageManager: opts.packageManager,
 			logger,

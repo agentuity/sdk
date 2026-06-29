@@ -1,0 +1,128 @@
+---
+title: Agent Skills
+short_title: Agent Skills
+description: Install and sync Agentuity Agent Skills from npm or with the skills CLI
+---
+
+Use `agentuity skills` to wire Agentuity's npm-distributed [Agent Skills](https://agentskills.io/) into a project. New Agentuity projects include this wiring by default unless created with `--no-skills`.
+
+You can also install the same skill catalog with the [`skills`](https://www.npmjs.com/package/skills) CLI from the Git source at `agentuity/sdk/skills`.
+
+## Install Skills in a Project
+
+Run install in a project that has a `package.json`:
+
+```bash
+agentuity skills install
+```
+
+The command adds:
+
+| File or package | Purpose |
+|---|---|
+| `@agentuity/skills` | Bundled Agentuity skill content |
+| `skills-npm` | Discovers npm-bundled skills and symlinks them for coding agents |
+| `skills-npm.config.ts` | Limits sync to `@agentuity/skills` |
+| `prepare` script | Runs `skills-npm --yes` after install |
+| `.gitignore` entries | Keeps generated skill symlinks out of git |
+
+It also runs the detected package manager install and syncs skills to local agent directories.
+
+Use `setup` when you only want to edit project files and run dependency installation yourself:
+
+```bash
+agentuity skills setup --no-sync
+npm install
+agentuity skills sync
+```
+
+## Install Skills Globally
+
+Install Agentuity skills for all projects on your machine:
+
+```bash
+agentuity skills install --global
+```
+
+This installs into `~/.agents/skills`.
+
+Without the Agentuity CLI, use the same Git source with the `skills` CLI:
+
+```bash
+npx skills add agentuity/sdk/skills --global --yes --agent cline
+```
+
+Use `--agent cursor` to install into `~/.cursor/skills` instead, or pass other `--agent` values supported by the `skills` CLI.
+
+## Sync and List
+
+Re-sync after installs, lockfile changes, or agent directory cleanup:
+
+```bash
+agentuity skills sync
+```
+
+List installed bundled skills:
+
+```bash
+agentuity skills list
+agentuity --json skills list
+```
+
+## New Projects
+
+Skills are enabled by default in new Agentuity projects:
+
+```bash
+agentuity create --name my-app --framework nextjs
+```
+
+Skip skill wiring:
+
+```bash
+agentuity create --name my-app --framework nextjs --no-skills
+```
+
+## Manual npm Setup
+
+The CLI install command is equivalent to:
+
+```bash
+npm install -D @agentuity/skills skills-npm
+npx skills-npm --yes
+```
+
+Add `skills-npm --yes` to your `prepare` script so skills stay synced after installs.
+
+## Manual Git Setup with skills
+
+Install from the Git catalog into the current project:
+
+```bash
+npx skills add agentuity/sdk/skills --yes
+```
+
+Install a specific skill:
+
+```bash
+npx skills add agentuity/sdk/skills --skill agentuity-ai --yes
+```
+
+Target a specific coding agent in the project:
+
+```bash
+npx skills add agentuity/sdk/skills --agent cursor --yes
+npx skills add agentuity/sdk/skills --agent claude-code --yes
+```
+
+List available skills without installing:
+
+```bash
+npx skills add agentuity/sdk/skills --list
+```
+
+## Next Steps
+
+- [Agentuity CLI](/reference/cli/getting-started): install and authenticate the CLI
+- [Project lifecycle](/reference/cli/deployment): build and deploy registered projects
+- [Agent Skills package](https://www.npmjs.com/package/@agentuity/skills): npm package once published

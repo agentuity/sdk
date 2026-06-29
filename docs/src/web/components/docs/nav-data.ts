@@ -652,6 +652,12 @@ export const navData: NavSection[] = [
 								description:
 									'Add Tailwind CSS to the framework app you deploy with Agentuity',
 							},
+							{
+								title: 'Install Agent Skills with npm',
+								url: '/cookbook/patterns/install-agent-skills-with-npm',
+								description:
+									'Add Agentuity skill guidance to an existing project with @agentuity/skills and skills-npm',
+							},
 						],
 					},
 					{
@@ -872,6 +878,11 @@ export const navData: NavSection[] = [
 				title: 'CLI',
 				url: '/reference/cli',
 				items: [
+					{
+						title: 'Agent Skills',
+						url: '/reference/cli/agent-skills',
+						description: 'Install and sync Agentuity Agent Skills from npm',
+					},
 					{
 						title: 'AI Commands',
 						url: '/reference/cli/ai-commands',

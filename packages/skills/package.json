@@ -1,0 +1,28 @@
+{
+	"name": "@agentuity/skills",
+	"version": "3.1.5",
+	"license": "Apache-2.0",
+	"author": "Agentuity",
+	"description": "Agent Skills for AI coding agents working with the Agentuity SDK",
+	"type": "module",
+	"agentuity": {
+		"sourceOnly": true
+	},
+	"files": [
+		"README.md",
+		"skills"
+	],
+	"scripts": {
+		"prepublishOnly": "bun ./scripts/sync-root-skills.ts",
+		"sync:root": "bun ./scripts/sync-root-skills.ts"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/agentuity/sdk.git",
+		"directory": "packages/skills"
+	}
+}

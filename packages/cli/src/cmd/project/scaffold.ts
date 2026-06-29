@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import type { Logger } from '@agentuity/core';
 import * as tui from '../../tui.ts';
 import { getVersion } from '../../version.ts';
+import { wireSkillsToProject } from '../../skills/index.ts';
 import type { PackageManager } from '../build/detect/types.ts';
 import type { FrameworkScaffold } from './frameworks.ts';
 import { applyOverlay } from './frameworks.ts';
@@ -28,6 +29,8 @@ interface ScaffoldOptions {
 	includeAiExample: boolean;
 	/** Package manager to drive the framework's create command. */
 	packageManager: PackageManager;
+	/** Whether to include Agentuity skills wiring. */
+	includeSkills: boolean;
 	/** Logger */
 	logger: Logger;
 }
@@ -49,7 +52,8 @@ interface SetupOptions {
  * Run the framework's official create CLI to scaffold the project.
  */
 export async function scaffoldFramework(options: ScaffoldOptions): Promise<void> {
-	const { dest, dirName, framework, includeAiExample, packageManager, logger } = options;
+	const { dest, dirName, framework, includeAiExample, packageManager, includeSkills, logger } =
+		options;
 
 	// Step 1: Run the framework's create command
 	const cmd = framework.createCommand(dirName, packageManager);
@@ -74,7 +78,7 @@ export async function scaffoldFramework(options: ScaffoldOptions): Promise<void>
 	}
 
 	// Step 2: Augment with Agentuity integration
-	await augmentProject(dest, framework, includeAiExample, packageManager, logger);
+	await augmentProject(dest, framework, includeAiExample, packageManager, includeSkills, logger);
 }
 
 /**
@@ -90,6 +94,7 @@ async function augmentProject(
 	framework: FrameworkScaffold,
 	includeAiExample: boolean,
 	packageManager: PackageManager,
+	includeSkills: boolean,
 	logger: Logger
 ): Promise<void> {
 	await tui.spinner({
@@ -100,6 +105,10 @@ async function augmentProject(
 			// Step 1: Merge package.json
 			await mergePackageJson(dest, framework, packageManager);
 			progress(25);
+
+			if (includeSkills) {
+				await wireSkillsToProject({ projectDir: dest });
+			}
 
 			// Step 2: Apply template overlay if configured
 			if (framework.overlayDir) {
