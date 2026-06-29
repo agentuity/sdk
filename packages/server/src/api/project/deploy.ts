@@ -215,6 +215,11 @@ export const BuildMetadataSchema = z.object({
 			source: z.enum(['github', 'cli', 'managed']).optional(),
 			channel: z.enum(['edge', 'stable', 'commit']).optional(),
 			rollout_org_ids: z.array(z.string()).optional(),
+			rollout_id: z
+				.string()
+				.min(1)
+				.optional()
+				.describe('correlation id for a managed shared-source rollout wave'),
 		})
 	),
 	launch: LaunchMetadataSchema.optional().describe(
