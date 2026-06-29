@@ -1,11 +1,14 @@
-import { describe, test, expect, afterEach } from 'bun:test';
+import { describe, test, expect, afterEach, mock } from 'bun:test';
 import { mockFetch } from '@agentuity/test-utils';
-import { getInstallationType, isGlobalInstall } from '../src/cmd/upgrade';
+import { getInstallationType, isGlobalInstall, verifyUpgrade } from '../src/cmd/upgrade';
 import {
 	isVersionAvailableOnNpm,
 	isVersionAvailableOnNpmQuick,
 	waitForNpmAvailability,
 } from '../src/cmd/upgrade/npm-availability';
+import { LOCAL_DELEGATION_GUARD_ENV } from '../src/local-delegate.ts';
+import { entryScriptPath } from '../src/node-compat/runtime-info.ts';
+import { getVersion } from '../src/version.ts';
 
 describe('upgrade command', () => {
 	test('getInstallationType returns source when running from test', () => {
@@ -19,6 +22,38 @@ describe('upgrade command', () => {
 		const result = isGlobalInstall();
 		expect(typeof result).toBe('boolean');
 		expect(result).toBe(false);
+	});
+
+	test('verifyUpgrade uses global binary and skips local delegation', async () => {
+		const spawnCalls: Array<{ cmd: string[]; env?: Record<string, string | undefined> }> = [];
+		const originalModule = await import('../src/cmd/upgrade/npm-availability.ts');
+
+		mock.module('../src/cmd/upgrade/npm-availability.ts', () => ({
+			...originalModule,
+			spawnWithTimeout: async (
+				cmd: string[],
+				options: { cwd?: string; timeout: number; env?: Record<string, string | undefined> }
+			) => {
+				spawnCalls.push({ cmd, env: options.env });
+				return {
+					exitCode: 0,
+					stdout: Buffer.from('3.1.4'),
+					stderr: Buffer.from(''),
+				};
+			},
+		}));
+
+		await verifyUpgrade('v3.1.4');
+
+		expect(spawnCalls).toHaveLength(1);
+		expect(spawnCalls[0]?.cmd).toEqual([entryScriptPath(), 'version']);
+		expect(spawnCalls[0]?.env?.[LOCAL_DELEGATION_GUARD_ENV]).toBe('1');
+
+		mock.restore();
+	});
+
+	test('verifyUpgrade succeeds when global version matches', async () => {
+		await verifyUpgrade(getVersion());
 	});
 
 	test('should validate version format', () => {
