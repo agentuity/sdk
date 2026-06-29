@@ -1,9 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { discoverCommands } from '../src/cmd';
-import { SKILLS_NPM_CONFIG_CONTENT, SKILLS_PACKAGE } from '../src/skills/constants';
+import {
+	SKILLS_GIT_SOURCE,
+	SKILLS_GLOBAL_AGENT,
+	SKILLS_NPM_CONFIG_CONTENT,
+	SKILLS_PACKAGE,
+} from '../src/skills/constants';
+import { buildSkillsAddArgs, getGlobalSkillsDir } from '../src/skills';
 import { wireSkillsToProject } from '../src/skills/setup';
 
 describe('skills setup', () => {
@@ -73,8 +79,12 @@ describe('skills setup', () => {
 	test('registers skills command and create --no-skills option', async () => {
 		const commands = await discoverCommands();
 		const skills = commands.find((command) => command.name === 'skills');
+		const install = skills?.subcommands?.find((command) => command.name === 'install');
 		const project = commands.find((command) => command.name === 'project');
 		const create = project?.subcommands?.find((command) => command.name === 'create');
+		const installOptionsSchema = install?.schema?.options as
+			| { shape?: Record<string, unknown> }
+			| undefined;
 		const optionsSchema = create?.schema?.options as
 			| { shape?: Record<string, unknown> }
 			| undefined;
@@ -86,7 +96,21 @@ describe('skills setup', () => {
 			'sync',
 			'list',
 		]);
+		expect(installOptionsSchema?.shape).toHaveProperty('global');
 		expect(optionsSchema?.shape).toHaveProperty('skills');
+	});
+
+	test('builds global skills add args for ~/.agents/skills', () => {
+		expect(getGlobalSkillsDir()).toBe(join(homedir(), '.agents', 'skills'));
+		expect(buildSkillsAddArgs()).toEqual(['add', SKILLS_GIT_SOURCE, '--yes']);
+		expect(buildSkillsAddArgs({ global: true })).toEqual([
+			'add',
+			SKILLS_GIT_SOURCE,
+			'--yes',
+			'--global',
+			'--agent',
+			SKILLS_GLOBAL_AGENT,
+		]);
 	});
 
 	test('throws when package.json is missing', async () => {

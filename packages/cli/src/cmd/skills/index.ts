@@ -16,6 +16,10 @@ export const command = createCommand({
 			description: 'Install and sync @agentuity/skills in the current project',
 		},
 		{
+			command: getCommand('skills install --global'),
+			description: 'Install Agentuity skills to ~/.agents/skills',
+		},
+		{
 			command: getCommand('skills setup'),
 			description: 'Wire skills-npm and @agentuity/skills into the current project',
 		},
