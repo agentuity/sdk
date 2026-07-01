@@ -451,7 +451,7 @@ export const frontmatterByPath: Record<string, FrontmatterData> = {
 	"/reference/cli/agent-skills": {
 		"title": "Agent Skills",
 		"short_title": "Agent Skills",
-		"description": "Install and sync Agentuity Agent Skills from npm"
+		"description": "Install and sync Agentuity Agent Skills from npm or with the skills CLI"
 	},
 	"/reference/cli/ai-commands": {
 		"title": "AI Commands",

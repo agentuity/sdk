@@ -9,7 +9,12 @@ import {
 	outputJSON,
 	outputSuccess,
 } from '../../output.ts';
-import { runSkillsNpm, wireSkillsToProject } from '../../skills/index.ts';
+import {
+	getGlobalSkillsDir,
+	runSkillsAdd,
+	runSkillsNpm,
+	wireSkillsToProject,
+} from '../../skills/index.ts';
 import * as tui from '../../tui.ts';
 import { createSubcommand } from '../../types.ts';
 import type { PackageManager } from '../build/detect/types.ts';
@@ -32,9 +37,18 @@ export const installSubcommand = createSubcommand({
 			command: getCommand('skills install --package-manager npm'),
 			description: 'Install Agentuity skills using npm',
 		},
+		{
+			command: getCommand('skills install --global'),
+			description: 'Install Agentuity skills to ~/.agents/skills for all projects',
+		},
 	],
 	schema: {
 		options: z.object({
+			global: z
+				.boolean()
+				.optional()
+				.default(false)
+				.describe('Install skills to ~/.agents/skills instead of wiring the current project'),
 			packageManager: z
 				.enum(['bun', 'npm', 'pnpm', 'yarn'])
 				.optional()
@@ -50,9 +64,57 @@ export const installSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { opts, logger, options } = ctx;
 		const projectDir = process.cwd();
-		const packageManager = opts.packageManager ?? (await detectPackageManager(projectDir));
 		const jsonMode = isJSONMode(options);
 
+		if (opts.global) {
+			const skillsDir = getGlobalSkillsDir();
+			if (!jsonMode) {
+				logger.info(`Installing Agentuity skills to ${skillsDir}...`);
+			}
+
+			const installExitCode = await runSkillsAdd({
+				cwd: projectDir,
+				global: true,
+				silent: jsonMode,
+			});
+
+			if (installExitCode !== 0) {
+				if (jsonMode) {
+					process.exitCode = 1;
+					outputJSON(
+						createErrorResponse(
+							ErrorCode.RUNTIME_ERROR,
+							'Failed to install Agentuity skills globally',
+							{
+								global: true,
+								installed: false,
+								installExitCode,
+								skillsDir,
+							}
+						)
+					);
+					return;
+				}
+				logger.fatal('Failed to install Agentuity skills globally', ErrorCode.RUNTIME_ERROR);
+				return;
+			}
+
+			if (jsonMode) {
+				outputJSON(
+					createSuccessResponse({
+						global: true,
+						installed: true,
+						skillsDir,
+					})
+				);
+				return;
+			}
+
+			outputSuccess(`Installed Agentuity skills to ${skillsDir}`, options);
+			return;
+		}
+
+		const packageManager = opts.packageManager ?? (await detectPackageManager(projectDir));
 		const result = await wireSkillsToProject({ projectDir });
 		const cmd = installCommand(packageManager);
 		const installExitCode = jsonMode
