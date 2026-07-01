@@ -109,6 +109,38 @@ describe('project API', () => {
 			expect(project.urls?.cnameTarget).toBe('p496d6befc286fdc3.agentuity.run');
 		});
 
+		test('should accept project URLs without a canonical CNAME target', async () => {
+			mockFetch(
+				async () =>
+					new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								id: 'project-123',
+								name: 'Test Project',
+								orgId: 'org-456',
+								urls: {
+									dashboard: 'https://app.agentuity.com/projects/project-123',
+									app: 'https://signal-desk.agentuity.run',
+									custom: [],
+								},
+							},
+						}),
+						{
+							status: 200,
+							headers: { 'content-type': 'application/json' },
+						}
+					)
+			);
+
+			const client = new APIClient('https://api.example.com', createMockLogger(), 'test-key');
+
+			const project = await projectGet(client, { id: 'project-123', mask: true, keys: false });
+
+			expect(project.urls?.app).toBe('https://signal-desk.agentuity.run');
+			expect(project.urls?.cnameTarget).toBeUndefined();
+		});
+
 		test('should throw ProjectResponseError on failure', async () => {
 			mockFetch(
 				async () =>
