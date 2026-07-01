@@ -4,7 +4,7 @@ short_title: Custom Domains
 description: Attach your own domain to an Agentuity project, validate DNS, and let TLS provision automatically.
 ---
 
-Attach a custom domain to a project so the deployed app serves traffic at your hostname instead of the default `*.agentco.run` URL. The domain lives in `agentuity.json`. The CLI validates DNS at deploy time, and the platform issues a TLS certificate on the first request.
+Attach a custom domain to a project so the deployed app serves traffic at your hostname instead of the default `*.agentuity.run` URL. The domain lives in `agentuity.json`. The CLI validates DNS at deploy time, and the platform issues a TLS certificate on the first request.
 
 ```bash
 agentuity project add domain example.com
@@ -44,7 +44,7 @@ For each domain, point either a CNAME or an A record at the per-project ION host
 
 | Record type | Target | Use when |
 |-------------|--------|----------|
-| CNAME | `p<hash>.agentco.run` (per-project) | The provider supports CNAMEs at the level you're configuring |
+| CNAME | `p<hash>.agentuity.run` (per-project) | The provider supports CNAMEs at the level you're configuring |
 | A | First IP resolved from `ion-<region>.agentuity.cloud` | Apex domains (`example.com`, not `app.example.com`) where CNAME flattening isn't available |
 
 Use a CNAME when you can. The A-record path exists for apex domains where most DNS providers don't allow CNAMEs.

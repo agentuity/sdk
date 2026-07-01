@@ -89,9 +89,9 @@ describe('project API', () => {
 								orgId: 'org-456',
 								urls: {
 									dashboard: 'https://app.agentuity.com/projects/project-123',
-									app: 'https://signal-desk.agentco.run',
+									app: 'https://signal-desk.agentuity.run',
 									custom: ['https://app.example.com'],
-									cnameTarget: 'p496d6befc286fdc3.agentco.run',
+									cnameTarget: 'p496d6befc286fdc3.agentuity.run',
 								},
 							},
 						}),
@@ -106,7 +106,7 @@ describe('project API', () => {
 
 			const project = await projectGet(client, { id: 'project-123', mask: true, keys: false });
 
-			expect(project.urls?.cnameTarget).toBe('p496d6befc286fdc3.agentco.run');
+			expect(project.urls?.cnameTarget).toBe('p496d6befc286fdc3.agentuity.run');
 		});
 
 		test('should throw ProjectResponseError on failure', async () => {

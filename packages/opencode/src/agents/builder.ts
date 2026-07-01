@@ -231,7 +231,7 @@ agentuity cloud sandbox run --memory 2Gi --runtime bun:1 \\
 agentuity cloud sandbox run --runtime bun:1 \\
   --network --port 3000 \\
   -- bun run dev
-# Output includes public URL: https://s{identifier}.agentco.run
+# Output includes public URL: https://s{identifier}.agentuity.run
 \`\`\`
 
 ### Persistent Sandbox (iterative development)

@@ -628,16 +628,13 @@ async function importIntoExistingProject(opts: ReconcileOptions): Promise<Reconc
 	}
 	const region = project.cloudRegion?.trim() || opts.region?.trim() || 'usc';
 
-	await updateSdkKeyInEnv(opts.dir, sdkKey);
-	tui.success('Updated AGENTUITY_SDK_KEY in .env');
-
 	await createProjectConfig(opts.dir, {
 		projectId: project.id,
 		orgId: project.orgId,
 		sdkKey,
 		region,
 	});
-	tui.success('Updated agentuity.json');
+	tui.success('Updated agentuity.json and AGENTUITY_SDK_KEY in .env');
 
 	tui.success('Project imported successfully!');
 
@@ -745,6 +742,21 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 
 	// Check if agentuity.json already exists and is valid
 	const projectConfig = await tryLoadProjectConfig(dir, config);
+
+	if (validateOnly && projectId && projectConfig?.projectId !== projectId) {
+		const isValid = projectConfig ? true : await isValidProjectStructure(dir);
+		if (!isValid) {
+			return {
+				status: 'error',
+				message: NO_DEPLOYABLE_PROJECT_MESSAGE,
+			};
+		}
+
+		return {
+			status: 'valid',
+			message: 'Project structure is valid and ready to import.',
+		};
+	}
 
 	if (projectId && (!projectConfig || projectConfig.projectId !== projectId)) {
 		return await importIntoExistingProject(opts);

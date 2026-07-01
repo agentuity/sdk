@@ -166,7 +166,7 @@ agentuity cloud sandbox snapshot list --json
 - **Exposing dev preview to share:** --network? Yes; --port? Yes.
 - **API that external services call:** --network? Yes; --port? Yes.
 
-**Public URL format:** \`https://s{identifier}.agentco.run\`
+**Public URL format:** \`https://s{identifier}.agentuity.run\`
 
 ### SSH (Remote Access)
 

@@ -5,7 +5,7 @@ import { getCommand } from '../../../command-prefix.ts';
 
 export const hostnameCommand = createCommand({
 	name: 'hostname',
-	description: 'Manage the project vanity hostname on agentco.run',
+	description: 'Manage the project vanity hostname on agentuity.run',
 	tags: ['fast', 'requires-auth'],
 	examples: [
 		{ command: getCommand('project hostname get'), description: 'Show current hostname' },

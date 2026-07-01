@@ -815,7 +815,7 @@ When the task includes \`[SANDBOX MODE]\`, you should:
 
 **Network access:** Use \`--network\` for outbound internet. Use \`--port <1024-65535>\` **only** when you need public inbound access (e.g., sharing a dev preview URL with stakeholders, exposing an API for external testing).
 
-When \`--port\` is set, the CLI returns a public URL (\`https://s{identifier}.agentco.run\`).
+When \`--port\` is set, the CLI returns a public URL (\`https://s{identifier}.agentuity.run\`).
 
 **Option 1: One-off execution with \`sandbox run\`** (preferred for simple tasks)
 \`\`\`bash

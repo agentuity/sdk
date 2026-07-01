@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { Logger } from '@agentuity/core';
@@ -470,6 +470,70 @@ describe('project reconcile', () => {
 				orgId: 'org_team',
 				region: 'use',
 			});
+		});
+
+		test('validate-only with project id does not fetch or write files', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'existing-project-app',
+					dependencies: {
+						'@agentuity/sdk': '^1.0.0',
+					},
+				})
+			);
+
+			let apiCalled = false;
+			const apiClient = {
+				get: async () => {
+					apiCalled = true;
+					throw new Error('validate-only should not fetch the project');
+				},
+				request: async () => {
+					apiCalled = true;
+					return { success: true, data: undefined };
+				},
+			} as unknown as APIClient;
+			const logger = {
+				child: () => logger,
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('fatal');
+				},
+			} satisfies Logger;
+
+			const result = await runProjectImport({
+				dir: testDir,
+				auth: {
+					apiKey: 'ag_test',
+					userId: 'usr_test',
+					expires: new Date(Date.now() + 60_000),
+				} satisfies AuthData,
+				apiClient,
+				config: {
+					name: 'test',
+					preferences: {
+						orgId: 'org_team',
+					},
+				} as unknown as Config,
+				logger,
+				interactive: false,
+				confirm: true,
+				validateOnly: true,
+				projectId: 'proj_existing',
+			});
+
+			expect(result).toEqual({
+				status: 'valid',
+				message: 'Project structure is valid and ready to import.',
+			});
+			expect(apiCalled).toBe(false);
+			expect(existsSync(join(testDir, '.env'))).toBe(false);
+			expect(existsSync(join(testDir, 'agentuity.json'))).toBe(false);
 		});
 	});
 });

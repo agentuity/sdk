@@ -88,7 +88,7 @@ async function fetchDNSRecord(name: string, type: string): Promise<string | null
 }
 
 const LOCAL_DNS = 'agentuity.io';
-const PRODUCTION_DNS = 'agentco.run';
+const PRODUCTION_DNS = 'agentuity.run';
 
 /**
  * This function will check for each of the custom domains and make sure they are correctly
