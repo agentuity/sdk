@@ -52,6 +52,8 @@ export interface ReconcileOptions {
 	region?: string;
 	/** Project name from --name flag */
 	name?: string;
+	/** Existing cloud project ID to bind the local directory to. */
+	projectId?: string;
 	/**
 	 * When true, suppress the "Would you like to register it now?"
 	 * confirmation in `createNewProject`. Use this when the caller has
@@ -604,6 +606,52 @@ async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult
 }
 
 /**
+ * Bind an unregistered local project to an existing Agentuity cloud project.
+ */
+async function importIntoExistingProject(opts: ReconcileOptions): Promise<ReconcileResult> {
+	const projectId = opts.projectId?.trim();
+	if (!projectId) {
+		return { status: 'error', message: 'Project ID is required.' };
+	}
+
+	const project = await tui.spinner({
+		message: 'Fetching project',
+		clearOnSuccess: true,
+		callback: () => projectGet(opts.apiClient, { id: projectId, mask: false, keys: true }),
+	});
+	const sdkKey = project.api_key?.trim();
+	if (!sdkKey) {
+		return {
+			status: 'error',
+			message: 'Could not load an SDK key for the selected project.',
+		};
+	}
+	const region = project.cloudRegion?.trim() || opts.region?.trim() || 'usc';
+
+	await updateSdkKeyInEnv(opts.dir, sdkKey);
+	tui.success('Updated AGENTUITY_SDK_KEY in .env');
+
+	await createProjectConfig(opts.dir, {
+		projectId: project.id,
+		orgId: project.orgId,
+		sdkKey,
+		region,
+	});
+	tui.success('Updated agentuity.json');
+
+	tui.success('Project imported successfully!');
+
+	return {
+		status: 'imported',
+		project: {
+			projectId: project.id,
+			orgId: project.orgId,
+			region,
+		},
+	};
+}
+
+/**
  * Reconcile a project - validate access or import if needed
  *
  * This function checks if the current directory has a valid agentuity.json
@@ -693,9 +741,14 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
  */
 export async function runProjectImport(opts: ReconcileOptions): Promise<ReconcileResult> {
 	const { dir, apiClient, config, interactive = true, validateOnly = false } = opts;
+	const projectId = opts.projectId?.trim();
 
 	// Check if agentuity.json already exists and is valid
 	const projectConfig = await tryLoadProjectConfig(dir, config);
+
+	if (projectId && (!projectConfig || projectConfig.projectId !== projectId)) {
+		return await importIntoExistingProject(opts);
+	}
 
 	if (projectConfig) {
 		try {
@@ -772,6 +825,10 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 			status: 'valid',
 			message: 'Project structure is valid and ready to import.',
 		};
+	}
+
+	if (opts.projectId?.trim()) {
+		return await importIntoExistingProject(opts);
 	}
 
 	if (!interactive && !opts.confirm) {

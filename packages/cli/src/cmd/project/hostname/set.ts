@@ -42,7 +42,7 @@ const HostnameSetResponseSchema = z.object({
 
 export const setSubcommand = createSubcommand({
 	name: 'set',
-	description: 'Set a custom vanity hostname for the project on agentuity.run',
+	description: 'Set a custom vanity hostname for the project on agentco.run',
 	tags: ['mutating', 'fast', 'requires-auth', 'requires-project'],
 	requires: { auth: true, apiClient: true, project: true },
 	examples: [

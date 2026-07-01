@@ -135,6 +135,7 @@ export const importSubcommand = createSubcommand({
 			orgId,
 			region,
 			name: opts.name,
+			projectId: opts.projectId,
 		});
 
 		if (result.status === 'error') {

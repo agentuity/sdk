@@ -61,10 +61,10 @@ describe('domain DNS validation', () => {
 		test('generates correct CNAME target for production', () => {
 			const projectId = 'proj_81766c4548fe4766c06b90db086527b4';
 			const identifier = generateProjectIdentifier(projectId);
-			const suffix = 'agentuity.run';
+			const suffix = 'agentco.run';
 			const proxy = `p${identifier}.${suffix}`;
 
-			expect(proxy).toBe('p0a21231341cdb560.agentuity.run');
+			expect(proxy).toBe('p0a21231341cdb560.agentco.run');
 		});
 
 		test('generates correct CNAME target for local development', () => {

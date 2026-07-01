@@ -17,7 +17,7 @@ agentuity cloud storage list --show-credentials
 ### 2. Set environment variables
 
 ```bash
-export AGENTUITY_STORAGE_ENDPOINT="my-bucket.agentuity.run"
+export AGENTUITY_STORAGE_ENDPOINT="my-bucket.agentco.run"
 export AGENTUITY_STORAGE_ACCESS_KEY="..."
 export AGENTUITY_STORAGE_SECRET_KEY="..."
 # Optional. Defaults to "auto".

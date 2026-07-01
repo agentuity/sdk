@@ -1,11 +1,15 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import type { Logger } from '@agentuity/core';
+import type { APIClient } from '../../../src/api';
+import type { AuthData, Config } from '../../../src/types';
 import {
 	isValidProjectStructure,
 	getDefaultProjectName,
 	resolveProjectRegistrationName,
+	runProjectImport,
 } from '../../../src/cmd/project/reconcile';
 
 describe('project reconcile', () => {
@@ -296,6 +300,176 @@ describe('project reconcile', () => {
 		test('should handle missing .env file', async () => {
 			const exists = await Bun.file(join(testDir, '.env')).exists();
 			expect(exists).toBe(false);
+		});
+	});
+
+	describe('runProjectImport', () => {
+		test('binds a local project to an existing project id', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'existing-project-app',
+					dependencies: {
+						'@agentuity/sdk': '^1.0.0',
+					},
+				})
+			);
+
+			const requestedUrls: string[] = [];
+			let envUpdateCalled = false;
+			const apiClient = {
+				get: async (url: string) => {
+					requestedUrls.push(url);
+					return {
+						success: true,
+						data: {
+							id: 'proj_existing',
+							name: 'Existing Project',
+							orgId: 'org_team',
+							cloudRegion: 'use',
+							secrets: {
+								AGENTUITY_SDK_KEY: 'sdk_existing',
+							},
+						},
+					};
+				},
+				request: async () => {
+					envUpdateCalled = true;
+					return { success: true, data: undefined };
+				},
+			} as unknown as APIClient;
+			const logger = {
+				child: () => logger,
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('fatal');
+				},
+			} satisfies Logger;
+
+			const result = await runProjectImport({
+				dir: testDir,
+				auth: {
+					apiKey: 'ag_test',
+					userId: 'usr_test',
+					expires: new Date(Date.now() + 60_000),
+				} satisfies AuthData,
+				apiClient,
+				config: {
+					name: 'test',
+					preferences: {
+						orgId: 'org_team',
+					},
+				} as unknown as Config,
+				logger,
+				interactive: false,
+				confirm: true,
+				projectId: 'proj_existing',
+			});
+
+			expect(result).toEqual({
+				status: 'imported',
+				project: {
+					projectId: 'proj_existing',
+					orgId: 'org_team',
+					region: 'use',
+				},
+			});
+			expect(requestedUrls).toEqual([
+				'/cli/project/proj_existing?mask=false&includeProjectKeys=true',
+			]);
+			expect(envUpdateCalled).toBe(false);
+			expect(readFileSync(join(testDir, '.env'), 'utf8')).toContain(
+				'AGENTUITY_SDK_KEY=sdk_existing'
+			);
+			expect(JSON.parse(readFileSync(join(testDir, 'agentuity.json'), 'utf8'))).toMatchObject({
+				projectId: 'proj_existing',
+				orgId: 'org_team',
+				region: 'use',
+			});
+		});
+
+		test('explicit project id overrides a different existing local config', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'existing-project-app',
+					dependencies: {
+						'@agentuity/sdk': '^1.0.0',
+					},
+				})
+			);
+			writeFileSync(
+				join(testDir, 'agentuity.json'),
+				JSON.stringify({
+					projectId: 'proj_stale',
+					orgId: 'org_team',
+					region: 'use',
+				})
+			);
+
+			const requestedUrls: string[] = [];
+			const apiClient = {
+				get: async (url: string) => {
+					requestedUrls.push(url);
+					return {
+						success: true,
+						data: {
+							id: 'proj_existing',
+							name: 'Existing Project',
+							orgId: 'org_team',
+							cloudRegion: 'use',
+							secrets: {
+								AGENTUITY_SDK_KEY: 'sdk_existing',
+							},
+						},
+					};
+				},
+			} as unknown as APIClient;
+			const logger = {
+				child: () => logger,
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('fatal');
+				},
+			} satisfies Logger;
+
+			const result = await runProjectImport({
+				dir: testDir,
+				auth: {
+					apiKey: 'ag_test',
+					userId: 'usr_test',
+					expires: new Date(Date.now() + 60_000),
+				} satisfies AuthData,
+				apiClient,
+				config: {
+					name: 'test',
+					preferences: {
+						orgId: 'org_team',
+					},
+				} as unknown as Config,
+				logger,
+				interactive: false,
+				confirm: true,
+				projectId: 'proj_existing',
+			});
+
+			expect(result.status).toBe('imported');
+			expect(requestedUrls).toEqual([
+				'/cli/project/proj_existing?mask=false&includeProjectKeys=true',
+			]);
+			expect(JSON.parse(readFileSync(join(testDir, 'agentuity.json'), 'utf8'))).toMatchObject({
+				projectId: 'proj_existing',
+				orgId: 'org_team',
+				region: 'use',
+			});
 		});
 	});
 });

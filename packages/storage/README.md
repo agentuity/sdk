@@ -27,7 +27,7 @@ npm install @agentuity/storage
 import { createS3Client } from '@agentuity/storage';
 
 const s3 = createS3Client({
-  endpoint: 'my-bucket.agentuity.run',
+  endpoint: 'my-bucket.agentco.run',
   access_key: 'AKIA...',
   secret_key: '...',
   region: 'us-east-1', // optional, defaults to 'auto'

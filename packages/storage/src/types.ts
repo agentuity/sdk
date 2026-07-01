@@ -13,7 +13,7 @@
  * Two addressing forms are supported:
  *
  * 1. **Pre-composed virtual-hosted endpoint**: pass `endpoint` as
- *    `<bucket>.<host>` (e.g. `my-bucket.agentuity.run`). Use this when
+ *    `<bucket>.<host>` (e.g. `my-bucket.agentco.run`). Use this when
  *    the platform already gives you a bucket-scoped endpoint.
  *
  * 2. **Separate `bucket` + `host`**: pass them as distinct fields and
@@ -26,7 +26,7 @@
  */
 export interface BucketConfig {
 	/**
-	 * Bucket-specific endpoint, e.g. `my-bucket.agentuity.run`. May be
+	 * Bucket-specific endpoint, e.g. `my-bucket.agentco.run`. May be
 	 * provided with or without a scheme; missing schemes default to
 	 * `https://`. Mutually exclusive with `host`/`bucket`.
 	 */
