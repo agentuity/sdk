@@ -1,10 +1,11 @@
-import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { Logger } from '@agentuity/core';
 import type { APIClient } from '../../../src/api';
 import type { AuthData, Config } from '../../../src/types';
+import * as tui from '../../../src/tui';
 import {
 	isValidProjectStructure,
 	getDefaultProjectName,
@@ -25,6 +26,7 @@ describe('project reconcile', () => {
 
 	afterEach(() => {
 		rmSync(testDir, { recursive: true, force: true });
+		mock.restore();
 	});
 
 	describe('isValidProjectStructure', () => {
@@ -472,6 +474,138 @@ describe('project reconcile', () => {
 			});
 		});
 
+		test('explicit project id uses the import command interactive default', async () => {
+			// Stub the bind confirmation: without interactive/confirm set, the
+			// import-command default (interactive) must reach tui.confirm rather
+			// than erroring out. A real prompt would hang under a TTY stdin.
+			const confirmSpy = spyOn(tui, 'confirm').mockResolvedValue(true);
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'existing-project-app',
+				})
+			);
+
+			const requestedUrls: string[] = [];
+			const apiClient = {
+				get: async (url: string) => {
+					requestedUrls.push(url);
+					return {
+						success: true,
+						data: {
+							id: 'proj_existing',
+							name: 'Existing Project',
+							orgId: 'org_team',
+							cloudRegion: 'use',
+							secrets: {
+								AGENTUITY_SDK_KEY: 'sdk_existing',
+							},
+						},
+					};
+				},
+			} as unknown as APIClient;
+			const logger = {
+				child: () => logger,
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('fatal');
+				},
+			} satisfies Logger;
+
+			const result = await runProjectImport({
+				dir: testDir,
+				auth: {
+					apiKey: 'ag_test',
+					userId: 'usr_test',
+					expires: new Date(Date.now() + 60_000),
+				} satisfies AuthData,
+				apiClient,
+				config: {
+					name: 'test',
+					preferences: {
+						orgId: 'org_team',
+					},
+				} as unknown as Config,
+				logger,
+				confirm: false,
+				projectId: 'proj_existing',
+			});
+
+			expect(result.status).toBe('imported');
+			expect(confirmSpy).toHaveBeenCalledWith(
+				'Bind this directory to existing project proj_existing?',
+				true
+			);
+			expect(requestedUrls).toEqual([
+				'/cli/project/proj_existing?mask=false&includeProjectKeys=true',
+			]);
+			expect(JSON.parse(readFileSync(join(testDir, 'agentuity.json'), 'utf8'))).toMatchObject({
+				projectId: 'proj_existing',
+				orgId: 'org_team',
+				region: 'use',
+			});
+		});
+
+		test('explicit project id requires confirmation before fetching or writing', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'existing-project-app',
+				})
+			);
+
+			let apiCalled = false;
+			const apiClient = {
+				get: async () => {
+					apiCalled = true;
+					throw new Error('bind should not fetch before confirmation');
+				},
+			} as unknown as APIClient;
+			const logger = {
+				child: () => logger,
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('fatal');
+				},
+			} satisfies Logger;
+
+			const result = await runProjectImport({
+				dir: testDir,
+				auth: {
+					apiKey: 'ag_test',
+					userId: 'usr_test',
+					expires: new Date(Date.now() + 60_000),
+				} satisfies AuthData,
+				apiClient,
+				config: {
+					name: 'test',
+					preferences: {
+						orgId: 'org_team',
+					},
+				} as unknown as Config,
+				logger,
+				interactive: false,
+				confirm: false,
+				projectId: 'proj_existing',
+			});
+
+			expect(result).toEqual({
+				status: 'error',
+				message: 'Project import requires interactive mode.',
+			});
+			expect(apiCalled).toBe(false);
+			expect(existsSync(join(testDir, '.env'))).toBe(false);
+			expect(existsSync(join(testDir, 'agentuity.json'))).toBe(false);
+		});
+
 		test('validate-only with project id does not fetch or write files', async () => {
 			writeFileSync(
 				join(testDir, 'package.json'),
@@ -534,6 +668,256 @@ describe('project reconcile', () => {
 			expect(apiCalled).toBe(false);
 			expect(existsSync(join(testDir, '.env'))).toBe(false);
 			expect(existsSync(join(testDir, 'agentuity.json'))).toBe(false);
+		});
+
+		test('validate-only with project id rejects non-project directories', async () => {
+			let apiCalled = false;
+			const apiClient = {
+				get: async () => {
+					apiCalled = true;
+					throw new Error('validate-only should not fetch the project');
+				},
+			} as unknown as APIClient;
+			const logger = {
+				child: () => logger,
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: (): void => {},
+				fatal: (): never => {
+					throw new Error('fatal');
+				},
+			} satisfies Logger;
+
+			const result = await runProjectImport({
+				dir: testDir,
+				auth: {
+					apiKey: 'ag_test',
+					userId: 'usr_test',
+					expires: new Date(Date.now() + 60_000),
+				} satisfies AuthData,
+				apiClient,
+				config: {
+					name: 'test',
+					preferences: {
+						orgId: 'org_team',
+					},
+				} as unknown as Config,
+				logger,
+				interactive: false,
+				confirm: true,
+				validateOnly: true,
+				projectId: 'proj_existing',
+			});
+
+			expect(result).toEqual({
+				status: 'error',
+				message:
+					'Could not detect a deployable project. Expected a package.json with a build script (e.g. "build": "next build"), or a bare index.html for static HTML deploys.',
+			});
+			expect(apiCalled).toBe(false);
+			expect(existsSync(join(testDir, '.env'))).toBe(false);
+			expect(existsSync(join(testDir, 'agentuity.json'))).toBe(false);
+		});
+
+		test('explicit project id rejects non-project directories before fetching or writing', async () => {
+			let apiCalled = false;
+			const apiClient = {
+				get: async () => {
+					apiCalled = true;
+					throw new Error('bind should validate structure first');
+				},
+			} as unknown as APIClient;
+			const logger = {
+				child: () => logger,
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: (): void => {},
+				fatal: (): never => {
+					throw new Error('fatal');
+				},
+			} satisfies Logger;
+
+			const result = await runProjectImport({
+				dir: testDir,
+				auth: {
+					apiKey: 'ag_test',
+					userId: 'usr_test',
+					expires: new Date(Date.now() + 60_000),
+				} satisfies AuthData,
+				apiClient,
+				config: {
+					name: 'test',
+					preferences: {
+						orgId: 'org_team',
+					},
+				} as unknown as Config,
+				logger,
+				interactive: false,
+				confirm: true,
+				projectId: 'proj_existing',
+			});
+
+			expect(result).toEqual({
+				status: 'error',
+				message:
+					'Could not detect a deployable project. Expected a package.json with a build script (e.g. "build": "next build"), or a bare index.html for static HTML deploys.',
+			});
+			expect(apiCalled).toBe(false);
+			expect(existsSync(join(testDir, '.env'))).toBe(false);
+			expect(existsSync(join(testDir, 'agentuity.json'))).toBe(false);
+		});
+
+		test('validate-only with a matching registered project does not prompt or write', async () => {
+			const confirmSpy = spyOn(tui, 'confirm').mockResolvedValue(false);
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'existing-project-app',
+				})
+			);
+			writeFileSync(
+				join(testDir, 'agentuity.json'),
+				JSON.stringify({
+					projectId: 'proj_vmatch',
+					orgId: 'org_team',
+					region: 'use',
+				})
+			);
+
+			const apiClient = {
+				get: async (url: string) => {
+					if (url.startsWith('/cli/organization')) {
+						return { success: true, data: [{ id: 'org_team', name: 'Team' }] };
+					}
+					return {
+						success: true,
+						data: {
+							id: 'proj_vmatch',
+							name: 'Existing Project',
+							orgId: 'org_team',
+							cloudRegion: 'use',
+						},
+					};
+				},
+			} as unknown as APIClient;
+			const logger = {
+				child: () => logger,
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('fatal');
+				},
+			} satisfies Logger;
+
+			const result = await runProjectImport({
+				dir: testDir,
+				auth: {
+					apiKey: 'ag_test',
+					userId: 'usr_test',
+					expires: new Date(Date.now() + 60_000),
+				} satisfies AuthData,
+				apiClient,
+				config: {
+					name: 'test-vmatch',
+					preferences: {
+						orgId: 'org_team',
+					},
+				} as unknown as Config,
+				logger,
+				validateOnly: true,
+				projectId: 'proj_vmatch',
+			});
+
+			expect(result.status).toBe('valid');
+			expect(confirmSpy).not.toHaveBeenCalled();
+			expect(existsSync(join(testDir, '.env'))).toBe(false);
+			expect(JSON.parse(readFileSync(join(testDir, 'agentuity.json'), 'utf8'))).toMatchObject({
+				projectId: 'proj_vmatch',
+			});
+		});
+
+		test('validate-only with a registered project without access fails without importing', async () => {
+			const confirmSpy = spyOn(tui, 'confirm').mockResolvedValue(false);
+			const selectOrgSpy = spyOn(tui, 'selectOrganization').mockImplementation(() => {
+				throw new Error('validate-only must not prompt for an organization');
+			});
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'existing-project-app',
+				})
+			);
+			writeFileSync(
+				join(testDir, 'agentuity.json'),
+				JSON.stringify({
+					projectId: 'proj_vnoaccess',
+					orgId: 'org_other',
+					region: 'use',
+				})
+			);
+
+			const apiClient = {
+				get: async (url: string) => {
+					if (url.startsWith('/cli/organization')) {
+						return { success: true, data: [{ id: 'org_team', name: 'Team' }] };
+					}
+					return {
+						success: true,
+						data: {
+							id: 'proj_vnoaccess',
+							name: 'Existing Project',
+							orgId: 'org_other',
+							cloudRegion: 'use',
+						},
+					};
+				},
+			} as unknown as APIClient;
+			const logger = {
+				child: () => logger,
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('fatal');
+				},
+			} satisfies Logger;
+
+			const result = await runProjectImport({
+				dir: testDir,
+				auth: {
+					apiKey: 'ag_test',
+					userId: 'usr_test',
+					expires: new Date(Date.now() + 60_000),
+				} satisfies AuthData,
+				apiClient,
+				config: {
+					name: 'test-vnoaccess',
+					preferences: {
+						orgId: 'org_team',
+					},
+				} as unknown as Config,
+				logger,
+				validateOnly: true,
+				projectId: 'proj_vnoaccess',
+			});
+
+			expect(result).toEqual({
+				status: 'error',
+				message:
+					"You don't have access to this project. Run interactively to import it to your organization.",
+			});
+			expect(confirmSpy).not.toHaveBeenCalled();
+			expect(selectOrgSpy).not.toHaveBeenCalled();
+			expect(existsSync(join(testDir, '.env'))).toBe(false);
 		});
 	});
 });

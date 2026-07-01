@@ -614,6 +614,30 @@ async function importIntoExistingProject(opts: ReconcileOptions): Promise<Reconc
 		return { status: 'error', message: 'Project ID is required.' };
 	}
 
+	const isValid = await isValidProjectStructure(opts.dir);
+	if (!isValid) {
+		return {
+			status: 'error',
+			message: NO_DEPLOYABLE_PROJECT_MESSAGE,
+		};
+	}
+
+	if (!opts.confirm) {
+		if (!opts.interactive) {
+			return {
+				status: 'error',
+				message: 'Project import requires interactive mode.',
+			};
+		}
+		const shouldImport = await tui.confirm(
+			`Bind this directory to existing project ${projectId}?`,
+			true
+		);
+		if (!shouldImport) {
+			return { status: 'skipped', message: 'Import cancelled.' };
+		}
+	}
+
 	const project = await tui.spinner({
 		message: 'Fetching project',
 		clearOnSuccess: true,
@@ -744,7 +768,7 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 	const projectConfig = await tryLoadProjectConfig(dir, config);
 
 	if (validateOnly && projectId && projectConfig?.projectId !== projectId) {
-		const isValid = projectConfig ? true : await isValidProjectStructure(dir);
+		const isValid = await isValidProjectStructure(dir);
 		if (!isValid) {
 			return {
 				status: 'error',
@@ -759,7 +783,7 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 	}
 
 	if (projectId && (!projectConfig || projectConfig.projectId !== projectId)) {
-		return await importIntoExistingProject(opts);
+		return await importIntoExistingProject({ ...opts, interactive });
 	}
 
 	if (projectConfig) {
@@ -775,6 +799,10 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 			const hasAccess = userOrgs.some((org) => org.id === project.orgId);
 
 			if (hasAccess) {
+				if (validateOnly) {
+					return { status: 'valid', project: projectConfig };
+				}
+
 				tui.info('This project is already registered and you have access to it.');
 
 				if (interactive) {
@@ -795,7 +823,7 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 			}
 
 			// Has agentuity.json but no access - offer to import
-			if (!interactive && !opts.confirm) {
+			if ((!interactive && !opts.confirm) || validateOnly) {
 				return {
 					status: 'error',
 					message:
@@ -808,7 +836,7 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 			});
 		} catch {
 			// Project doesn't exist - offer to import
-			if (!interactive && !opts.confirm) {
+			if ((!interactive && !opts.confirm) || validateOnly) {
 				return {
 					status: 'error',
 					message: 'Project not found. Run interactively to import it to your organization.',
@@ -837,10 +865,6 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 			status: 'valid',
 			message: 'Project structure is valid and ready to import.',
 		};
-	}
-
-	if (opts.projectId?.trim()) {
-		return await importIntoExistingProject(opts);
 	}
 
 	if (!interactive && !opts.confirm) {
