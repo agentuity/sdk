@@ -52,6 +52,8 @@ export interface ReconcileOptions {
 	region?: string;
 	/** Project name from --name flag */
 	name?: string;
+	/** Existing cloud project ID to bind the local directory to. */
+	projectId?: string;
 	/**
 	 * When true, suppress the "Would you like to register it now?"
 	 * confirmation in `createNewProject`. Use this when the caller has
@@ -604,6 +606,83 @@ async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult
 }
 
 /**
+ * Bind an unregistered local project to an existing Agentuity cloud project.
+ */
+async function importIntoExistingProject(opts: ReconcileOptions): Promise<ReconcileResult> {
+	const projectId = opts.projectId?.trim();
+	if (!projectId) {
+		return { status: 'error', message: 'Project ID is required.' };
+	}
+
+	const isValid = await isValidProjectStructure(opts.dir);
+	if (!isValid) {
+		return {
+			status: 'error',
+			message: NO_DEPLOYABLE_PROJECT_MESSAGE,
+		};
+	}
+
+	if (!opts.confirm) {
+		if (!opts.interactive) {
+			return {
+				status: 'error',
+				message: 'Project import requires interactive mode.',
+			};
+		}
+		const shouldImport = await tui.confirm(
+			`Bind this directory to existing project ${projectId}?`,
+			true
+		);
+		if (!shouldImport) {
+			return { status: 'skipped', message: 'Import cancelled.' };
+		}
+	}
+
+	let project: Awaited<ReturnType<typeof projectGet>>;
+	try {
+		project = await tui.spinner({
+			message: 'Fetching project',
+			clearOnSuccess: true,
+			callback: () => projectGet(opts.apiClient, { id: projectId, mask: false, keys: true }),
+		});
+	} catch {
+		// Match the registered-project path: fetch failures become a structured
+		// error instead of an uncaught throw (keeps --json output well-formed).
+		return {
+			status: 'error',
+			message: `Could not load project ${projectId}. Check the project ID and your access, then try again.`,
+		};
+	}
+	const sdkKey = project.api_key?.trim();
+	if (!sdkKey) {
+		return {
+			status: 'error',
+			message: 'Could not load an SDK key for the selected project.',
+		};
+	}
+	const region = project.cloudRegion?.trim() || opts.region?.trim() || 'usc';
+
+	await createProjectConfig(opts.dir, {
+		projectId: project.id,
+		orgId: project.orgId,
+		sdkKey,
+		region,
+	});
+	tui.success('Updated agentuity.json and AGENTUITY_SDK_KEY in .env');
+
+	tui.success('Project imported successfully!');
+
+	return {
+		status: 'imported',
+		project: {
+			projectId: project.id,
+			orgId: project.orgId,
+			region,
+		},
+	};
+}
+
+/**
  * Reconcile a project - validate access or import if needed
  *
  * This function checks if the current directory has a valid agentuity.json
@@ -693,9 +772,29 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
  */
 export async function runProjectImport(opts: ReconcileOptions): Promise<ReconcileResult> {
 	const { dir, apiClient, config, interactive = true, validateOnly = false } = opts;
+	const projectId = opts.projectId?.trim();
 
 	// Check if agentuity.json already exists and is valid
 	const projectConfig = await tryLoadProjectConfig(dir, config);
+
+	if (validateOnly && projectId && projectConfig?.projectId !== projectId) {
+		const isValid = await isValidProjectStructure(dir);
+		if (!isValid) {
+			return {
+				status: 'error',
+				message: NO_DEPLOYABLE_PROJECT_MESSAGE,
+			};
+		}
+
+		return {
+			status: 'valid',
+			message: 'Project structure is valid and ready to import.',
+		};
+	}
+
+	if (projectId && (!projectConfig || projectConfig.projectId !== projectId)) {
+		return await importIntoExistingProject({ ...opts, interactive });
+	}
 
 	if (projectConfig) {
 		try {
@@ -710,6 +809,10 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 			const hasAccess = userOrgs.some((org) => org.id === project.orgId);
 
 			if (hasAccess) {
+				if (validateOnly) {
+					return { status: 'valid', project: projectConfig };
+				}
+
 				tui.info('This project is already registered and you have access to it.');
 
 				if (interactive) {
@@ -730,7 +833,7 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 			}
 
 			// Has agentuity.json but no access - offer to import
-			if (!interactive && !opts.confirm) {
+			if ((!interactive && !opts.confirm) || validateOnly) {
 				return {
 					status: 'error',
 					message:
@@ -743,7 +846,7 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 			});
 		} catch {
 			// Project doesn't exist - offer to import
-			if (!interactive && !opts.confirm) {
+			if ((!interactive && !opts.confirm) || validateOnly) {
 				return {
 					status: 'error',
 					message: 'Project not found. Run interactively to import it to your organization.',

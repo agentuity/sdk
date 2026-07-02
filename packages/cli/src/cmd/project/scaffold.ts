@@ -7,7 +7,7 @@
  */
 
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, realpath, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Logger } from '@agentuity/core';
 import * as tui from '../../tui.ts';
@@ -296,6 +296,16 @@ export async function commitAgentuityAugmentation(
 
 	const insideWorkTree = await runGit(['rev-parse', '--is-inside-work-tree'], { cwd: dest });
 	if (!insideWorkTree.ok || insideWorkTree.stdout !== 'true') return;
+
+	const topLevel = await runGit(['rev-parse', '--show-toplevel'], { cwd: dest });
+	if (!topLevel.ok) return;
+	try {
+		// A failed resolution means we cannot prove the repo root is the scaffold
+		// dir; skip the commit like the other guards instead of throwing.
+		if ((await realpath(topLevel.stdout.trim())) !== (await realpath(dest))) return;
+	} catch {
+		return;
+	}
 
 	const status = await runGit(['status', '--porcelain', '--', '.'], { cwd: dest });
 	if (!status.ok || status.stdout.trim() === '') return;

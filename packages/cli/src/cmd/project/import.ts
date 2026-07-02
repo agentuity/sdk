@@ -50,6 +50,10 @@ export const importSubcommand = createSubcommand({
 			command: getCommand('project import --name my-agent --confirm'),
 			description: 'Import project non-interactively, skipping prompts',
 		},
+		{
+			command: getCommand('project import --project-id proj_abc123 --confirm'),
+			description: 'Bind this local project directory to an existing cloud project',
+		},
 	],
 	requires: { auth: true, apiClient: true },
 	optional: { region: true, org: true },
@@ -69,7 +73,10 @@ export const importSubcommand = createSubcommand({
 				.optional()
 				.default(false)
 				.describe('Deploy the project after importing'),
-			projectId: z.string().optional().describe('Use a pre-created project ID (skip creation)'),
+			projectId: z
+				.string()
+				.optional()
+				.describe('Bind this local project directory to an existing cloud project ID'),
 			remote: z
 				.string()
 				.optional()
@@ -135,6 +142,7 @@ export const importSubcommand = createSubcommand({
 			orgId,
 			region,
 			name: opts.name,
+			projectId: opts.projectId,
 		});
 
 		if (result.status === 'error') {

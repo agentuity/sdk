@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { commitAgentuityAugmentation } from '../../../src/cmd/project/scaffold';
@@ -58,5 +58,34 @@ describe('project scaffold git helpers', () => {
 		const message = git(testDir, ['log', '-1', '--pretty=%s']).trim();
 		expect(message).toBe('Augmented with Agentuity examples for services: Database, Queue');
 		expect(git(testDir, ['status', '--porcelain']).trim()).toBe('');
+	});
+
+	test('does not commit into a parent repository when the app has no nested git repo', async () => {
+		if (!hasGit()) return;
+
+		git(testDir, ['init']);
+		writeFileSync(join(testDir, 'README.md'), '# parent\n');
+		git(testDir, ['add', '.']);
+		git(testDir, [
+			'-c',
+			'commit.gpgsign=false',
+			'commit',
+			'--author=Test User <test@example.com>',
+			'-m',
+			'Initial parent commit',
+		]);
+
+		const appDir = join(testDir, 'generated-app');
+		mkdirSync(appDir);
+		writeFileSync(join(appDir, 'package.json'), '{"name":"generated-app"}\n');
+
+		await commitAgentuityAugmentation(appDir, {
+			services: [],
+			author: { name: 'Agentuity Bot', email: 'bot@agentuity.com' },
+		});
+
+		const message = git(testDir, ['log', '-1', '--pretty=%s']).trim();
+		expect(message).toBe('Initial parent commit');
+		expect(git(testDir, ['status', '--porcelain']).trim()).toContain('generated-app/');
 	});
 });
