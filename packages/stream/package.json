@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/stream",
-	"version": "3.1.5",
+	"version": "3.1.6",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
