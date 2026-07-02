@@ -638,11 +638,21 @@ async function importIntoExistingProject(opts: ReconcileOptions): Promise<Reconc
 		}
 	}
 
-	const project = await tui.spinner({
-		message: 'Fetching project',
-		clearOnSuccess: true,
-		callback: () => projectGet(opts.apiClient, { id: projectId, mask: false, keys: true }),
-	});
+	let project: Awaited<ReturnType<typeof projectGet>>;
+	try {
+		project = await tui.spinner({
+			message: 'Fetching project',
+			clearOnSuccess: true,
+			callback: () => projectGet(opts.apiClient, { id: projectId, mask: false, keys: true }),
+		});
+	} catch {
+		// Match the registered-project path: fetch failures become a structured
+		// error instead of an uncaught throw (keeps --json output well-formed).
+		return {
+			status: 'error',
+			message: `Could not load project ${projectId}. Check the project ID and your access, then try again.`,
+		};
+	}
 	const sdkKey = project.api_key?.trim();
 	if (!sdkKey) {
 		return {

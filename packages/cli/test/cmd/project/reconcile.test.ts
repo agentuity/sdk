@@ -550,6 +550,60 @@ describe('project reconcile', () => {
 			});
 		});
 
+		test('explicit project id returns a structured error when the project fetch fails', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'existing-project-app',
+					dependencies: {
+						'@agentuity/sdk': '^1.0.0',
+					},
+				})
+			);
+
+			const apiClient = {
+				get: async () => {
+					throw new Error('project not found');
+				},
+			} as unknown as APIClient;
+			const logger = {
+				child: () => logger,
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('fatal');
+				},
+			} satisfies Logger;
+
+			const result = await runProjectImport({
+				dir: testDir,
+				auth: {
+					apiKey: 'ag_test',
+					userId: 'usr_test',
+					expires: new Date(Date.now() + 60_000),
+				} satisfies AuthData,
+				apiClient,
+				config: {
+					name: 'test',
+					preferences: {
+						orgId: 'org_team',
+					},
+				} as unknown as Config,
+				logger,
+				interactive: false,
+				confirm: true,
+				projectId: 'proj_missing',
+			});
+
+			expect(result.status).toBe('error');
+			expect(result.message).toContain('proj_missing');
+			expect(existsSync(join(testDir, '.env'))).toBe(false);
+			expect(existsSync(join(testDir, 'agentuity.json'))).toBe(false);
+		});
+
 		test('explicit project id requires confirmation before fetching or writing', async () => {
 			writeFileSync(
 				join(testDir, 'package.json'),

@@ -299,7 +299,13 @@ export async function commitAgentuityAugmentation(
 
 	const topLevel = await runGit(['rev-parse', '--show-toplevel'], { cwd: dest });
 	if (!topLevel.ok) return;
-	if ((await realpath(topLevel.stdout.trim())) !== (await realpath(dest))) return;
+	try {
+		// A failed resolution means we cannot prove the repo root is the scaffold
+		// dir; skip the commit like the other guards instead of throwing.
+		if ((await realpath(topLevel.stdout.trim())) !== (await realpath(dest))) return;
+	} catch {
+		return;
+	}
 
 	const status = await runGit(['status', '--porcelain', '--', '.'], { cwd: dest });
 	if (!status.ok || status.stdout.trim() === '') return;
