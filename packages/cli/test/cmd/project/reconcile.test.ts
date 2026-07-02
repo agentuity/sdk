@@ -660,7 +660,7 @@ describe('project reconcile', () => {
 			expect(existsSync(join(testDir, 'agentuity.json'))).toBe(false);
 		});
 
-		test('validate-only with project id does not fetch or write files', async () => {
+		test('validate-only with project id verifies the cloud project without writing files', async () => {
 			writeFileSync(
 				join(testDir, 'package.json'),
 				JSON.stringify({
@@ -671,14 +671,26 @@ describe('project reconcile', () => {
 				})
 			);
 
-			let apiCalled = false;
+			const requestedUrls: string[] = [];
+			let envUpdateCalled = false;
 			const apiClient = {
-				get: async () => {
-					apiCalled = true;
-					throw new Error('validate-only should not fetch the project');
+				get: async (url: string) => {
+					requestedUrls.push(url);
+					return {
+						success: true,
+						data: {
+							id: 'proj_existing',
+							name: 'Existing Project',
+							orgId: 'org_team',
+							cloudRegion: 'use',
+							secrets: {
+								AGENTUITY_SDK_KEY: 'sdk_existing',
+							},
+						},
+					};
 				},
 				request: async () => {
-					apiCalled = true;
+					envUpdateCalled = true;
 					return { success: true, data: undefined };
 				},
 			} as unknown as APIClient;
@@ -717,7 +729,192 @@ describe('project reconcile', () => {
 
 			expect(result).toEqual({
 				status: 'valid',
-				message: 'Project structure is valid and ready to import.',
+				message: 'Project structure is valid. Project access verified. No files were changed.',
+			});
+			expect(requestedUrls).toEqual([
+				'/cli/project/proj_existing?mask=false&includeProjectKeys=true',
+			]);
+			expect(envUpdateCalled).toBe(false);
+			expect(existsSync(join(testDir, '.env'))).toBe(false);
+			expect(existsSync(join(testDir, 'agentuity.json'))).toBe(false);
+		});
+
+		test('validate-only with project id fails when the project cannot be loaded', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'existing-project-app',
+					dependencies: {
+						'@agentuity/sdk': '^1.0.0',
+					},
+				})
+			);
+
+			const apiClient = {
+				get: async () => {
+					throw new Error('project not found');
+				},
+			} as unknown as APIClient;
+			const logger = {
+				child: () => logger,
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('fatal');
+				},
+			} satisfies Logger;
+
+			const result = await runProjectImport({
+				dir: testDir,
+				auth: {
+					apiKey: 'ag_test',
+					userId: 'usr_test',
+					expires: new Date(Date.now() + 60_000),
+				} satisfies AuthData,
+				apiClient,
+				config: {
+					name: 'test',
+					preferences: {
+						orgId: 'org_team',
+					},
+				} as unknown as Config,
+				logger,
+				interactive: false,
+				confirm: true,
+				validateOnly: true,
+				projectId: 'proj_missing',
+			});
+
+			expect(result).toEqual({
+				status: 'error',
+				message:
+					'Could not load project proj_missing. Check the project ID and your access, then try again.',
+			});
+			expect(existsSync(join(testDir, '.env'))).toBe(false);
+			expect(existsSync(join(testDir, 'agentuity.json'))).toBe(false);
+		});
+
+		test('validate-only with project id fails when the project has no SDK key', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'existing-project-app',
+					dependencies: {
+						'@agentuity/sdk': '^1.0.0',
+					},
+				})
+			);
+
+			const apiClient = {
+				get: async () => {
+					return {
+						success: true,
+						data: {
+							id: 'proj_nokey',
+							name: 'Existing Project',
+							orgId: 'org_team',
+							cloudRegion: 'use',
+						},
+					};
+				},
+			} as unknown as APIClient;
+			const logger = {
+				child: () => logger,
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('fatal');
+				},
+			} satisfies Logger;
+
+			const result = await runProjectImport({
+				dir: testDir,
+				auth: {
+					apiKey: 'ag_test',
+					userId: 'usr_test',
+					expires: new Date(Date.now() + 60_000),
+				} satisfies AuthData,
+				apiClient,
+				config: {
+					name: 'test',
+					preferences: {
+						orgId: 'org_team',
+					},
+				} as unknown as Config,
+				logger,
+				interactive: false,
+				confirm: true,
+				validateOnly: true,
+				projectId: 'proj_nokey',
+			});
+
+			expect(result).toEqual({
+				status: 'error',
+				message: 'Could not load an SDK key for the selected project.',
+			});
+			expect(existsSync(join(testDir, '.env'))).toBe(false);
+			expect(existsSync(join(testDir, 'agentuity.json'))).toBe(false);
+		});
+
+		test('validate-only without project id stays local and writes nothing', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'existing-project-app',
+					dependencies: {
+						'@agentuity/sdk': '^1.0.0',
+					},
+				})
+			);
+
+			let apiCalled = false;
+			const apiClient = {
+				get: async () => {
+					apiCalled = true;
+					throw new Error('plain validate-only should not call the API');
+				},
+			} as unknown as APIClient;
+			const logger = {
+				child: () => logger,
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('fatal');
+				},
+			} satisfies Logger;
+
+			const result = await runProjectImport({
+				dir: testDir,
+				auth: {
+					apiKey: 'ag_test',
+					userId: 'usr_test',
+					expires: new Date(Date.now() + 60_000),
+				} satisfies AuthData,
+				apiClient,
+				config: {
+					name: 'test',
+					preferences: {
+						orgId: 'org_team',
+					},
+				} as unknown as Config,
+				logger,
+				interactive: false,
+				confirm: false,
+				validateOnly: true,
+			});
+
+			expect(result).toEqual({
+				status: 'valid',
+				message: 'Project structure is valid. No files were changed.',
 			});
 			expect(apiCalled).toBe(false);
 			expect(existsSync(join(testDir, '.env'))).toBe(false);

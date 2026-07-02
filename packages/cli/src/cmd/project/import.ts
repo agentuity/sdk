@@ -54,6 +54,10 @@ export const importSubcommand = createSubcommand({
 			command: getCommand('project import --project-id proj_abc123 --confirm'),
 			description: 'Bind this local project directory to an existing cloud project',
 		},
+		{
+			command: getCommand('project import --validate-only --project-id proj_abc123'),
+			description: 'Check the project structure and cloud project access without writing files',
+		},
 	],
 	requires: { auth: true, apiClient: true },
 	optional: { region: true, org: true },
@@ -67,7 +71,9 @@ export const importSubcommand = createSubcommand({
 			validateOnly: z
 				.boolean()
 				.optional()
-				.describe('Only validate the project structure without prompting'),
+				.describe(
+					'Validate without prompting or writing files; with --project-id, also verifies access to that cloud project'
+				),
 			deploy: z
 				.boolean()
 				.optional()
