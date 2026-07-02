@@ -605,6 +605,52 @@ async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult
 	return { status: 'imported', project };
 }
 
+type ProjectBindFetch =
+	| { ok: true; project: Awaited<ReturnType<typeof projectGet>>; sdkKey: string }
+	| { ok: false; error: ReconcileResult };
+
+/**
+ * Fetch an existing cloud project for binding. Read-only and shared by the
+ * real bind path and the validate-only preflight, so both succeed or fail
+ * with the same semantics.
+ */
+async function fetchProjectForBind(
+	apiClient: APIClient,
+	projectId: string
+): Promise<ProjectBindFetch> {
+	let project: Awaited<ReturnType<typeof projectGet>>;
+	try {
+		project = await tui.spinner({
+			message: 'Fetching project',
+			clearOnSuccess: true,
+			callback: () => projectGet(apiClient, { id: projectId, mask: false, keys: true }),
+		});
+	} catch {
+		// Match the registered-project path: fetch failures become a structured
+		// error instead of an uncaught throw (keeps --json output well-formed).
+		return {
+			ok: false,
+			error: {
+				status: 'error',
+				message: `Could not load project ${projectId}. Check the project ID and your access, then try again.`,
+			},
+		};
+	}
+
+	const sdkKey = project.api_key?.trim();
+	if (!sdkKey) {
+		return {
+			ok: false,
+			error: {
+				status: 'error',
+				message: 'Could not load an SDK key for the selected project.',
+			},
+		};
+	}
+
+	return { ok: true, project, sdkKey };
+}
+
 /**
  * Bind an unregistered local project to an existing Agentuity cloud project.
  */
@@ -638,28 +684,11 @@ async function importIntoExistingProject(opts: ReconcileOptions): Promise<Reconc
 		}
 	}
 
-	let project: Awaited<ReturnType<typeof projectGet>>;
-	try {
-		project = await tui.spinner({
-			message: 'Fetching project',
-			clearOnSuccess: true,
-			callback: () => projectGet(opts.apiClient, { id: projectId, mask: false, keys: true }),
-		});
-	} catch {
-		// Match the registered-project path: fetch failures become a structured
-		// error instead of an uncaught throw (keeps --json output well-formed).
-		return {
-			status: 'error',
-			message: `Could not load project ${projectId}. Check the project ID and your access, then try again.`,
-		};
+	const fetched = await fetchProjectForBind(opts.apiClient, projectId);
+	if (!fetched.ok) {
+		return fetched.error;
 	}
-	const sdkKey = project.api_key?.trim();
-	if (!sdkKey) {
-		return {
-			status: 'error',
-			message: 'Could not load an SDK key for the selected project.',
-		};
-	}
+	const { project, sdkKey } = fetched;
 	const region = project.cloudRegion?.trim() || opts.region?.trim() || 'usc';
 
 	await createProjectConfig(opts.dir, {
@@ -786,9 +815,17 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 			};
 		}
 
+		// --project-id means "bind to this cloud project", so a meaningful
+		// preflight must prove the binding would work: fetch the project and
+		// confirm it has an SDK key, but write nothing.
+		const fetched = await fetchProjectForBind(apiClient, projectId);
+		if (!fetched.ok) {
+			return fetched.error;
+		}
+
 		return {
 			status: 'valid',
-			message: 'Project structure is valid and ready to import.',
+			message: 'Project structure is valid. Project access verified. No files were changed.',
 		};
 	}
 
@@ -873,7 +910,7 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 	if (validateOnly) {
 		return {
 			status: 'valid',
-			message: 'Project structure is valid and ready to import.',
+			message: 'Project structure is valid. No files were changed.',
 		};
 	}
 
