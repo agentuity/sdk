@@ -27,7 +27,7 @@ import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic
 import type { Logger } from './logger';
 import { ConsoleLogRecordExporter, DebugSpanExporter } from './console';
 import { instrumentFetch } from './fetch';
-import { createLogger, patchConsole } from './logger';
+import { createLogger, patchConsole, restoreConsole } from './logger';
 import type { LogLevel } from '@agentuity/core';
 import { JSONLLogExporter, JSONLTraceExporter, JSONLMetricExporter } from './exporters';
 import { telemetry as telemetryGlobal } from './globals';
@@ -189,6 +189,9 @@ export function registerTelemetry(config?: TelemetryConfig): TelemetryResponse {
 	const previous = telemetryGlobal.get();
 	if (previous) {
 		previous.shutdown().catch(() => {});
+		// Drop any prior console patch before installing a new one so prefixes
+		// cannot chain across bun --hot module re-evaluations.
+		restoreConsole();
 	}
 
 	// Merge provided config with env defaults
