@@ -2,11 +2,11 @@ import { SeverityNumber } from '@opentelemetry/api-logs';
 import { type ExportResult, ExportResultCode } from '@opentelemetry/core';
 import type { LogRecordExporter, ReadableLogRecord } from '@opentelemetry/sdk-logs';
 import type { SpanExporter, ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { __originalConsole } from './logger';
+import { getOriginalConsole } from './globals';
 
 /**
  * Console implementation of the LogRecordExporter interface
- * Uses __originalConsole to avoid infinite loop when console is patched
+ * Uses the native console snapshot to avoid infinite loop when console is patched
  */
 export class ConsoleLogRecordExporter implements LogRecordExporter {
 	private dumpRecords = false;
@@ -21,9 +21,10 @@ export class ConsoleLogRecordExporter implements LogRecordExporter {
 	 * @param resultCallback - Callback function to report the export result
 	 */
 	export(logs: ReadableLogRecord[], resultCallback: (result: ExportResult) => void): void {
+		const original = getOriginalConsole();
 		for (const log of logs) {
 			if (this.dumpRecords) {
-				__originalConsole.log('[LOG]', {
+				original.log('[LOG]', {
 					body: log.body,
 					severityNumber: log.severityNumber,
 					severityText: log.severityText,
@@ -36,19 +37,19 @@ export class ConsoleLogRecordExporter implements LogRecordExporter {
 				const msg = `[${severity}] ${log.body}`;
 				switch (log.severityNumber) {
 					case SeverityNumber.DEBUG:
-						__originalConsole.debug(msg);
+						original.debug(msg);
 						break;
 					case SeverityNumber.INFO:
-						__originalConsole.info(msg);
+						original.info(msg);
 						break;
 					case SeverityNumber.WARN:
-						__originalConsole.warn(msg);
+						original.warn(msg);
 						break;
 					case SeverityNumber.ERROR:
-						__originalConsole.error(msg);
+						original.error(msg);
 						break;
 					default:
-						__originalConsole.log(msg);
+						original.log(msg);
 						break;
 				}
 			}
@@ -72,12 +73,13 @@ export class ConsoleLogRecordExporter implements LogRecordExporter {
 
 /**
  * Console implementation of the SpanExporter interface
- * Uses __originalConsole to avoid infinite loop when console is patched
+ * Uses the native console snapshot to avoid infinite loop when console is patched
  */
 export class DebugSpanExporter implements SpanExporter {
 	export(spans: ReadableSpan[], resultCallback: (result: ExportResult) => void): void {
+		const original = getOriginalConsole();
 		for (const span of spans) {
-			__originalConsole.log('[SPAN]', {
+			original.log('[SPAN]', {
 				name: span.name,
 				traceId: span.spanContext().traceId,
 				spanId: span.spanContext().spanId,

@@ -71,17 +71,37 @@ export interface AgentuityOptions {
 	services?: ServicesConfig;
 }
 
-// Global state (initialized once at composition time)
-let telemetryInstance: TelemetryResponse | null = null;
-let globalServices: Services | null = null;
+// Process-global state (survives bun --hot module re-evaluation)
+const telemetryInstanceKey = Symbol.for('@agentuity/hono:telemetry');
+const servicesInstanceKey = Symbol.for('@agentuity/hono:services');
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const g = globalThis as any;
+
+function getTelemetryInstance(): TelemetryResponse | null {
+	return (g[telemetryInstanceKey] as TelemetryResponse | undefined) ?? null;
+}
+
+function setTelemetryInstance(value: TelemetryResponse | null): void {
+	g[telemetryInstanceKey] = value;
+}
+
+function getGlobalServices(): Services | null {
+	return (g[servicesInstanceKey] as Services | undefined) ?? null;
+}
+
+function setGlobalServices(value: Services | null): void {
+	g[servicesInstanceKey] = value;
+}
 
 /**
  * Initialize service clients.
  */
 function initServices(config?: ServicesConfig): Services {
-	if (globalServices) return globalServices;
+	const existing = getGlobalServices();
+	if (existing) return existing;
 
-	globalServices = {
+	const services: Services = {
 		kv: new KeyValueClient({ logger: config?.logger, ...config?.clients?.kv }),
 		stream: new StreamClient({ logger: config?.logger, ...config?.clients?.stream }),
 		vector: new VectorClient({ logger: config?.logger, ...config?.clients?.vector }),
@@ -91,25 +111,26 @@ function initServices(config?: ServicesConfig): Services {
 		schedule: new ScheduleClient({ logger: config?.logger, ...config?.clients?.schedule }),
 		sandbox: new SandboxClient({ logger: config?.logger, ...config?.clients?.sandbox }),
 	};
-
-	return globalServices;
+	setGlobalServices(services);
+	return services;
 }
 
 /**
  * Get initialized services. Throws if not initialized.
  */
 export function getServices(): Services {
-	if (!globalServices) {
+	const services = getGlobalServices();
+	if (!services) {
 		throw new Error('Services not initialized. Call agentuity() first.');
 	}
-	return globalServices;
+	return services;
 }
 
 /**
  * Reset global state (for testing).
  */
 export function resetServices(): void {
-	globalServices = null;
+	setGlobalServices(null);
 }
 
 /**
@@ -124,9 +145,12 @@ export function resetServices(): void {
 export function agentuity<E extends Env = any, P extends string = any>(
 	options?: AgentuityOptions
 ): MiddlewareHandler<E, P> {
-	// Initialize telemetry (auto-configures from env vars)
+	// Initialize telemetry (auto-configures from env vars).
+	// Stored on globalThis so bun --hot does not re-register and re-patch console.
+	let telemetryInstance = getTelemetryInstance();
 	if (!telemetryInstance) {
 		telemetryInstance = register(options?.telemetry);
+		setTelemetryInstance(telemetryInstance);
 	}
 
 	// Initialize services
@@ -142,10 +166,12 @@ export function agentuity<E extends Env = any, P extends string = any>(
 		// choose the subset of Agentuity variables they want to expose.
 		const setVar = c.set as (key: string, value: unknown) => void;
 
+		const activeTelemetry = getTelemetryInstance() ?? telemetryInstance;
+
 		// Inject telemetry into context
-		setVar('tracer', telemetryInstance!.tracer);
-		setVar('logger', telemetryInstance!.logger);
-		setVar('meter', telemetryInstance!.meter);
+		setVar('tracer', activeTelemetry.tracer);
+		setVar('logger', activeTelemetry.logger);
+		setVar('meter', activeTelemetry.meter);
 
 		// Inject services into context
 		const services = getServices();
@@ -166,14 +192,14 @@ export function agentuity<E extends Env = any, P extends string = any>(
  * Get the telemetry instance. Available after agentuity() is composed.
  */
 export function getTelemetry(): TelemetryResponse | null {
-	return telemetryInstance;
+	return getTelemetryInstance();
 }
 
 /**
  * Reset global state (for testing).
  */
 export function reset(): void {
-	telemetryInstance = null;
+	setTelemetryInstance(null);
 	resetServices();
 }
 

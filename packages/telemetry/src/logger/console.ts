@@ -1,5 +1,5 @@
 import type { LogLevel, Logger } from '@agentuity/core';
-import { __originalConsole } from '../logger';
+import { getOriginalConsole } from '../globals';
 import { formatMessage } from './util';
 
 const BOLD = '\x1b[1m';
@@ -173,14 +173,15 @@ export default class ConsoleLogger implements Logger {
 		try {
 			const colors = this.useColors ? this.colors.trace : NOCOLORS;
 			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
-			__originalConsole.debug(
+			getOriginalConsole().debug(
 				`${colors.level}[TRACE]${RESET} ${colors.message}${formattedMessage}${RESET}`
 			);
 		} catch (err) {
 			// Fallback to direct logging if formatting fails
 			const colors = this.colors.trace;
-			__originalConsole.debug(`${colors.level}[TRACE]${RESET} ${message}`, ...args);
-			__originalConsole.error('Error formatting log message:', err);
+			const original = getOriginalConsole();
+			original.debug(`${colors.level}[TRACE]${RESET} ${message}`, ...args);
+			original.error('Error formatting log message:', err);
 		}
 	}
 
@@ -197,14 +198,15 @@ export default class ConsoleLogger implements Logger {
 		try {
 			const colors = this.useColors ? this.colors.debug : NOCOLORS;
 			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
-			__originalConsole.debug(
+			getOriginalConsole().debug(
 				`${colors.level}[DEBUG]${RESET} ${colors.message}${formattedMessage}${RESET}`
 			);
 		} catch (err) {
 			// Fallback to direct logging if formatting fails
 			const colors = this.colors.debug;
-			__originalConsole.debug(`${colors.level}[DEBUG]${RESET} ${message}`, ...args);
-			__originalConsole.error('Error formatting log message:', err);
+			const original = getOriginalConsole();
+			original.debug(`${colors.level}[DEBUG]${RESET} ${message}`, ...args);
+			original.error('Error formatting log message:', err);
 		}
 	}
 
@@ -233,14 +235,15 @@ export default class ConsoleLogger implements Logger {
 		try {
 			const colors = this.useColors ? this.colors.info : NOCOLORS;
 			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
-			__originalConsole.info(
+			getOriginalConsole().info(
 				`${colors.level}[INFO]${RESET} ${colors.message}${formattedMessage}${RESET}`
 			);
 		} catch (err) {
 			// Fallback to direct logging if formatting fails
 			const colors = this.colors.info;
-			__originalConsole.info(`${colors.level}[INFO]${RESET} ${message}`, ...args);
-			__originalConsole.error('Error formatting log message:', err);
+			const original = getOriginalConsole();
+			original.info(`${colors.level}[INFO]${RESET} ${message}`, ...args);
+			original.error('Error formatting log message:', err);
 		}
 	}
 
@@ -257,14 +260,15 @@ export default class ConsoleLogger implements Logger {
 		try {
 			const colors = this.useColors ? this.colors.warn : NOCOLORS;
 			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
-			__originalConsole.warn(
+			getOriginalConsole().warn(
 				`${colors.level}[WARN]${RESET}  ${colors.message}${formattedMessage}${RESET}`
 			);
 		} catch (err) {
 			// Fallback to direct logging if formatting fails
 			const colors = this.colors.warn;
-			__originalConsole.warn(`${colors.level}[WARN]${RESET}  ${message}`, ...args);
-			__originalConsole.error('Error formatting log message:', err);
+			const original = getOriginalConsole();
+			original.warn(`${colors.level}[WARN]${RESET}  ${message}`, ...args);
+			original.error('Error formatting log message:', err);
 		}
 	}
 
@@ -281,14 +285,15 @@ export default class ConsoleLogger implements Logger {
 		try {
 			const colors = this.useColors ? this.colors.error : NOCOLORS;
 			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
-			__originalConsole.error(
+			getOriginalConsole().error(
 				`${colors.level}[ERROR]${RESET} ${colors.message}${formattedMessage}${RESET}`
 			);
 		} catch (err) {
 			// Fallback to direct logging if formatting fails
 			const colors = this.colors.error;
-			__originalConsole.error(`${colors.level}[ERROR]${RESET} ${message}`, ...args);
-			__originalConsole.error('Error formatting log message:', err);
+			const original = getOriginalConsole();
+			original.error(`${colors.level}[ERROR]${RESET} ${message}`, ...args);
+			original.error('Error formatting log message:', err);
 		}
 	}
 

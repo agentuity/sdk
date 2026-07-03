@@ -3,11 +3,15 @@ import { safeStringify, type LogLevel, type Logger } from '@agentuity/core';
 import * as LogsAPI from '@opentelemetry/api-logs';
 export type { Logger } from '@agentuity/core';
 import ConsoleLogger from './logger/console';
+import { getOriginalConsole } from './globals';
 
 /**
  * Reference to the original console object before patching.
+ * Prototypes from a process-global native snapshot so bun --hot module
+ * re-evaluation does not capture an already-patched console and stack
+ * log-level prefixes.
  */
-export const __originalConsole: Console = Object.create(console);
+export const __originalConsole: Console = Object.create(getOriginalConsole());
 
 export class OtelLogger implements Logger {
 	private readonly delegate: LogsAPI.Logger;
@@ -190,7 +194,10 @@ export function createLogger(
 }
 
 /**
- * Patches the global console object to integrate with OpenTelemetry logging
+ * Patches the global console object to integrate with OpenTelemetry logging.
+ *
+ * Safe to call across bun --hot reloads: always chains from the process-global
+ * native console snapshot, never from a previous patch.
  *
  * @param attributes - Attributes to include with all console log records
  */
@@ -202,7 +209,10 @@ export function patchConsole(
 	if (!enabled) {
 		return;
 	}
-	const _patch = { ...__originalConsole };
+	const original = getOriginalConsole();
+	// Prototype falls through to the native console for unpatched methods.
+	// Do not spread `globalThis.console` — after the first patch it is ours.
+	const _patch = Object.create(original) as Console;
 	const delegate = createLogger(true, attributes, logLevel);
 
 	// Patch individual console methods instead of reassigning the whole object
@@ -282,4 +292,14 @@ export function patchConsole(
 
 	// biome-ignore lint/suspicious/noGlobalAssign: intentionally replacing console with instrumented version
 	console = globalThis.console = _patch;
+}
+
+/**
+ * Restore `globalThis.console` to the native snapshot captured before patching.
+ * Used when re-registering telemetry so callers never observe a patch chain.
+ */
+export function restoreConsole(): void {
+	globalThis.console = getOriginalConsole();
+	// biome-ignore lint/suspicious/noGlobalAssign: restore module console binding too
+	console = globalThis.console;
 }
