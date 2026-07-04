@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+export function isCliApiKey(apiKey: string): boolean {
+	return apiKey.startsWith('ck_');
+}
+
 export const AIGatewayWSFrameType = {
 	request: 'request',
 	response: 'response',

@@ -6,11 +6,12 @@ import {
 	AIGatewayWSFrameType,
 	AIGatewayWSResponseStatus,
 	buildAIGatewayWebSocketUrl,
+	isCliApiKey,
 	parseAIGatewayWSServerFrame,
 	type AIGatewayWSUsage,
 	type AIGatewayWSServerError,
 	type AIGatewayWSServerResponse,
-} from './protocol';
+} from './protocol.ts';
 
 export const AIGatewayWebSocketErrorCode = {
 	connection_error: 'connection_error',
@@ -120,16 +121,16 @@ function normalizeOrgId(orgId: string | undefined): string | undefined {
 	return trimmed ? trimmed : undefined;
 }
 
-function resolveOrgId(options: { orgId?: string }): string {
+function resolveOrgId(options: { orgId?: string; apiKey: string }): string | undefined {
 	const resolved =
 		normalizeOrgId(options.orgId) ??
 		normalizeOrgId(getEnv('AGENTUITY_ORGID')) ??
 		normalizeOrgId(getEnv('AGENTUITY_ORG_ID')) ??
 		normalizeOrgId(getEnv('AGENTUITY_CLOUD_ORG_ID'));
-	if (!resolved) {
+	if (!resolved && isCliApiKey(options.apiKey)) {
 		throw new AIGatewayWebSocketError({
 			message:
-				'Organization ID is required. Provide orgId in options or set AGENTUITY_ORGID / AGENTUITY_ORG_ID / AGENTUITY_CLOUD_ORG_ID.',
+				'Organization ID is required when using a CLI API key (ck_*). Provide orgId in options or set AGENTUITY_ORGID / AGENTUITY_ORG_ID / AGENTUITY_CLOUD_ORG_ID.',
 			code: 'connection_error',
 		});
 	}
@@ -221,7 +222,7 @@ export class AIGatewayWebSocketClient {
 		AIGatewayWebSocketOptions;
 
 	readonly #apiKey: string;
-	readonly #orgId: string;
+	readonly #orgId: string | undefined;
 	readonly #url: string;
 
 	#activeLane: WebSocketLane | null = null;
@@ -251,7 +252,7 @@ export class AIGatewayWebSocketClient {
 			...options,
 		};
 		this.#apiKey = options.apiKey;
-		this.#orgId = resolveOrgId(options);
+		this.#orgId = resolveOrgId({ orgId: options.orgId, apiKey: options.apiKey });
 		this.#url = resolveWebSocketUrl(options);
 	}
 
@@ -267,7 +268,7 @@ export class AIGatewayWebSocketClient {
 		return this.#url;
 	}
 
-	get orgId(): string {
+	get orgId(): string | undefined {
 		return this.#orgId;
 	}
 
@@ -440,7 +441,7 @@ export class AIGatewayWebSocketClient {
 		const ws = new WebSocket(this.#url, {
 			headers: {
 				Authorization: `Bearer ${this.#apiKey}`,
-				'x-agentuity-orgid': this.#orgId,
+				...(this.#orgId ? { 'x-agentuity-orgid': this.#orgId } : {}),
 			},
 		});
 		const lane: WebSocketLane = {

@@ -119,6 +119,22 @@ describe('AIGatewayWebSocketClient', () => {
 		MockWebSocket.instances = [];
 	});
 
+	it('connects without org header for SDK keys', async () => {
+		const client = new AIGatewayWebSocketClient({
+			apiKey: 'ag_test_sdk_key',
+			url: 'https://aigateway.example',
+		});
+
+		const connectPromise = client.connect();
+		const ws = MockWebSocket.instances[0];
+		expect(ws?.headers).toEqual({
+			Authorization: 'Bearer ag_test_sdk_key',
+		});
+
+		ws?.open();
+		await connectPromise;
+	});
+
 	it('connects with auth headers and completes compact requests', async () => {
 		const client = new AIGatewayWebSocketClient({
 			apiKey: 'ag_test',
