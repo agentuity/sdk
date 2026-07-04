@@ -218,14 +218,13 @@ describe('AIGatewayWebSocketClient', () => {
 		expect(events).toEqual(['thinking_delta:hmm', 'delta:Hello', 'complete:Hello world']);
 	});
 
-	it('blocks new requests while draining and reconnects after in-flight work completes', async () => {
+	it('handoffs to a new websocket while the retiring socket completes in-flight requests', async () => {
 		let drainingMessage = '';
 		let reconnectAttempt = 0;
 		const client = new AIGatewayWebSocketClient({
 			apiKey: 'ag_test',
 			orgId: 'org_test',
 			url: 'https://aigateway.example',
-			reconnectDelayMs: 1,
 			onDraining: (message) => {
 				drainingMessage = message;
 			},
@@ -240,49 +239,62 @@ describe('AIGatewayWebSocketClient', () => {
 		await connectPromise;
 
 		const inFlight = client.complete({
+			id: 'req_inflight',
 			model: 'anthropic/claude-sonnet-4-20250514',
 			prompt: 'Finish me',
 		});
 		await flushAsyncWork();
-		const request = JSON.parse(firstWs?.sent[0] ?? '{}');
 
 		firstWs?.receive({
 			type: 'draining',
 			message: 'server rolling restart',
 		});
+
 		expect(client.isDraining).toBe(true);
 		expect(drainingMessage).toBe('server rolling restart');
-		expect(client.state).toBe('draining');
-
-		await expect(
-			client.complete({
-				model: 'anthropic/claude-sonnet-4-20250514',
-				prompt: 'Should fail',
-			})
-		).rejects.toMatchObject({
-			code: 'connection_draining',
-		});
-
-		firstWs?.receive({
-			type: 'response',
-			id: request.id,
-			status: 'complete',
-			content: 'done',
-		});
-		await expect(inFlight).resolves.toMatchObject({ content: 'done' });
-
-		firstWs?.close(1001, 'going away');
-		await flushAsyncWork();
-		await new Promise((resolve) => setTimeout(resolve, 5));
-
+		expect(client.state).toBe('reconnecting');
 		expect(reconnectAttempt).toBe(1);
-		expect(MockWebSocket.instances.length).toBe(2);
-		expect(client.isDraining).toBe(false);
+		expect(MockWebSocket.instances).toHaveLength(2);
 
 		const secondWs = MockWebSocket.instances[1];
 		secondWs?.open();
 		await flushAsyncWork();
 		expect(client.state).toBe('connected');
+
+		const newRequestPromise = client.complete({
+			id: 'req_new',
+			model: 'anthropic/claude-sonnet-4-20250514',
+			prompt: 'New request on fresh socket',
+		});
+		await flushAsyncWork();
+
+		expect(JSON.parse(firstWs?.sent[0] ?? '{}')).toMatchObject({ id: 'req_inflight' });
+		expect(JSON.parse(secondWs?.sent[0] ?? '{}')).toMatchObject({
+			id: 'req_new',
+			prompt: 'New request on fresh socket',
+		});
+
+		firstWs?.receive({
+			type: 'response',
+			id: 'req_inflight',
+			status: 'complete',
+			content: 'done',
+		});
+		secondWs?.receive({
+			type: 'response',
+			id: 'req_new',
+			status: 'complete',
+			content: 'fresh',
+		});
+
+		await expect(inFlight).resolves.toMatchObject({ content: 'done' });
+		await expect(newRequestPromise).resolves.toMatchObject({ content: 'fresh' });
+
+		firstWs?.close(1001, 'going away');
+		await flushAsyncWork();
+		expect(client.isDraining).toBe(false);
+		expect(client.state).toBe('connected');
+		expect(MockWebSocket.instances).toHaveLength(2);
 	});
 
 	it('multiplexes concurrent requests over one connection by request id', async () => {

@@ -103,6 +103,12 @@ interface PendingRequest {
 	thinkingAccumulated: string;
 }
 
+interface WebSocketLane {
+	ws: WebSocket;
+	role: 'active' | 'retiring';
+	requestIds: Set<string>;
+}
+
 const DEFAULT_RECONNECT_DELAY_MS = 500;
 const DEFAULT_MAX_RECONNECT_DELAY_MS = 30_000;
 const DEFAULT_MAX_RECONNECT_ATTEMPTS = 10;
@@ -218,9 +224,9 @@ export class AIGatewayWebSocketClient {
 	readonly #orgId: string;
 	readonly #url: string;
 
-	#ws: WebSocket | null = null;
+	#activeLane: WebSocketLane | null = null;
+	#retiringLane: WebSocketLane | null = null;
 	#state: AIGatewayWebSocketState = 'closed';
-	#draining = false;
 	#intentionallyClosed = false;
 	#reconnectAttempts = 0;
 	#reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -228,7 +234,6 @@ export class AIGatewayWebSocketClient {
 	#connectResolve: (() => void) | null = null;
 	#connectReject: ((error: Error) => void) | null = null;
 	#pending = new Map<string, PendingRequest>();
-	#drainReconnectScheduled = false;
 
 	constructor(options: AIGatewayWebSocketOptions) {
 		if (!options.apiKey) {
@@ -255,7 +260,7 @@ export class AIGatewayWebSocketClient {
 	}
 
 	get isDraining(): boolean {
-		return this.#draining;
+		return this.#retiringLane !== null;
 	}
 
 	get url(): string {
@@ -267,7 +272,7 @@ export class AIGatewayWebSocketClient {
 	}
 
 	connect(): Promise<void> {
-		if (this.#state === 'connected' && this.#ws?.readyState === WebSocket.OPEN) {
+		if (this.#activeLane?.ws.readyState === WebSocket.OPEN) {
 			return Promise.resolve();
 		}
 		if (this.#connectPromise) {
@@ -277,7 +282,9 @@ export class AIGatewayWebSocketClient {
 		this.#connectPromise = new Promise<void>((resolve, reject) => {
 			this.#connectResolve = resolve;
 			this.#connectReject = reject;
-			this.#connectInternal();
+			if (!this.#activeLane) {
+				this.#beginActiveConnection();
+			}
 		});
 		return this.#connectPromise;
 	}
@@ -293,11 +300,14 @@ export class AIGatewayWebSocketClient {
 				closeReason: reason,
 			})
 		);
-		if (this.#ws) {
-			const ws = this.#ws;
-			this.#ws = null;
-			ws.close(code, reason);
+		for (const lane of [this.#activeLane, this.#retiringLane]) {
+			if (!lane) {
+				continue;
+			}
+			lane.ws.close(code, reason);
 		}
+		this.#activeLane = null;
+		this.#retiringLane = null;
 		this.#setState('closed');
 		this.#finishConnect(
 			new AIGatewayWebSocketError({
@@ -310,7 +320,11 @@ export class AIGatewayWebSocketClient {
 	}
 
 	cancel(requestId: string): void {
-		this.#sendJson({
+		const lane = this.#findLaneForRequest(requestId);
+		if (!lane) {
+			return;
+		}
+		this.#sendJsonOnLane(lane, {
 			type: AIGatewayWSFrameType.cancel,
 			id: requestId,
 		});
@@ -375,7 +389,7 @@ export class AIGatewayWebSocketClient {
 		this.#pending.set(id, pending);
 
 		try {
-			this.#sendJson(buildRequestFrame({ ...options, id }, id));
+			this.#sendJson(buildRequestFrame({ ...options, id }, id), id);
 
 			while (!done || queue.length > 0) {
 				if (queue.length === 0) {
@@ -400,18 +414,11 @@ export class AIGatewayWebSocketClient {
 		} finally {
 			clearTimeout(pending.timeout);
 			this.#pending.delete(id);
-			this.#maybeScheduleDrainReconnect();
+			this.#clearRetiringLaneIfIdle();
 		}
 	}
 
 	#assertCanSendRequest(): void {
-		if (this.#draining) {
-			throw new AIGatewayWebSocketError({
-				message:
-					'Connection is draining; new requests are not accepted until reconnect completes',
-				code: 'connection_draining',
-			});
-		}
 		if (this.#intentionallyClosed) {
 			throw new AIGatewayWebSocketError({
 				message: 'WebSocket client is closed',
@@ -420,9 +427,15 @@ export class AIGatewayWebSocketClient {
 		}
 	}
 
-	#connectInternal(): void {
+	#beginActiveConnection(): void {
+		if (this.#activeLane) {
+			return;
+		}
+
 		this.#clearReconnectTimer();
-		this.#setState(this.#reconnectAttempts > 0 ? 'reconnecting' : 'connecting');
+		this.#setState(
+			this.#reconnectAttempts > 0 || this.#retiringLane ? 'reconnecting' : 'connecting'
+		);
 
 		const ws = new WebSocket(this.#url, {
 			headers: {
@@ -430,99 +443,134 @@ export class AIGatewayWebSocketClient {
 				'x-agentuity-orgid': this.#orgId,
 			},
 		});
-		this.#ws = ws;
+		const lane: WebSocketLane = {
+			ws,
+			role: 'active',
+			requestIds: new Set(),
+		};
+		this.#activeLane = lane;
+		this.#attachLaneHandlers(lane);
+	}
+
+	#attachLaneHandlers(lane: WebSocketLane): void {
+		const { ws } = lane;
 
 		ws.onopen = () => {
-			if (ws !== this.#ws) {
+			if (!this.#isTrackedLane(lane)) {
 				return;
 			}
-			this.#reconnectAttempts = 0;
-			this.#draining = false;
-			this.#drainReconnectScheduled = false;
-			this.#setState('connected');
-			this.#options.onOpen?.();
-			this.#finishConnect();
+			if (lane.role === 'active') {
+				this.#reconnectAttempts = 0;
+				this.#setState('connected');
+				this.#options.onOpen?.();
+				this.#finishConnect();
+			}
 		};
 
 		ws.onmessage = (event) => {
-			if (ws !== this.#ws) {
+			if (!this.#isTrackedLane(lane)) {
 				return;
 			}
-			this.#handleMessage(event.data);
+			this.#handleMessage(event.data, lane);
 		};
 
 		ws.onerror = () => {
-			if (ws !== this.#ws) {
+			if (!this.#isTrackedLane(lane)) {
 				return;
 			}
-			this.#options.onError?.(
-				new AIGatewayWebSocketError({
-					message: 'WebSocket connection error',
-					code: 'connection_error',
-				})
-			);
-		};
-
-		ws.onclose = (event) => {
-			if (ws !== this.#ws) {
-				return;
-			}
-			this.#ws = null;
-			const wasDraining = this.#draining;
-			const terminalClose = isTerminalCloseCode(event.code);
-			if (terminalClose) {
-				this.#intentionallyClosed = true;
-			}
-
-			if (this.#state !== 'closed') {
-				this.#setState(wasDraining ? 'draining' : 'closed');
-			}
-
-			this.#options.onClose?.(event.code, event.reason);
-
-			if (!wasDraining) {
-				this.#rejectAllPending(
+			if (lane.role === 'active') {
+				this.#options.onError?.(
 					new AIGatewayWebSocketError({
-						message: `WebSocket closed (code ${event.code})${event.reason ? `: ${event.reason}` : ''}`,
-						code: 'connection_closed',
-						closeCode: event.code,
-						closeReason: event.reason || undefined,
+						message: 'WebSocket connection error',
+						code: 'connection_error',
 					})
 				);
 			}
+		};
 
-			this.#finishConnect(
+		ws.onclose = (event: CloseEvent) => {
+			if (!this.#isTrackedLane(lane)) {
+				return;
+			}
+			this.#handleLaneClose(lane, event);
+		};
+	}
+
+	#handleLaneClose(lane: WebSocketLane, event: CloseEvent): void {
+		const terminalClose = isTerminalCloseCode(event.code);
+		if (terminalClose) {
+			this.#intentionallyClosed = true;
+		}
+
+		this.#options.onClose?.(event.code, event.reason);
+
+		if (lane.role === 'retiring') {
+			this.#retiringLane = null;
+			this.#rejectLanePending(
+				lane,
 				new AIGatewayWebSocketError({
-					message: `WebSocket closed before connection was ready (code ${event.code})`,
-					code: 'connection_error',
+					message:
+						event.reason ||
+						'WebSocket closed during server drain before all in-flight requests completed',
+					code: 'connection_closed',
 					closeCode: event.code,
 					closeReason: event.reason || undefined,
 				})
 			);
-
-			if (wasDraining) {
-				if (this.#pending.size > 0) {
-					this.#rejectAllPending(
-						new AIGatewayWebSocketError({
-							message:
-								'WebSocket closed during server drain before all in-flight requests completed',
-							code: 'connection_closed',
-							closeCode: event.code,
-							closeReason: event.reason || undefined,
-						})
-					);
-				}
-				this.#maybeScheduleDrainReconnect();
-				return;
+			if (this.#activeLane?.ws.readyState === WebSocket.OPEN) {
+				this.#setState('connected');
 			}
+			return;
+		}
 
-			if (!this.#intentionallyClosed && this.#options.autoReconnect) {
-				this.#scheduleReconnect();
-			}
-		};
+		this.#activeLane = null;
+		this.#rejectLanePending(
+			lane,
+			new AIGatewayWebSocketError({
+				message: `WebSocket closed (code ${event.code})${event.reason ? `: ${event.reason}` : ''}`,
+				code: 'connection_closed',
+				closeCode: event.code,
+				closeReason: event.reason || undefined,
+			})
+		);
+
+		this.#finishConnect(
+			new AIGatewayWebSocketError({
+				message: `WebSocket closed before connection was ready (code ${event.code})`,
+				code: 'connection_error',
+				closeCode: event.code,
+				closeReason: event.reason || undefined,
+			})
+		);
+
+		if (!this.#intentionallyClosed && this.#options.autoReconnect) {
+			this.#scheduleReconnect();
+		} else if (!this.#activeLane && !this.#retiringLane) {
+			this.#setState('closed');
+		}
 	}
 
-	#handleMessage(raw: unknown): void {
+	#handleDraining(message: string, lane: WebSocketLane): void {
+		if (lane.role !== 'active') {
+			return;
+		}
+
+		this.#options.onDraining?.(message);
+
+		if (this.#activeLane !== lane) {
+			return;
+		}
+
+		lane.role = 'retiring';
+		this.#retiringLane = lane;
+		this.#activeLane = null;
+		this.#setState('reconnecting');
+
+		this.#options.onReconnect?.(1);
+		this.#beginActiveConnection();
+	}
+
+	#handleMessage(raw: unknown, lane: WebSocketLane): void {
 		let parsed: unknown;
 		try {
 			parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -548,7 +596,7 @@ export class AIGatewayWebSocketClient {
 		}
 
 		if (frame.type === AIGatewayWSFrameType.draining) {
-			this.#handleDraining(frame.message ?? 'server is draining');
+			this.#handleDraining(frame.message ?? 'server is draining', lane);
 			return;
 		}
 
@@ -558,15 +606,6 @@ export class AIGatewayWebSocketClient {
 		}
 
 		this.#handleResponseFrame(frame);
-	}
-
-	#handleDraining(message: string): void {
-		if (this.#draining) {
-			return;
-		}
-		this.#draining = true;
-		this.#setState('draining');
-		this.#options.onDraining?.(message);
 	}
 
 	#handleErrorFrame(error: AIGatewayWSServerError): void {
@@ -613,9 +652,10 @@ export class AIGatewayWebSocketClient {
 			});
 			clearTimeout(pending.timeout);
 			this.#pending.delete(response.id);
+			this.#removeRequestFromLanes(response.id);
 			pending.push?.({ type: 'complete', result });
 			pending.resolve(result);
-			this.#maybeScheduleDrainReconnect();
+			this.#clearRetiringLaneIfIdle();
 		}
 	}
 
@@ -626,34 +666,56 @@ export class AIGatewayWebSocketClient {
 		}
 		clearTimeout(pending.timeout);
 		this.#pending.delete(id);
+		this.#removeRequestFromLanes(id);
 		pending.reject(error);
-		this.#maybeScheduleDrainReconnect();
+		this.#clearRetiringLaneIfIdle();
+	}
+
+	#rejectLanePending(lane: WebSocketLane, error: AIGatewayWebSocketErrorInstance): void {
+		for (const id of [...lane.requestIds]) {
+			if (this.#pending.has(id)) {
+				this.#rejectPending(id, error);
+			}
+		}
+		lane.requestIds.clear();
 	}
 
 	#rejectAllPending(error: AIGatewayWebSocketErrorInstance): void {
-		for (const [id, pending] of this.#pending.entries()) {
-			clearTimeout(pending.timeout);
-			pending.reject(error);
-			this.#pending.delete(id);
+		for (const id of [...this.#pending.keys()]) {
+			this.#rejectPending(id, error);
 		}
 	}
 
-	#maybeScheduleDrainReconnect(): void {
-		if (!this.#draining || this.#drainReconnectScheduled || this.#intentionallyClosed) {
+	#removeRequestFromLanes(requestId: string): void {
+		this.#activeLane?.requestIds.delete(requestId);
+		this.#retiringLane?.requestIds.delete(requestId);
+	}
+
+	#findLaneForRequest(requestId: string): WebSocketLane | null {
+		if (this.#activeLane?.requestIds.has(requestId)) {
+			return this.#activeLane;
+		}
+		if (this.#retiringLane?.requestIds.has(requestId)) {
+			return this.#retiringLane;
+		}
+		return null;
+	}
+
+	#clearRetiringLaneIfIdle(): void {
+		if (!this.#retiringLane || this.#retiringLane.requestIds.size > 0) {
 			return;
 		}
-		if (this.#pending.size > 0 || this.#ws) {
-			return;
+		if (this.#retiringLane.ws.readyState === WebSocket.CLOSED) {
+			this.#retiringLane = null;
 		}
-		this.#drainReconnectScheduled = true;
-		this.#draining = false;
-		if (this.#options.autoReconnect) {
-			this.#scheduleReconnect();
-		}
+	}
+
+	#isTrackedLane(lane: WebSocketLane): boolean {
+		return this.#activeLane === lane || this.#retiringLane === lane;
 	}
 
 	#scheduleReconnect(): void {
-		if (this.#intentionallyClosed || !this.#options.autoReconnect) {
+		if (this.#intentionallyClosed || !this.#options.autoReconnect || this.#activeLane) {
 			return;
 		}
 		if (this.#reconnectAttempts >= this.#options.maxReconnectAttempts) {
@@ -673,7 +735,7 @@ export class AIGatewayWebSocketClient {
 		this.#options.onReconnect?.(this.#reconnectAttempts);
 		this.#reconnectTimer = setTimeout(() => {
 			this.#reconnectTimer = null;
-			this.#connectInternal();
+			this.#beginActiveConnection();
 		}, delay);
 	}
 
@@ -684,14 +746,26 @@ export class AIGatewayWebSocketClient {
 		}
 	}
 
-	#sendJson(payload: Record<string, unknown>): void {
-		if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
+	#sendJson(payload: Record<string, unknown>, requestId: string): void {
+		const lane = this.#activeLane;
+		if (!lane || lane.ws.readyState !== WebSocket.OPEN) {
 			throw new AIGatewayWebSocketError({
 				message: 'WebSocket is not connected',
 				code: 'connection_error',
 			});
 		}
-		this.#ws.send(JSON.stringify(payload));
+		lane.requestIds.add(requestId);
+		this.#sendJsonOnLane(lane, payload);
+	}
+
+	#sendJsonOnLane(lane: WebSocketLane, payload: Record<string, unknown>): void {
+		if (lane.ws.readyState !== WebSocket.OPEN) {
+			throw new AIGatewayWebSocketError({
+				message: 'WebSocket is not connected',
+				code: 'connection_error',
+			});
+		}
+		lane.ws.send(JSON.stringify(payload));
 	}
 
 	#setState(state: AIGatewayWebSocketState): void {
