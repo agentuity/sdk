@@ -29,6 +29,7 @@ import {
 import { isCliApiKey } from './protocol.ts';
 import {
 	createAIGatewayWebSocketClient,
+	AIGatewayWebSocketError,
 	type AIGatewayWebSocketClient,
 	type AIGatewayWebSocketOptions,
 } from './websocket.ts';
@@ -91,14 +92,18 @@ export class AIGatewayClient {
 		} = {}
 	): AIGatewayWebSocketClient {
 		if (!this.#apiKey) {
-			throw new Error(
-				'API key is required for AI Gateway WebSocket connections. Provide apiKey when constructing AIGatewayClient or set AGENTUITY_AIGATEWAY_KEY / AGENTUITY_SDK_KEY.'
-			);
+			throw new AIGatewayWebSocketError({
+				message:
+					'API key is required for AI Gateway WebSocket connections. Provide apiKey when constructing AIGatewayClient or set AGENTUITY_AIGATEWAY_KEY / AGENTUITY_SDK_KEY.',
+				code: 'connection_error',
+			});
 		}
 		if (isCliApiKey(this.#apiKey) && !this.#orgId) {
-			throw new Error(
-				'Organization ID is required for AI Gateway WebSocket connections when using a CLI API key (ck_*). Provide orgId when constructing AIGatewayClient or set AGENTUITY_ORGID / AGENTUITY_ORG_ID / AGENTUITY_CLOUD_ORG_ID.'
-			);
+			throw new AIGatewayWebSocketError({
+				message:
+					'Organization ID is required for AI Gateway WebSocket connections when using a CLI API key (ck_*). Provide orgId when constructing AIGatewayClient or set AGENTUITY_ORGID / AGENTUITY_ORG_ID / AGENTUITY_CLOUD_ORG_ID.',
+				code: 'connection_error',
+			});
 		}
 		return createAIGatewayWebSocketClient({
 			apiKey: this.#apiKey,

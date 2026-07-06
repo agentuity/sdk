@@ -1,4 +1,4 @@
-import { StructuredError } from '@agentuity/adapter';
+import { StructuredError } from '@agentuity/core';
 import { resolveRegion, resolveServiceUrl, type Logger } from '@agentuity/client';
 import { getEnv, getServiceUrls } from '@agentuity/config';
 import { z } from 'zod';
@@ -281,12 +281,12 @@ export class AIGatewayWebSocketClient {
 			});
 		}
 		this.#options = {
+			...options,
 			autoReconnect: options.autoReconnect ?? true,
 			reconnectDelayMs: options.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS,
 			maxReconnectDelayMs: options.maxReconnectDelayMs ?? DEFAULT_MAX_RECONNECT_DELAY_MS,
 			maxReconnectAttempts: options.maxReconnectAttempts ?? DEFAULT_MAX_RECONNECT_ATTEMPTS,
 			defaultTimeoutMs: options.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS,
-			...options,
 		};
 		this.#apiKey = options.apiKey;
 		this.#orgId = resolveOrgId({ orgId: options.orgId, apiKey: options.apiKey });
@@ -295,10 +295,16 @@ export class AIGatewayWebSocketClient {
 	}
 
 	#logDebug(message: string, detail?: unknown): void {
-		if (!this.#debugEnabled && !resolveDebugEnabled(this.#options)) {
+		if (!this.#debugEnabled) {
 			return;
 		}
-		if (detail !== undefined) {
+		if (this.#options.logger) {
+			if (detail !== undefined) {
+				this.#options.logger.debug(`[aigateway-ws] ${message}`, detail);
+			} else {
+				this.#options.logger.debug(`[aigateway-ws] ${message}`);
+			}
+		} else if (detail !== undefined) {
 			console.log('[aigateway-ws]', message, detail);
 		} else {
 			console.log('[aigateway-ws]', message);
@@ -420,7 +426,11 @@ export class AIGatewayWebSocketClient {
 				notify?.();
 			},
 			timeout: setTimeout(() => {
-				this.cancel(id);
+				try {
+					this.cancel(id);
+				} catch {
+					// cancel can fail if socket is not OPEN; always reject
+				}
 				this.#rejectPending(
 					id,
 					new AIGatewayWebSocketError({
@@ -460,6 +470,9 @@ export class AIGatewayWebSocketClient {
 				if (event.type === 'complete') {
 					done = true;
 				}
+			}
+			if (streamError) {
+				throw streamError;
 			}
 		} finally {
 			clearTimeout(pending.timeout);
@@ -778,9 +791,11 @@ export class AIGatewayWebSocketClient {
 		if (!this.#retiringLane || this.#retiringLane.requestIds.size > 0) {
 			return;
 		}
-		if (this.#retiringLane.ws.readyState === WebSocket.CLOSED) {
-			this.#retiringLane = null;
+		const ws = this.#retiringLane.ws;
+		if (ws.readyState !== WebSocket.CLOSED) {
+			ws.close(1000, 'lane idle');
 		}
+		this.#retiringLane = null;
 	}
 
 	#isTrackedLane(lane: WebSocketLane): boolean {

@@ -286,7 +286,6 @@ describe('AIGatewayClient.createWebSocket orgId requirement', () => {
 		delete process.env.AGENTUITY_ORGID;
 		delete process.env.AGENTUITY_ORG_ID;
 		delete process.env.AGENTUITY_CLOUD_ORG_ID;
-		process.env.AGENTUITY_AIGATEWAY_URL = 'https://aigateway.test';
 	});
 
 	afterEach(() => {

@@ -27,25 +27,23 @@ export const AIGatewayWSUsageSchema = z.object({
 
 export type AIGatewayWSUsage = z.infer<typeof AIGatewayWSUsageSchema>;
 
-export const AIGatewayWSServerResponseSchema = z
-	.object({
-		type: z.literal(AIGatewayWSFrameType.response),
-		id: z.string(),
-		compact: z.boolean().optional(),
-		status: z.string(),
-		status_code: z.number().optional(),
-		content: z.string().optional(),
-		delta: z.string().optional(),
-		thinking: z.string().optional(),
-		usage: AIGatewayWSUsageSchema.optional(),
-		cost: z.number().optional(),
-		unit: z.string().optional(),
-		input_qty: z.number().optional(),
-		output_qty: z.number().optional(),
-		event: z.string().optional(),
-		data: z.unknown().optional(),
-	})
-	.passthrough();
+export const AIGatewayWSServerResponseSchema = z.looseObject({
+	type: z.literal(AIGatewayWSFrameType.response),
+	id: z.string(),
+	compact: z.boolean().optional(),
+	status: z.string(),
+	status_code: z.number().optional(),
+	content: z.string().optional(),
+	delta: z.string().optional(),
+	thinking: z.string().optional(),
+	usage: AIGatewayWSUsageSchema.optional(),
+	cost: z.number().optional(),
+	unit: z.string().optional(),
+	input_qty: z.number().optional(),
+	output_qty: z.number().optional(),
+	event: z.string().optional(),
+	data: z.unknown().optional(),
+});
 
 export type AIGatewayWSServerResponse = z.infer<typeof AIGatewayWSServerResponseSchema>;
 
