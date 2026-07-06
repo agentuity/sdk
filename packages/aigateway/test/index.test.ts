@@ -274,3 +274,57 @@ describe('AIGatewayClient.completeStructured', () => {
 		expect(result.data).toEqual({ name: 'ada', age: 42 });
 	});
 });
+
+describe('AIGatewayClient.createWebSocket orgId requirement', () => {
+	const ORIGINAL_ENV = {
+		AGENTUITY_ORGID: process.env.AGENTUITY_ORGID,
+		AGENTUITY_ORG_ID: process.env.AGENTUITY_ORG_ID,
+		AGENTUITY_CLOUD_ORG_ID: process.env.AGENTUITY_CLOUD_ORG_ID,
+	};
+
+	beforeEach(() => {
+		delete process.env.AGENTUITY_ORGID;
+		delete process.env.AGENTUITY_ORG_ID;
+		delete process.env.AGENTUITY_CLOUD_ORG_ID;
+	});
+
+	afterEach(() => {
+		for (const [key, value] of Object.entries(ORIGINAL_ENV)) {
+			if (value === undefined) {
+				delete process.env[key];
+			} else {
+				process.env[key] = value;
+			}
+		}
+	});
+
+	test('allows SDK keys without orgId', () => {
+		const client = new AIGatewayClient({
+			apiKey: 'ag_test_sdk_key',
+			url: 'https://aigateway.test',
+		});
+
+		expect(() => client.createWebSocket()).not.toThrow();
+	});
+
+	test('requires orgId for CLI keys', () => {
+		const client = new AIGatewayClient({
+			apiKey: 'ck_test_cli_key',
+			url: 'https://aigateway.test',
+		});
+
+		expect(() => client.createWebSocket()).toThrow(
+			'Organization ID is required for AI Gateway WebSocket connections when using a CLI API key (ck_*).'
+		);
+	});
+
+	test('allows CLI keys when orgId is provided', () => {
+		const client = new AIGatewayClient({
+			apiKey: 'ck_test_cli_key',
+			orgId: 'org_explicit',
+			url: 'https://aigateway.test',
+		});
+
+		expect(() => client.createWebSocket()).not.toThrow();
+	});
+});

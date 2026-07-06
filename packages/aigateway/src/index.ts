@@ -1,4 +1,6 @@
 export * from './service.ts';
+export * from './protocol.ts';
+export * from './websocket.ts';
 
 import {
 	AIGatewayService,
@@ -24,6 +26,13 @@ import {
 	resolveServiceUrl,
 	type Logger,
 } from '@agentuity/client';
+import { isCliApiKey } from './protocol.ts';
+import {
+	createAIGatewayWebSocketClient,
+	AIGatewayWebSocketError,
+	type AIGatewayWebSocketClient,
+	type AIGatewayWebSocketOptions,
+} from './websocket.ts';
 import { z } from 'zod';
 
 function normalizeOrgId(orgId: string | undefined): string | undefined {
@@ -51,23 +60,57 @@ export type AIGatewayClientOptions = z.infer<typeof AIGatewayClientOptionsSchema
 
 export class AIGatewayClient {
 	readonly #service: AIGatewayService;
+	readonly #apiKey: string;
+	readonly #orgId: string | undefined;
+	readonly #url: string;
 
 	constructor(options: AIGatewayClientOptions = {}) {
 		const validatedOptions = AIGatewayClientOptionsSchema.parse(options);
 		const apiKey =
-			validatedOptions.apiKey || getEnv('AGENTUITY_AIGATEWAY_KEY') || resolveApiKey();
+			validatedOptions.apiKey || getEnv('AGENTUITY_AIGATEWAY_KEY') || resolveApiKey() || '';
 		const serviceUrls = getServiceUrls(resolveRegion());
 		const url = resolveServiceUrl({
 			url: validatedOptions.url,
 			envKey: 'AGENTUITY_AIGATEWAY_URL',
 			fallback: serviceUrls.aigateway,
 		});
+		const orgId = resolveOrgId(validatedOptions.orgId);
 		const { adapter } = createServiceAdapter({
 			apiKey,
-			orgId: resolveOrgId(validatedOptions.orgId),
+			orgId,
 			logger: validatedOptions.logger,
 		});
+		this.#apiKey = apiKey;
+		this.#orgId = orgId;
+		this.#url = url;
 		this.#service = new AIGatewayService(url, adapter);
+	}
+
+	createWebSocket(
+		options: Omit<AIGatewayWebSocketOptions, 'apiKey' | 'orgId' | 'url'> & {
+			url?: string;
+		} = {}
+	): AIGatewayWebSocketClient {
+		if (!this.#apiKey) {
+			throw new AIGatewayWebSocketError({
+				message:
+					'API key is required for AI Gateway WebSocket connections. Provide apiKey when constructing AIGatewayClient or set AGENTUITY_AIGATEWAY_KEY / AGENTUITY_SDK_KEY.',
+				code: 'connection_error',
+			});
+		}
+		if (isCliApiKey(this.#apiKey) && !this.#orgId) {
+			throw new AIGatewayWebSocketError({
+				message:
+					'Organization ID is required for AI Gateway WebSocket connections when using a CLI API key (ck_*). Provide orgId when constructing AIGatewayClient or set AGENTUITY_ORGID / AGENTUITY_ORG_ID / AGENTUITY_CLOUD_ORG_ID.',
+				code: 'connection_error',
+			});
+		}
+		return createAIGatewayWebSocketClient({
+			apiKey: this.#apiKey,
+			orgId: this.#orgId,
+			...options,
+			url: options.url ?? this.#url,
+		});
 	}
 
 	async listModels(): Promise<AIGatewayModels> {
