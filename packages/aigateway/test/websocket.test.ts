@@ -183,6 +183,62 @@ describe('AIGatewayWebSocketClient', () => {
 		});
 	});
 
+	it('logs outbound and inbound frames when debug is enabled', async () => {
+		const logs: unknown[][] = [];
+		const originalLog = console.log;
+		console.log = (...args: unknown[]) => {
+			logs.push(args);
+		};
+
+		try {
+			const client = new AIGatewayWebSocketClient({
+				apiKey: 'ag_test',
+				orgId: 'org_test',
+				url: 'https://aigateway.example',
+				debug: true,
+			});
+
+			const connectPromise = client.connect();
+			const ws = MockWebSocket.instances[0];
+			ws?.open();
+			await connectPromise;
+
+			expect(logs.some((row) => row[1] === 'connected')).toBe(true);
+
+			const streamPromise = (async () => {
+				for await (const _event of client.stream({
+					model: 'anthropic/claude-sonnet-4-20250514',
+					prompt: 'Hello',
+					stream: true,
+				})) {
+					// drain
+				}
+			})();
+
+			await flushAsyncWork();
+			const request = JSON.parse(MockWebSocket.instances[0]?.sent[0] ?? '{}');
+			expect(logs.some((row) => row[1] === 'send' && row[2]?.type === 'request')).toBe(true);
+
+			MockWebSocket.instances[0]?.receive({
+				type: 'response',
+				id: request.id,
+				status: 'delta',
+				delta: 'Hi',
+			});
+			MockWebSocket.instances[0]?.receive({
+				type: 'response',
+				id: request.id,
+				status: 'complete',
+				content: 'Hi',
+			});
+
+			await streamPromise;
+			expect(logs.some((row) => row[1] === 'recv' && row[2]?.status === 'delta')).toBe(true);
+		} finally {
+			console.log = originalLog;
+		}
+	});
+
 	it('streams delta and thinking frames before complete', async () => {
 		const client = new AIGatewayWebSocketClient({
 			apiKey: 'ag_test',
@@ -405,6 +461,111 @@ describe('AIGatewayWebSocketClient', () => {
 			code: 'connection_error',
 			statusCode: 503,
 			requestId: 'req_error',
+		});
+	});
+
+	it('streams full-mode provider-native delta frames from response.data', async () => {
+		const client = new AIGatewayWebSocketClient({
+			apiKey: 'ag_test',
+			orgId: 'org_test',
+			url: 'https://aigateway.example',
+		});
+
+		const connectPromise = client.connect();
+		const ws = MockWebSocket.instances[0];
+		ws?.open();
+		await connectPromise;
+
+		const events: Array<{ type: string; delta?: string; event?: string }> = [];
+		const streamPromise = (async () => {
+			for await (const event of client.stream({
+				compact: false,
+				model: 'oss/glm-5p2',
+				data: { model: 'GLM-5.2', messages: [{ role: 'user', content: 'Hi' }] },
+				stream: true,
+			})) {
+				if (event.type === 'delta') {
+					events.push({ type: event.type, delta: event.delta });
+				} else if (event.type === 'event') {
+					events.push({ type: event.type, event: event.event });
+				} else if (event.type === 'complete') {
+					events.push({ type: event.type, delta: event.result.content });
+				}
+			}
+		})();
+
+		await flushAsyncWork();
+		const request = JSON.parse(MockWebSocket.instances[0]?.sent[0] ?? '{}');
+
+		MockWebSocket.instances[0]?.receive({
+			type: 'response',
+			id: request.id,
+			status: 'delta',
+			data: {
+				object: 'chat.completion.chunk',
+				choices: [{ index: 0, delta: { content: 'Hello' } }],
+			},
+		});
+		MockWebSocket.instances[0]?.receive({
+			type: 'response',
+			id: request.id,
+			status: 'complete',
+			data: {
+				choices: [{ index: 0, message: { role: 'assistant', content: 'Hello' } }],
+			},
+		});
+
+		await streamPromise;
+		expect(events).toEqual([
+			{ type: 'event', event: 'data' },
+			{ type: 'complete', delta: 'Hello' },
+		]);
+	});
+
+	it('includes model and stream on full-mode request frames', async () => {
+		const client = new AIGatewayWebSocketClient({
+			apiKey: 'ag_test',
+			orgId: 'org_test',
+			url: 'https://aigateway.example',
+		});
+
+		const connectPromise = client.connect();
+		const ws = MockWebSocket.instances[0];
+		ws?.open();
+		await connectPromise;
+
+		const resultPromise = client.complete({
+			compact: false,
+			model: 'openai/gpt-4.1-mini',
+			data: {
+				model: 'gpt-4.1-mini',
+				messages: [{ role: 'user', content: 'Hello' }],
+			},
+			stream: false,
+		});
+		await flushAsyncWork();
+
+		const request = JSON.parse(ws?.sent[0] ?? '{}');
+		expect(request).toMatchObject({
+			type: 'request',
+			compact: false,
+			model: 'openai/gpt-4.1-mini',
+			stream: false,
+			data: {
+				model: 'gpt-4.1-mini',
+				messages: [{ role: 'user', content: 'Hello' }],
+			},
+		});
+
+		ws?.receive({
+			type: 'response',
+			id: request.id,
+			status: 'complete',
+			content: 'Hi there',
+		});
+
+		await expect(resultPromise).resolves.toMatchObject({
+			content: 'Hi there',
 		});
 	});
 });

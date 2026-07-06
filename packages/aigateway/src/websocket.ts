@@ -1,5 +1,5 @@
 import { StructuredError } from '@agentuity/adapter';
-import { resolveRegion, resolveServiceUrl } from '@agentuity/client';
+import { resolveRegion, resolveServiceUrl, type Logger } from '@agentuity/client';
 import { getEnv, getServiceUrls } from '@agentuity/config';
 import { z } from 'zod';
 import {
@@ -12,6 +12,7 @@ import {
 	type AIGatewayWSServerError,
 	type AIGatewayWSServerResponse,
 } from './protocol.ts';
+import { getAIGatewayCompletionText, getAIGatewayStreamDeltaText } from './service.ts';
 
 export const AIGatewayWebSocketErrorCode = {
 	connection_error: 'connection_error',
@@ -85,6 +86,9 @@ export interface AIGatewayWebSocketOptions {
 	maxReconnectDelayMs?: number;
 	maxReconnectAttempts?: number;
 	defaultTimeoutMs?: number;
+	/** Log outbound request and inbound response frames. Defaults to AGENTUITY_AIGATEWAY_WS_DEBUG. */
+	debug?: boolean;
+	logger?: Logger;
 	onOpen?: () => void;
 	onClose?: (code: number, reason: string) => void;
 	onError?: (error: AIGatewayWebSocketErrorInstance) => void;
@@ -154,6 +158,21 @@ function isTerminalCloseCode(code: number): boolean {
 	return code >= 4000 && code < 5000;
 }
 
+function isTruthyEnv(value: string | undefined): boolean {
+	if (!value) {
+		return false;
+	}
+	const normalized = value.trim().toLowerCase();
+	return normalized === '1' || normalized === 'true' || normalized === 'yes';
+}
+
+function resolveDebugEnabled(options: AIGatewayWebSocketOptions): boolean {
+	if (options.debug !== undefined) {
+		return options.debug;
+	}
+	return isTruthyEnv(getEnv('AGENTUITY_AIGATEWAY_WS_DEBUG'));
+}
+
 function createRequestId(): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
 		return crypto.randomUUID();
@@ -166,23 +185,40 @@ function buildRequestFrame(
 	id: string
 ): Record<string, unknown> {
 	const parsed = AIGatewayWSRequestOptionsSchema.parse(options);
+	const compact =
+		options.compact ?? (parsed.data === undefined ? (parsed.compact ?? true) : false);
 	const frame: Record<string, unknown> = {
 		type: AIGatewayWSFrameType.request,
 		id,
-		compact: parsed.compact ?? true,
+		compact,
 	};
-	if (parsed.compact) {
+
+	const applySharedFields = () => {
 		if (parsed.model !== undefined) frame.model = parsed.model;
-		if (parsed.prompt !== undefined) frame.prompt = parsed.prompt;
-		if (parsed.system !== undefined) frame.system = parsed.system;
 		if (parsed.thinking !== undefined) frame.thinking = parsed.thinking;
 		if (parsed.temperature !== undefined) frame.temperature = parsed.temperature;
 		if (parsed.max_tokens !== undefined) frame.max_tokens = parsed.max_tokens;
 		if (parsed.stream !== undefined) frame.stream = parsed.stream;
-	} else if (parsed.data !== undefined) {
-		frame.data = parsed.data;
+	};
+
+	if (compact) {
+		applySharedFields();
+		if (parsed.prompt !== undefined) frame.prompt = parsed.prompt;
+		if (parsed.system !== undefined) frame.system = parsed.system;
+	} else {
+		applySharedFields();
+		if (parsed.data !== undefined) frame.data = parsed.data;
 	}
+
 	return frame;
+}
+
+/** @internal Exported for unit tests and SDK consumers building frames manually. */
+export function buildAIGatewayWebSocketRequestFrame(
+	options: AIGatewayWSRequestOptions,
+	id: string
+): Record<string, unknown> {
+	return buildRequestFrame(options, id);
 }
 
 function mapCompleteResponse(response: AIGatewayWSServerResponse): AIGatewayWSResult {
@@ -224,6 +260,7 @@ export class AIGatewayWebSocketClient {
 	readonly #apiKey: string;
 	readonly #orgId: string | undefined;
 	readonly #url: string;
+	readonly #debugEnabled: boolean;
 
 	#activeLane: WebSocketLane | null = null;
 	#retiringLane: WebSocketLane | null = null;
@@ -254,6 +291,18 @@ export class AIGatewayWebSocketClient {
 		this.#apiKey = options.apiKey;
 		this.#orgId = resolveOrgId({ orgId: options.orgId, apiKey: options.apiKey });
 		this.#url = resolveWebSocketUrl(options);
+		this.#debugEnabled = resolveDebugEnabled(options);
+	}
+
+	#logDebug(message: string, detail?: unknown): void {
+		if (!this.#debugEnabled && !resolveDebugEnabled(this.#options)) {
+			return;
+		}
+		if (detail !== undefined) {
+			console.log('[aigateway-ws]', message, detail);
+		} else {
+			console.log('[aigateway-ws]', message);
+		}
 	}
 
 	get state(): AIGatewayWebSocketState {
@@ -463,6 +512,7 @@ export class AIGatewayWebSocketClient {
 			if (lane.role === 'active') {
 				this.#reconnectAttempts = 0;
 				this.#setState('connected');
+				this.#logDebug('connected', { url: this.#url, orgId: this.#orgId });
 				this.#options.onOpen?.();
 				this.#finishConnect();
 			}
@@ -572,6 +622,7 @@ export class AIGatewayWebSocketClient {
 	}
 
 	#handleMessage(raw: unknown, lane: WebSocketLane): void {
+		this.#logDebug('recv raw', raw);
 		let parsed: unknown;
 		try {
 			parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -597,15 +648,18 @@ export class AIGatewayWebSocketClient {
 		}
 
 		if (frame.type === AIGatewayWSFrameType.draining) {
+			this.#logDebug('recv draining', frame);
 			this.#handleDraining(frame.message ?? 'server is draining', lane);
 			return;
 		}
 
 		if (frame.type === AIGatewayWSFrameType.error) {
+			this.#logDebug('recv error', frame);
 			this.#handleErrorFrame(frame);
 			return;
 		}
 
+		this.#logDebug('recv', frame);
 		this.#handleResponseFrame(frame);
 	}
 
@@ -625,6 +679,22 @@ export class AIGatewayWebSocketClient {
 		}
 
 		if (response.status === AIGatewayWSResponseStatus.delta) {
+			// Full-mode (compact: false) provider-native frames carry payload in `data`,
+			// not top-level `delta`. Passthrough the native chunk only — Hub rehydrates
+			// provider SSE from `event` frames; also emitting extracted `delta` duplicates text.
+			if (response.data !== undefined && response.delta === undefined) {
+				const extracted = getAIGatewayStreamDeltaText(response.data);
+				if (extracted) {
+					pending.accumulated += extracted;
+				}
+				pending.push?.({
+					type: 'event',
+					event: response.event ?? 'data',
+					data: response.data,
+				});
+				return;
+			}
+
 			const delta = response.delta ?? '';
 			pending.accumulated += delta;
 			pending.push?.({ type: 'delta', delta });
@@ -647,9 +717,11 @@ export class AIGatewayWebSocketClient {
 		}
 
 		if (response.status === AIGatewayWSResponseStatus.complete) {
+			const content =
+				response.content ?? (pending.accumulated || getAIGatewayCompletionText(response.data));
 			const result = mapCompleteResponse({
 				...response,
-				content: response.content ?? pending.accumulated,
+				content: content || undefined,
 			});
 			clearTimeout(pending.timeout);
 			this.#pending.delete(response.id);
@@ -766,6 +838,7 @@ export class AIGatewayWebSocketClient {
 				code: 'connection_error',
 			});
 		}
+		this.#logDebug('send', payload);
 		lane.ws.send(JSON.stringify(payload));
 	}
 
