@@ -1,7 +1,7 @@
 {
 	"name": "@agentuity/migrate",
 	"version": "3.1.7",
-	"description": "Migration tool for Agentuity SDK (v1→v2 and v2→v3)",
+	"description": "Migration tool for Agentuity SDK (v1\u2192v2 and v2\u2192v3)",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -18,8 +18,8 @@
 	],
 	"exports": {
 		".": {
-			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
 			"default": "./dist/index.js"
 		}
 	},
