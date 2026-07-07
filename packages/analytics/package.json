@@ -10,11 +10,13 @@
 	"exports": {
 		".": {
 			"import": "./dist/index.js",
-			"types": "./dist/index.d.ts"
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
 		},
 		"./beacon": {
 			"import": "./dist/beacon.js",
-			"types": "./dist/beacon.d.ts"
+			"types": "./dist/beacon.d.ts",
+			"default": "./dist/beacon.js"
 		}
 	},
 	"files": [
