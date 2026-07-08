@@ -17,28 +17,34 @@
 		".": {
 			"bun": {
 				"types": "./dist/bun.d.ts",
-				"import": "./dist/bun.js"
+				"import": "./dist/bun.js",
+				"default": "./dist/bun.js"
 			},
 			"node": {
 				"types": "./dist/node.d.ts",
-				"import": "./dist/node.js"
+				"import": "./dist/node.js",
+				"default": "./dist/node.js"
 			},
 			"default": {
 				"types": "./dist/node.d.ts",
-				"import": "./dist/node.js"
+				"import": "./dist/node.js",
+				"default": "./dist/node.js"
 			}
 		},
 		"./bun": {
 			"types": "./dist/bun.d.ts",
-			"import": "./dist/bun.js"
+			"import": "./dist/bun.js",
+			"default": "./dist/bun.js"
 		},
 		"./node": {
 			"types": "./dist/node.d.ts",
-			"import": "./dist/node.js"
+			"import": "./dist/node.js",
+			"default": "./dist/node.js"
 		},
 		"./types": {
 			"types": "./dist/types.d.ts",
-			"import": "./dist/types.js"
+			"import": "./dist/types.js",
+			"default": "./dist/types.js"
 		}
 	},
 	"scripts": {
