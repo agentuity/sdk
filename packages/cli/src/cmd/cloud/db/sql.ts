@@ -1,7 +1,10 @@
 import { dbQuery } from '@agentuity/db';
+import { listOrgResources } from '@agentuity/server';
 import { z } from 'zod';
+import { setResourceInfo } from '../../../cache/index.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { getCatalystAPIClient } from '../../../config.ts';
+import { getCatalystAPIClient, getGlobalCatalystAPIClient } from '../../../config.ts';
+import { ErrorCode } from '../../../errors.ts';
 import * as tui from '../../../tui.ts';
 import { createSubcommand } from '../../../types.ts';
 
@@ -16,8 +19,24 @@ export const sqlSubcommand = createSubcommand({
 	aliases: ['exec', 'query'],
 	description: 'Execute SQL query on a database',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, org: true, region: true },
+	requires: { auth: true },
 	idempotent: false,
+	resourceRules: [
+		{
+			resource: 'org',
+			required: false,
+			flag: 'org-id',
+			envVar: 'AGENTUITY_CLOUD_ORG_ID',
+			canUseCache: true,
+		},
+		{
+			resource: 'region',
+			required: false,
+			flag: 'region',
+			envVar: 'AGENTUITY_REGION',
+			operationType: 'read',
+		},
+	],
 	examples: [
 		{
 			command: `${getCommand('cloud db sql')} my-database "SELECT * FROM users LIMIT 10"`,
@@ -42,9 +61,40 @@ export const sqlSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, args, options, orgId, region, auth } = ctx;
+		const { logger, args, options, auth, config } = ctx;
 
-		const catalystClient = getCatalystAPIClient(logger, auth, region, undefined, ctx.config);
+		const profileName = config?.name ?? 'production';
+
+		// `db sql` targets a named database, so resolve that database's own region
+		// rather than the ambient CLI region. The ambient region can point at a
+		// different region than the database lives in, which makes the query fail
+		// with "Not Found" (the same global-lookup pattern used by `db get`/`db wal`).
+		const globalClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			profileName,
+			undefined,
+			config
+		);
+
+		const resources = await tui.spinner({
+			message: `Looking up database ${args.name}`,
+			clearOnSuccess: true,
+			callback: async () => listOrgResources(globalClient, { type: 'db' }),
+		});
+
+		const db = resources.db.find((d) => d.name === args.name);
+		if (!db) {
+			tui.fatal(`Database '${args.name}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
+		}
+
+		const region = db.cloud_region;
+		const orgId = db.org_id;
+
+		// Cache the resolved region so later commands can skip the org resource scan.
+		await setResourceInfo('db', profileName, db.name, region, orgId);
+
+		const catalystClient = getCatalystAPIClient(logger, auth, region, undefined, config);
 
 		const result = await tui.spinner({
 			message: `Executing query on ${args.name}`,
