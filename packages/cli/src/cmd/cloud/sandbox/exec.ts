@@ -12,6 +12,7 @@ const EXECUTION_WAIT_DURATION = '5m';
 const EMPTY_STREAM_FAST_POLL_MS = 100;
 const EMPTY_STREAM_FAST_TIMEOUT_MS = 2000;
 const STREAM_DRAIN_TIMEOUT_MS = 30_000;
+const STDOUT_DRAIN_GRACE_MS = 2000;
 
 const SandboxExecResponseSchema = z.object({
 	executionId: z.string().describe('Unique execution identifier'),
@@ -356,7 +357,7 @@ export const execSubcommand = createCommand({
 						drainWait = setTimeout(() => {
 							process.stdout.removeListener('drain', onDrain);
 							resolve();
-						}, 2000);
+						}, STDOUT_DRAIN_GRACE_MS);
 					}
 					process.stdout.once('drain', onDrain);
 				});
