@@ -530,6 +530,8 @@ export const SandboxInfoSchema = z.object({
 		.describe(
 			'Exit code from the last execution (only available for terminated/failed sandboxes)'
 		),
+	/** Last error reported by the sandbox */
+	lastError: z.string().optional().describe('Last error reported by the sandbox'),
 	/** URL to the stdout output stream */
 	stdoutStreamUrl: z.string().optional().describe('URL to the stdout output stream'),
 	/** URL to the stderr output stream */
