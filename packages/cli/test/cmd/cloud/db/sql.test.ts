@@ -9,20 +9,22 @@ const dbQuery = mock(async () => ({
 }));
 
 const getCatalystAPIClient = mock(() => ({ regional: true }));
+const setResourceInfo = mock(async () => {});
+const listOrgResources = mock(async () => ({
+	db: [
+		{
+			name: 'my-db',
+			cloud_region: 'usw',
+			org_id: 'org_owner',
+			org_name: 'Owner Org',
+			url: 'postgres://example',
+			description: '',
+		},
+	],
+}));
 
 mock.module('@agentuity/server', () => ({
-	listOrgResources: mock(async () => ({
-		db: [
-			{
-				name: 'my-db',
-				cloud_region: 'usw',
-				org_id: 'org_owner',
-				org_name: 'Owner Org',
-				url: 'postgres://example',
-				description: '',
-			},
-		],
-	})),
+	listOrgResources,
 	// types.ts composes these into schemas at module-eval time.
 	DeploymentConfig: z.any(),
 	ProjectBuildConfig: z.any(),
@@ -37,7 +39,7 @@ mock.module('../../../../src/config', () => ({
 }));
 
 mock.module('../../../../src/cache/index.ts', () => ({
-	setResourceInfo: mock(async () => {}),
+	setResourceInfo,
 }));
 
 mock.module('../../../../src/tui', () => ({
@@ -56,6 +58,8 @@ describe('cloud db sql command', () => {
 	test("runs the query in the database's own region, not the ambient region", async () => {
 		dbQuery.mockClear();
 		getCatalystAPIClient.mockClear();
+		setResourceInfo.mockClear();
+		listOrgResources.mockClear();
 
 		const { sqlSubcommand } = await import('../../../../src/cmd/cloud/db/sql');
 
@@ -69,10 +73,16 @@ describe('cloud db sql command', () => {
 			config: { name: 'production' },
 		} as unknown as CommandContext);
 
+		// Lookup should filter by name so pagination can't hide the target DB.
+		expect(listOrgResources.mock.calls[0]?.[1]).toEqual({ type: 'db', name: 'my-db' });
+
 		// The database lives in usw; the ambient CLI region is usc. The regional
-		// client and the query must both target the database's real region.
+		// client and the query must both target the database's real region/org.
 		const regionalCall = getCatalystAPIClient.mock.calls[0];
 		expect(regionalCall?.[2]).toBe('usw');
+		expect(regionalCall?.[3]).toBe('org_owner');
+
+		expect(setResourceInfo).toHaveBeenCalledWith('db', 'production', 'my-db', 'usw', 'org_owner');
 
 		const queryRequest = dbQuery.mock.calls[0]?.[1] as { region: string; orgId: string };
 		expect(queryRequest.region).toBe('usw');

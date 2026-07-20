@@ -80,7 +80,7 @@ export const sqlSubcommand = createSubcommand({
 		const resources = await tui.spinner({
 			message: `Looking up database ${args.name}`,
 			clearOnSuccess: true,
-			callback: async () => listOrgResources(globalClient, { type: 'db' }),
+			callback: async () => listOrgResources(globalClient, { type: 'db', name: args.name }),
 		});
 
 		const db = resources.db.find((d) => d.name === args.name);
@@ -94,7 +94,7 @@ export const sqlSubcommand = createSubcommand({
 		// Cache the resolved region so later commands can skip the org resource scan.
 		await setResourceInfo('db', profileName, db.name, region, orgId);
 
-		const catalystClient = getCatalystAPIClient(logger, auth, region, undefined, config);
+		const catalystClient = getCatalystAPIClient(logger, auth, region, orgId, config);
 
 		const result = await tui.spinner({
 			message: `Executing query on ${args.name}`,
