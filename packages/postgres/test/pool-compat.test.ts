@@ -157,6 +157,7 @@ describe('PostgresPool pg.Pool compatibility', () => {
 
 		expect(pool.connected).toBe(true);
 		expect(pool.reconnecting).toBe(false);
+		expect(pool.stats.lastDisconnectedAt).toBeNull();
 		expect(onclose).not.toHaveBeenCalled();
 		expect(onreconnect).not.toHaveBeenCalled();
 		expect(endSpy).not.toHaveBeenCalled();

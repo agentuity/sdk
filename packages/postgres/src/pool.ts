@@ -524,8 +524,6 @@ export class PostgresPool extends EventEmitter implements Registrable {
 	 * when a consumer has attached a listener.
 	 */
 	private _handleIdleClientError(error: Error, client?: pg.PoolClient): void {
-		this._stats.lastDisconnectedAt = new Date();
-
 		if (this.listenerCount('error') > 0) {
 			this.emit('error', error, client);
 		}
