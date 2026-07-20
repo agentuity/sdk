@@ -386,7 +386,8 @@ export interface PoolConfig extends pg.PoolConfig {
 	preconnect?: boolean;
 
 	/**
-	 * Callback invoked when the pool encounters an error.
+	 * Callback reserved for pool-close notifications.
+	 * Idle client disconnects from pg.Pool are absorbed and do not invoke this.
 	 */
 	onclose?: (error?: Error) => void;
 

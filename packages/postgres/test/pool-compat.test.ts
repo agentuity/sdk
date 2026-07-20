@@ -133,6 +133,40 @@ describe('PostgresPool pg.Pool compatibility', () => {
 		await pool.end();
 	});
 
+	test('absorbs idle client errors without listeners and keeps the pool usable', async () => {
+		const onclose = mock(() => {});
+		const onreconnect = mock(() => {});
+		const pool = new PostgresPool({
+			connectionString: 'postgres://localhost/test',
+			preconnect: true,
+			onclose,
+			onreconnect,
+		});
+		await pool.waitForConnection();
+
+		const raw = pool.raw as unknown as MockPool;
+		const endSpy = mock(raw.end.bind(raw));
+		raw.end = endSpy;
+
+		expect(pool.connected).toBe(true);
+
+		// Idle disconnect with no error listener must not throw (Node/Bun crash path).
+		raw.emit('error', new Error('Connection terminated unexpectedly'), {
+			release: mock(() => {}),
+		});
+
+		expect(pool.connected).toBe(true);
+		expect(pool.reconnecting).toBe(false);
+		expect(onclose).not.toHaveBeenCalled();
+		expect(onreconnect).not.toHaveBeenCalled();
+		expect(endSpy).not.toHaveBeenCalled();
+
+		const result = await pool.query('SELECT 1');
+		expect(result.rows).toEqual([]);
+
+		await pool.end();
+	});
+
 	test('supports query callback overloads', async () => {
 		const pool = new PostgresPool({ connectionString: 'postgres://localhost/test' });
 		const raw = pool.raw as unknown as MockPool;
