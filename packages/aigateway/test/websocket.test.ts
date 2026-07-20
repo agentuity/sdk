@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import {
 	AIGatewayWebSocketClient,
 	AIGatewayWebSocketError,
+	buildAIGatewayWebSocketRequestFrame,
 	buildAIGatewayWebSocketUrl,
 	parseAIGatewayWSServerFrame,
 } from '../src/index.ts';
@@ -119,6 +120,66 @@ describe('AIGatewayWebSocketClient', () => {
 		MockWebSocket.instances = [];
 	});
 
+	it('includes cache_key on request frames when provided', () => {
+		const frame = buildAIGatewayWebSocketRequestFrame(
+			{
+				model: 'oss/qwen3p7-plus',
+				prompt: 'hello',
+				cache_key: 'gensess_123',
+			},
+			'req_1'
+		);
+		expect(frame).toMatchObject({
+			type: 'request',
+			id: 'req_1',
+			cache_key: 'gensess_123',
+			model: 'oss/qwen3p7-plus',
+			prompt: 'hello',
+		});
+	});
+
+	it('defaults request cache_key from connection cacheKey', async () => {
+		const client = new AIGatewayWebSocketClient({
+			apiKey: 'ag_test',
+			orgId: 'org_test',
+			cacheKey: 'hubsess_default',
+			url: 'https://aigateway.example',
+		});
+
+		const connectPromise = client.connect();
+		const ws = MockWebSocket.instances[0];
+		ws?.open();
+		await connectPromise;
+
+		const streamPromise = (async () => {
+			const events = [];
+			for await (const event of client.stream({
+				id: 'req_cache',
+				model: 'oss/qwen3p7-plus',
+				prompt: 'hello',
+				timeoutMs: 1_000,
+			})) {
+				events.push(event);
+			}
+			return events;
+		})();
+		await flushAsyncWork();
+
+		const sent = ws?.sent[0];
+		expect(sent).toBeTruthy();
+		const frame = JSON.parse(String(sent)) as Record<string, unknown>;
+		expect(frame.cache_key).toBe('hubsess_default');
+
+		ws?.receive({
+			type: 'response',
+			id: 'req_cache',
+			status: 'complete',
+			content: 'ok',
+		});
+		await streamPromise;
+		client.close();
+	});
+
 	it('connects without org header for SDK keys', async () => {
 		const client = new AIGatewayWebSocketClient({
 			apiKey: 'ag_test_sdk_key',
@@ -139,6 +200,7 @@ describe('AIGatewayWebSocketClient', () => {
 		const client = new AIGatewayWebSocketClient({
 			apiKey: 'ag_test',
 			orgId: 'org_test',
+			cacheKey: 'hubsess_abc',
 			url: 'https://aigateway.example',
 		});
 
@@ -148,6 +210,7 @@ describe('AIGatewayWebSocketClient', () => {
 		expect(ws?.headers).toEqual({
 			Authorization: 'Bearer ag_test',
 			'x-agentuity-orgid': 'org_test',
+			'X-Cache-Key': 'hubsess_abc',
 		});
 
 		ws?.open();
