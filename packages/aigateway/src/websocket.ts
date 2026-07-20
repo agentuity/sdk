@@ -54,6 +54,11 @@ export const AIGatewayWSRequestOptionsSchema = z.object({
 	max_tokens: z.number().optional(),
 	stream: z.boolean().optional(),
 	data: z.record(z.string(), z.unknown()).optional(),
+	/**
+	 * Stable prompt-cache affinity key for this request (Hub/Genesis session id).
+	 * Forwarded to Ion as `cache_key` / `X-Cache-Key` for cross-provider caching.
+	 */
+	cache_key: z.string().optional(),
 	timeoutMs: z.number().optional(),
 });
 
@@ -81,6 +86,12 @@ export interface AIGatewayWebSocketOptions {
 	apiKey: string;
 	orgId?: string;
 	url?: string;
+	/**
+	 * Stable prompt-cache affinity for this WebSocket (prefer Hub/Genesis session id).
+	 * Sent as `X-Cache-Key` on the upgrade so Ion can pin Fireworks/OpenAI/xAI/etc.
+	 * caches across models for the same conversation.
+	 */
+	cacheKey?: string;
 	autoReconnect?: boolean;
 	reconnectDelayMs?: number;
 	maxReconnectDelayMs?: number;
@@ -209,6 +220,9 @@ function buildRequestFrame(
 		applySharedFields();
 		if (parsed.data !== undefined) frame.data = parsed.data;
 	}
+	if (parsed.cache_key !== undefined) {
+		frame.cache_key = parsed.cache_key;
+	}
 
 	return frame;
 }
@@ -259,6 +273,7 @@ export class AIGatewayWebSocketClient {
 
 	readonly #apiKey: string;
 	readonly #orgId: string | undefined;
+	readonly #cacheKey: string | undefined;
 	readonly #url: string;
 	readonly #debugEnabled: boolean;
 
@@ -290,6 +305,8 @@ export class AIGatewayWebSocketClient {
 		};
 		this.#apiKey = options.apiKey;
 		this.#orgId = resolveOrgId({ orgId: options.orgId, apiKey: options.apiKey });
+		const trimmedCacheKey = options.cacheKey?.trim();
+		this.#cacheKey = trimmedCacheKey ? trimmedCacheKey : undefined;
 		this.#url = resolveWebSocketUrl(options);
 		this.#debugEnabled = resolveDebugEnabled(options);
 	}
@@ -449,7 +466,18 @@ export class AIGatewayWebSocketClient {
 		this.#pending.set(id, pending);
 
 		try {
-			this.#sendJson(buildRequestFrame({ ...options, id }, id), id);
+			this.#sendJson(
+				buildRequestFrame(
+					{
+						...options,
+						id,
+						// Prefer per-request override; default to the connection affinity key.
+						cache_key: options.cache_key ?? this.#cacheKey,
+					},
+					id
+				),
+				id
+			);
 
 			while (!done || queue.length > 0) {
 				if (queue.length === 0) {
@@ -504,6 +532,7 @@ export class AIGatewayWebSocketClient {
 			headers: {
 				Authorization: `Bearer ${this.#apiKey}`,
 				...(this.#orgId ? { 'x-agentuity-orgid': this.#orgId } : {}),
+				...(this.#cacheKey ? { 'X-Cache-Key': this.#cacheKey } : {}),
 			},
 		});
 		const lane: WebSocketLane = {
