@@ -1,14 +1,7 @@
 import { EventEmitter } from 'node:events';
 import pg from 'pg';
 import type { PoolConfig, PoolStats, CreatePoolOptions } from './types.ts';
-import {
-	ConnectionClosedError,
-	PostgresError,
-	QueryTimeoutError,
-	ReconnectFailedError,
-	isRetryableError,
-} from './errors.ts';
-import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect.ts';
+import { ConnectionClosedError, QueryTimeoutError, isRetryableError } from './errors.ts';
 import { registerClient, unregisterClient, type Registrable } from './registry.ts';
 import {
 	computePoolHotReloadKey,
@@ -17,10 +10,11 @@ import {
 } from './hot-reload.ts';
 
 /**
- * A resilient PostgreSQL connection pool with automatic reconnection.
+ * A resilient PostgreSQL connection pool.
  *
  * Wraps the `pg` package's Pool and adds:
- * - Automatic reconnection with exponential backoff
+ * - Safe idle-client error handling (absorbed; pg.Pool self-heals)
+ * - Query/connect retry on transient connection errors
  * - Connection state tracking
  * - Pool statistics
  *
@@ -491,8 +485,7 @@ export class PostgresPool extends EventEmitter implements Registrable {
 			this.emit('remove', client);
 		});
 		this._pool.on('error', (err: Error, client?: pg.PoolClient) => {
-			this._handlePoolError(err);
-			this.emit('error', err, client);
+			this._handleIdleClientError(err, client);
 		});
 	}
 
@@ -519,128 +512,20 @@ export class PostgresPool extends EventEmitter implements Registrable {
 	}
 
 	/**
-	 * Re-initializes the pool for reconnection.
+	 * Handles idle-client errors from the underlying pg.Pool.
+	 *
+	 * pg.Pool emits `error` when a connected but idle client is dropped
+	 * (proxy idle timeout, server restart, network blip). The pool already
+	 * removes that client; remaining clients stay usable and the next
+	 * checkout opens a replacement. Treat this as a self-heal signal, not
+	 * pool death — do not mark the pool disconnected or tear it down.
+	 *
+	 * Emitting `error` with zero listeners crashes Node/Bun, so only forward
+	 * when a consumer has attached a listener.
 	 */
-	private _reinitializePool(): void {
-		this._connected = false;
-		this._pool = null;
-		this._initializePool();
-	}
-
-	/**
-	 * Handles pool error events.
-	 */
-	private _handlePoolError(error: Error): void {
-		const wasConnected = this._connected;
-		this._connected = false;
-		this._stats.lastDisconnectedAt = new Date();
-
-		// Call user's onclose callback
-		this._config.onclose?.(error);
-
-		// Don't reconnect if explicitly closed OR if application is shutting down
-		if (this._closed || this._shuttingDown) {
-			return;
-		}
-
-		// Check if reconnection is enabled
-		const reconnectConfig = mergeReconnectConfig(this._config.reconnect);
-		if (!reconnectConfig.enabled) {
-			return;
-		}
-
-		// Check if it's a retryable error
-		if (!isRetryableError(error)) {
-			return;
-		}
-
-		// Start reconnection if not already in progress
-		if (!this._reconnecting && wasConnected) {
-			this._startReconnect();
-		}
-	}
-
-	/**
-	 * Starts the reconnection process.
-	 */
-	private _startReconnect(): void {
-		if (this._reconnecting || this._closed || this._shuttingDown) {
-			return;
-		}
-
-		this._reconnecting = true;
-		this._reconnectPromise = this._reconnectLoop();
-	}
-
-	/**
-	 * The main reconnection loop with exponential backoff.
-	 */
-	private async _reconnectLoop(): Promise<void> {
-		const config = mergeReconnectConfig(this._config.reconnect);
-		let attempt = 0;
-		let lastError: Error | undefined;
-
-		while (attempt < config.maxAttempts && !this._closed && !this._shuttingDown) {
-			this._stats.reconnectAttempts++;
-			this._stats.lastReconnectAttemptAt = new Date();
-
-			// Notify about reconnection attempt
-			this._config.onreconnect?.(attempt + 1);
-
-			// Calculate backoff delay
-			const delay = computeBackoff(attempt, config);
-
-			// Wait before attempting
-			await sleep(delay);
-
-			if (this._closed) {
-				break;
-			}
-
-			try {
-				// Close existing pool if any
-				if (this._pool) {
-					try {
-						await this._pool.end();
-					} catch {
-						// Ignore close errors
-					}
-					this._pool = null;
-				}
-
-				// Attempt to reconnect
-				this._reinitializePool();
-				await this._warmConnection();
-
-				// Success!
-				this._reconnecting = false;
-				this._reconnectPromise = null;
-				this._config.onreconnected?.();
-				return;
-			} catch (error) {
-				lastError =
-					error instanceof Error
-						? error
-						: new PostgresError({
-								message: String(error),
-							});
-				this._stats.failedReconnects++;
-				attempt++;
-			}
-		}
-
-		// All attempts failed
-		this._reconnecting = false;
-		this._reconnectPromise = null;
-
-		// Only invoke callback if not explicitly closed/shutdown
-		if (!this._closed && !this._shuttingDown) {
-			const finalError = new ReconnectFailedError({
-				attempts: attempt,
-				lastError,
-			});
-
-			this._config.onreconnectfailed?.(finalError);
+	private _handleIdleClientError(error: Error, client?: pg.PoolClient): void {
+		if (this.listenerCount('error') > 0) {
+			this.emit('error', error, client);
 		}
 	}
 
