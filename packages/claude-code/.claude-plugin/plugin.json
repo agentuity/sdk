@@ -1,6 +1,6 @@
 {
 	"name": "agentuity",
-	"version": "3.1.9",
+	"version": "3.1.10",
 	"description": "Deploy websites, apps, and AI agents to Agentuity — with managed databases, storage, queues, and more",
 	"author": {
 		"name": "Agentuity",
