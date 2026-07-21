@@ -14,8 +14,16 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync
 import { basename, join, relative, resolve } from 'node:path';
 import { run } from '../../../node-compat/proc.ts';
 import { getRunCommand, isAgentuityCliInvocation } from '../detect/util.ts';
+import { copyMonorepoTree, formatMonorepoStageLogs } from './monorepo-stage.ts';
 import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
-import type { MonorepoContext } from '../detect/monorepo.ts';
+
+// Re-export staging API for callers/tests that imported from this module.
+export {
+	copyMonorepoTree,
+	formatMonorepoStageLogs,
+	type CopyMonorepoTreeOptions,
+	type CopyMonorepoTreeResult,
+} from './monorepo-stage.ts';
 
 /**
  * Run a shell command and return exit code.
@@ -311,57 +319,6 @@ async function prepareFrameworkBuild(
 }
 
 /**
- * Recursively copy the monorepo tree from `monorepo.root` into
- * `outputDir`, excluding directories that must never ship (or that
- * would explode upload size: every nested `node_modules`, the VCS dir,
- * agent dotfiles, dev env files).
- *
- * Build artifacts already live inside the tree at their natural
- * paths (e.g. `<root>/apps/web/dist/`); this single pass picks them
- * up along with every workspace package's source. The deploy zip
- * filter (`cmd/cloud/deploy/upload.ts`) re-applies the same
- * exclusions defensively so anything new we drop in here (e.g. a
- * staging `.agentuity/` sibling) doesn't slip through either.
- */
-export function copyMonorepoTree(
-	monorepo: MonorepoContext,
-	outputDir: string,
-	logger: { debug: (...args: unknown[]) => void }
-): void {
-	const absOut = resolve(outputDir);
-	// If the staging dir lives inside the monorepo (it does by default
-	// at `<root>/.agentuity/`), skipping it during the walk prevents an
-	// infinite copy-into-self loop.
-	const outRelToRoot = relative(monorepo.root, absOut);
-	const skipNames = new Set(['node_modules', '.git', '.ssh', '.vite', '.agentuity', '.DS_Store']);
-
-	function walk(src: string, dst: string): void {
-		mkdirSync(dst, { recursive: true });
-		for (const entry of readdirSync(src, { withFileTypes: true })) {
-			if (skipNames.has(entry.name)) continue;
-			if (entry.name.startsWith('.env')) continue;
-			const srcChild = join(src, entry.name);
-			const dstChild = join(dst, entry.name);
-			const relFromMonorepo = relative(monorepo.root, srcChild);
-			if (relFromMonorepo === outRelToRoot) continue; // skip the staging dir itself
-			if (entry.isDirectory()) {
-				walk(srcChild, dstChild);
-			} else if (entry.isSymbolicLink()) {
-				// Resolve symlinks during copy. `node_modules` symlinks have
-				// already been skipped above; everything else is either a
-				// genuine source link or a regular file pretending to be one.
-				cpSync(srcChild, dstChild, { dereference: true, recursive: true });
-			} else {
-				cpSync(srcChild, dstChild);
-			}
-		}
-	}
-
-	logger.debug(`Mirroring monorepo from ${monorepo.root} to ${absOut}`);
-	walk(monorepo.root, absOut);
-}
-
-/**
  * Finish the build for monorepo mode: pick the right start command,
  * inject the static server when none is set, copy root runtime
  * manifests, and return a `BuildResult`. Mirrors the post-copy steps
@@ -491,10 +448,20 @@ export const genericAdapter: BuildAdapter = {
 		// `apps/web/dist/`), so a single recursive copy captures both
 		// the source workspace and the built output in one pass.
 		if (options.monorepo) {
-			mkdirSync(resolve(outputDir), { recursive: true });
-			copyMonorepoTree(options.monorepo, resolve(outputDir), logger);
-			logs.push(`✓ Copied monorepo (root: ${relative(buildCwd, options.monorepo.root) || '.'})`);
-			return finishMonorepoBuild(options, started, logs);
+			// Single load+walk inside copyMonorepoTree (wipes staging first).
+			// Pass buildOutput so bare patterns like `dist/` cannot strip
+			// `apps/<pkg>/dist` (the package's deploy artifacts).
+			const copyStats = copyMonorepoTree(options.monorepo, resolve(outputDir), logger, {
+				projectDir,
+				buildOutput: framework.buildOutput,
+			});
+			const rootLabel = relative(buildCwd, options.monorepo.root) || '.';
+			logs.push(...formatMonorepoStageLogs(rootLabel, copyStats));
+			const result = await finishMonorepoBuild(options, started, logs);
+			return {
+				...result,
+				usedIgnorePatterns: copyStats.userPatternCount > 0,
+			};
 		}
 
 		// Step 3: Copy build output to output directory.

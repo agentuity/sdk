@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/api",
-	"version": "3.1.9",
+	"version": "3.1.11",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"description": "Platform HTTP client for Agentuity control-plane APIs",

@@ -37,6 +37,12 @@ export interface BuildResult {
 
 	/** Human-readable build log lines */
 	logs: string[];
+
+	/**
+	 * True when monorepo staging loaded one or more user `.agentuityignore`
+	 * patterns. Undefined for non-monorepo builds.
+	 */
+	usedIgnorePatterns?: boolean;
 }
 
 /**

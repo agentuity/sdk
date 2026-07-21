@@ -90,6 +90,124 @@ During deploy, the CLI runs the same framework detection and adapter pipeline us
 
 For non-Agentuity framework apps, deploy metadata contains empty Agentuity route and agent lists, plus the launch metadata and any static assets discovered in the framework build output.
 
+## Monorepo Staging and `.agentuityignore`
+
+When the app is a workspace subpackage (for example `apps/web` under a root with `workspaces` or `pnpm-workspace.yaml`), the CLI stages the **monorepo root** into `.agentuity/` so runtime install can resolve `workspace:*` dependencies. That mirror can include sibling apps, docs, and local tooling you do not want in the upload.
+
+### File locations
+
+| Path | Role |
+|------|------|
+| `<monorepo-root>/.agentuityignore` | Workspace-wide exclusions |
+| `<app-package>/.agentuityignore` | App-specific exclusions (merged with the root file) |
+
+Both files use **gitignore syntax**. Patterns from both are combined; later patterns can override earlier ones the same way nested `.gitignore` files do.
+
+### Pattern roots
+
+**All patterns are matched against paths relative to the monorepo root** — the tree that gets staged — even when the ignore file lives in a subpackage.
+
+```gitignore title="apps/web/.agentuityignore"
+# These refer to monorepo-root paths, not apps/web/...
+experiments/
+scripts/
+apps/desktop/
+docs/
+```
+
+So `experiments/` excludes `<monorepo-root>/experiments/`, not only `apps/web/experiments/`.
+
+### Built-in exclusions
+
+These always apply and cannot be re-included with `!` negation:
+
+| Always excluded | Notes |
+|-----------------|--------|
+| `node_modules` | At any depth; Hadron installs production deps on the host |
+| `.git`, `.ssh` | VCS and credentials |
+| `.agentuity` | Staging directory (avoids recursive copy) |
+| `.vite`, `.DS_Store` | Dev cache / OS clutter |
+| `.env`, `.env.*` | Secrets; use cloud env injection instead |
+| `agentuity-deploy.zip` | Local pack-only artifact |
+
+### Example
+
+```gitignore title=".agentuityignore"
+# Sibling apps not needed to run this package
+apps/desktop/
+apps/debug-cli/
+
+# Research, docs, CI, local tooling
+.agents/
+experiments/
+scripts/
+docs/
+dist/
+reports/
+tests/
+tools/
+security/
+.github/
+
+# Caches and native build trees
+**/target/
+**/.turbo/
+**/.next/
+**/.vite/
+**/coverage/
+
+# Non-runtime prose
+**/*.md
+**/*.mdx
+```
+
+Do **not** exclude workspace packages your app imports via `workspace:*` (for example `packages/shared`). Prefer excluding sibling **apps** and non-runtime trees.
+
+### Protected paths
+
+Bare patterns like `dist/` match **any** directory named `dist` (gitignore rules). That would also match the target package’s build output (`apps/web/dist`). The CLI **keeps** these required paths even when they match a user pattern, and logs a warning:
+
+| Always kept (cannot be ignored by `.agentuityignore`) | Why |
+|------------------------------------------------------|-----|
+| Root `package.json` and lockfiles | Runtime install / workspaces |
+| Target package directory and its `package.json` | Deployed app root |
+| Target package build output (e.g. `apps/web/dist`) | Framework compile artifacts |
+
+Built-in safety rules still apply under the package (`node_modules`, `.env*`, …). Prefer scoped excludes for other packages’ output, for example `docs/dist/` or `apps/other/dist/`, instead of bare `dist/`.
+
+### Staging behavior
+
+- Each monorepo pack/deploy **wipes** the staging directory before copying, so newly ignored paths do not linger from a previous run.
+- Excluding a directory counts as one skip at that path; nested files never enter staging.
+- Ignore exclusions apply during **staging**, before the deploy zip is built. Zip-step "skipped" counts only refer to filter/symlink handling inside the already-staged tree.
+
+See also [Building Deployment Bundles](/reference/cli/build-configuration#monorepo-builds) and the how-to in [Deploy Framework Apps](/deploy-operate/deploy-framework-apps#exclude-monorepo-paths-from-the-deploy-bundle).
+
+## Inspect the Package Without Uploading
+
+Use pack-only mode to build and zip the same staging tree deploy would upload, without creating a cloud deployment or encrypting the upload:
+
+```bash
+agentuity deploy --pack-only
+agentuity deploy --pack-only --log-level=trace
+agentuity deploy --pack-only --pack-output ./out/deploy.zip
+```
+
+| Option | Description |
+|--------|-------------|
+| `--pack-only` | Build and write a local zip; skip encrypt, upload, and wait |
+| `--pack-output <path>` | Zip destination (default: `<project>/agentuity-deploy.zip`) |
+
+Default output is `agentuity-deploy.zip` next to the project (the app package when you pass `--dir apps/web`). List contents with:
+
+```bash
+unzip -l agentuity-deploy.zip
+```
+
+With `--log-level=trace` (or `--log-level trace`), the CLI prints every path excluded during monorepo staging and every file added to the zip. Build logs also summarize how many paths `.agentuityignore` excluded.
+
+Pack-only still expects a registered project (`agentuity.json`) for the same project context as deploy. It does not create a deployment record or upload artifacts.
+
 ## Deploy Options
 
 | Option | Description |
@@ -98,6 +216,8 @@ For non-Agentuity framework apps, deploy metadata contains empty Agentuity route
 | `--project-id <id>` | Project ID, alternative to resolving from `--dir` |
 | `--report-file <path>` | Write build and deploy diagnostics as JSON |
 | `-y, --confirm` | Confirm region changes in non-interactive environments |
+| `--pack-only` | Build and package a local zip without uploading |
+| `--pack-output <path>` | Destination for `--pack-only` (default: `agentuity-deploy.zip`) |
 | `--message <message>` | Message to associate with this deployment |
 | `--commit <sha>` | Git commit SHA |
 | `--branch <branch>` | Git branch |
@@ -114,6 +234,7 @@ Global CLI options can be placed before the command:
 
 ```bash
 agentuity --log-level debug deploy
+agentuity --log-level=trace deploy --pack-only
 agentuity --dry-run deploy
 agentuity --json deploy
 ```

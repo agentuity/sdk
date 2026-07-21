@@ -27,6 +27,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
 import { createGzip } from 'node:zlib';
+import type { Logger } from '@agentuity/core';
 import { pathExists } from '../../../node-compat/fs.ts';
 import {
 	type Deployment,
@@ -44,45 +45,12 @@ import {
 	stepSuccess,
 } from '../../../steps.ts';
 import * as tui from '../../../tui.ts';
+import { packageDeploymentZip } from './package.ts';
 import type { DeployPipelineState } from './types.ts';
 
-/**
- * Path-segment filter applied to every entry going into the deploy
- * zip. `rel` is posix-style, relative to the staging dir.
- *
- * The staging dir is curated by the adapter — it intentionally places
- * `node_modules/` there for layouts that ship traced runtime
- * dependencies (Next.js standalone, future bundlers). So we don't
- * drop `node_modules` here; the adapters' copy steps already exclude
- * *the user's* node_modules when mirroring source into staging.
- *
- * What we still defensively reject at the zip layer:
- *   - `.git`, `.ssh` at any depth — VCS / credentials should never ship
- *   - `.DS_Store` — macOS clutter
- *   - `.agentuity` at any depth — prevents zipping the staging dir
- *     into itself when an adapter accidentally nests output
- *   - any file whose basename starts with `.env` — secrets land on the
- *     deploy host through the platform's env injection, never through
- *     a developer dotfile we accidentally bundled
- *
- * Exported so it can be unit-tested directly.
- */
-export function deployZipFilter(_filename: string, rel: string): boolean {
-	const segments = rel.split('/');
-	for (const segment of segments) {
-		if (
-			segment === '.git' ||
-			segment === '.ssh' ||
-			segment === '.DS_Store' ||
-			segment === '.agentuity'
-		) {
-			return false;
-		}
-	}
-	const base = segments[segments.length - 1];
-	if (base && base.startsWith('.env')) return false;
-	return true;
-}
+// Re-export packaging primitives for tests / external callers that
+// historically imported them from this module.
+export { DEPLOY_PACK_ZIP_BASENAME, deployZipFilter, packageDeploymentZip } from './package.ts';
 
 export interface UploadStepParams {
 	projectDir: string;
@@ -90,8 +58,7 @@ export interface UploadStepParams {
 	deployment: Deployment | undefined;
 	hasReportFile: boolean;
 	state: DeployPipelineState;
-	/** Logger to thread through. */
-	logger: { trace: (msg: string) => void; debug: (msg: string) => void };
+	logger: Pick<Logger, 'trace' | 'debug'>;
 }
 
 /**
@@ -150,11 +117,14 @@ export function buildEncryptUploadStep(params: UploadStepParams): Step {
 			const zipSourceDir = buildOutputDir ?? join(projectDir, '.agentuity');
 			const deploymentZip = join(tmpdir(), `${deployment.id}.zip`);
 
-			// Lazy-load `zipDir` to avoid hauling archiver into the deploy
-			// command's import graph for non-deploy paths.
-			const { zipDir } = await import('../../../utils/zip.ts');
-			await zipDir(zipSourceDir, deploymentZip, { filter: deployZipFilter });
-			logger.trace(`Deployment zip created: ${deploymentZip}`);
+			const zipResult = await packageDeploymentZip({
+				sourceDir: zipSourceDir,
+				outputPath: deploymentZip,
+				logger,
+			});
+			logger.trace(
+				`Deployment zip created: ${zipResult.outputPath} (${zipResult.added} files, ${zipResult.sizeBytes} bytes)`
+			);
 			endZipDiagnostic();
 
 			// Phase B — encrypt the zip with the deployment's public key

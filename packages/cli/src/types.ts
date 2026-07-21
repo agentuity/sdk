@@ -635,6 +635,19 @@ export const DeployOptionsSchema = zod
 			.default('10m')
 			.optional()
 			.describe('Maximum time to wait when --wait is used (e.g. 30s, 10m, 1h)'),
+		packOnly: zod
+			.boolean()
+			.optional()
+			.default(false)
+			.describe(
+				'Build and package the deployment zip without uploading (inspect staging with --log-level=trace)'
+			),
+		packOutput: zod
+			.string()
+			.optional()
+			.describe(
+				'Destination path for --pack-only zip (default: <project>/agentuity-deploy.zip)'
+			),
 	})
 	.merge(GitOptionsSchema);
 
