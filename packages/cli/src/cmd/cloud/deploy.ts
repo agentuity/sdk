@@ -178,6 +178,13 @@ const DeployResponseSchema = z.object({
 	packPath: z.string().optional().describe('Absolute path to the pack-only deployment zip'),
 	fileCount: z.number().optional().describe('Number of files in the pack-only zip'),
 	sizeBytes: z.number().optional().describe('Pack-only zip size in bytes'),
+	/** Staging paths not packed at the zip step (filter / symlink / directory). */
+	skippedCount: z.number().optional().describe('Paths skipped when building the pack-only zip'),
+	/** True when monorepo staging applied user `.agentuityignore` patterns. */
+	usedIgnorePatterns: z
+		.boolean()
+		.optional()
+		.describe('Whether .agentuityignore patterns were applied during monorepo staging'),
 	logs: z.array(z.string()).optional().describe('The deployment startup logs'),
 	urls: z
 		.object({
@@ -371,6 +378,8 @@ export const deploySubcommand = createSubcommand({
 				packPath: packResult.packPath,
 				fileCount: packResult.fileCount,
 				sizeBytes: packResult.sizeBytes,
+				skippedCount: packResult.skippedCount,
+				usedIgnorePatterns: packResult.usedIgnorePatterns,
 				logs: packResult.logs,
 			};
 		}

@@ -31,13 +31,16 @@ export async function packageDeploymentZip(params: {
 	sourceDir: string;
 	outputPath: string;
 	logger: Pick<Logger, 'trace'>;
+	/** Optional 0–100 progress callback (forwarded to zipDir). */
+	progress?: (val: number) => void;
 }): Promise<PackageDeploymentZipResult> {
-	const { sourceDir, outputPath, logger } = params;
+	const { sourceDir, outputPath, logger, progress } = params;
 
 	logger.trace('Deploy zip: source=%s output=%s', sourceDir, outputPath);
 
 	const result = await zipDir(sourceDir, outputPath, {
 		filter: deployZipFilter,
+		progress,
 		onEntry: ({ relative, action }) => {
 			if (action === 'add') {
 				logger.trace('Deploy zip: + %s', relative);

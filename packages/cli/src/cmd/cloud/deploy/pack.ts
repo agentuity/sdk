@@ -55,7 +55,11 @@ export function resolvePackOutputPath(projectDir: string, packOutput?: string): 
 	return join(projectDir, DEPLOY_PACK_ZIP_BASENAME);
 }
 
-function resolveSafePackOutput(
+/**
+ * Resolve pack-only zip path, refusing to write inside the staging tree
+ * (which would race the zip scan). Exported for unit tests.
+ */
+export function resolveSafePackOutput(
 	stagingDir: string,
 	requested: string,
 	logger: Logger,
@@ -120,7 +124,11 @@ export async function runPackOnly(params: PackOnlyParams): Promise<PackOnlyResul
 
 		const { framework, monorepo, buildResult, outputDir } = pipelineResult;
 		const logs = [...pipelineResult.logs];
-		const usedIgnorePatterns = logs.some((line) => line.includes('.agentuityignore'));
+		// Structured flag from monorepo staging; monorepo fallback keeps the
+		// staging-vs-zip tip useful even when no ignore file was present.
+		const usedIgnorePatterns = Boolean(
+			pipelineResult.usedIgnorePatterns ?? buildResult.usedIgnorePatterns
+		);
 
 		const frameworkLabel = framework.version
 			? `${framework.name} v${framework.version}`

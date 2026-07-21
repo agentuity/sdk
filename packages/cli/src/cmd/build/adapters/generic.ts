@@ -457,7 +457,11 @@ export const genericAdapter: BuildAdapter = {
 			});
 			const rootLabel = relative(buildCwd, options.monorepo.root) || '.';
 			logs.push(...formatMonorepoStageLogs(rootLabel, copyStats));
-			return finishMonorepoBuild(options, started, logs);
+			const result = await finishMonorepoBuild(options, started, logs);
+			return {
+				...result,
+				usedIgnorePatterns: copyStats.userPatternCount > 0,
+			};
 		}
 
 		// Step 3: Copy build output to output directory.

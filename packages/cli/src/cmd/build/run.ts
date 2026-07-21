@@ -91,6 +91,11 @@ export interface BuildPipelineOutput {
 	buildMs: number;
 	/** Human-readable log lines for the caller to render. */
 	logs: string[];
+	/**
+	 * True when monorepo staging applied user `.agentuityignore` patterns.
+	 * False/undefined when not a monorepo or no user ignore file was loaded.
+	 */
+	usedIgnorePatterns?: boolean;
 }
 
 /**
@@ -224,5 +229,6 @@ export async function runBuildPipeline(input: BuildPipelineInput): Promise<Build
 		typecheckMs,
 		buildMs,
 		logs,
+		usedIgnorePatterns: buildResult.usedIgnorePatterns,
 	};
 }

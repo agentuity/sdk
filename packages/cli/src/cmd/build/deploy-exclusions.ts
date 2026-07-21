@@ -33,11 +33,18 @@ export const ALWAYS_IGNORE_PATTERNS: readonly string[] = [
 	DEPLOY_PACK_ZIP_BASENAME,
 ];
 
+/**
+ * True for env files we never ship: `.env` or `.env.<suffix>`
+ * (e.g. `.env.local`). Does not match `.envrc` or `.environment`.
+ */
+export function isEnvBasename(segment: string): boolean {
+	return segment === '.env' || segment.startsWith('.env.');
+}
+
 /** True when a single path segment must never ship (any depth). */
 export function isAlwaysSkippedSegment(segment: string): boolean {
 	if (ALWAYS_SKIP_BASENAMES.has(segment)) return true;
-	// `.env`, `.env.local`, `.env.production`, …
-	if (segment.startsWith('.env')) return true;
+	if (isEnvBasename(segment)) return true;
 	return false;
 }
 
@@ -49,8 +56,8 @@ export function isAlwaysSkippedSegment(segment: string): boolean {
  * intentionally place traced runtime `node_modules` in staging, so we
  * do not drop that name here.
  *
- * Defensively rejects: `.git`, `.ssh`, `.DS_Store`, `.agentuity`,
- * `.env*`, and pack-only zip artifacts at any depth.
+ * Defensively rejects: `.git`, `.ssh`, `.vite`, `.DS_Store`, `.agentuity`,
+ * `.env` / `.env.<suffix>`, and pack-only zip artifacts at any depth.
  */
 export function deployZipFilter(_filename: string, rel: string): boolean {
 	const segments = rel.split('/');
@@ -58,6 +65,7 @@ export function deployZipFilter(_filename: string, rel: string): boolean {
 		if (
 			segment === '.git' ||
 			segment === '.ssh' ||
+			segment === '.vite' ||
 			segment === '.DS_Store' ||
 			segment === '.agentuity'
 		) {
@@ -66,7 +74,7 @@ export function deployZipFilter(_filename: string, rel: string): boolean {
 	}
 	const base = segments[segments.length - 1];
 	if (!base) return true;
-	if (base.startsWith('.env')) return false;
+	if (isEnvBasename(base)) return false;
 	if (base === DEPLOY_PACK_ZIP_BASENAME) return false;
 	return true;
 }

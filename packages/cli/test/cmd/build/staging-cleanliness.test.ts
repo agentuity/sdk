@@ -311,6 +311,25 @@ describe('copyMonorepoTree', () => {
 		expect(existsSync(join(dst, 'apps/web/dist/server.js'))).toBe(true);
 		expect(existsSync(join(dst, 'apps/web/node_modules'))).toBe(false);
 	});
+
+	test('recurses symlink-to-directory so ignore rules apply to nested paths', () => {
+		write(join(root, 'real-docs', 'guide.md'), '# guide');
+		write(join(root, 'real-docs', 'secret.env.local'), 'x=1'); // not a .env. basename segment
+		write(join(root, 'apps', 'web', 'src', 'index.ts'), 'export {};');
+		write(join(root, 'package.json'), '{"workspaces":["apps/*"]}');
+		// Symlink at monorepo root named `docs` → real-docs tree.
+		symlinkSync(join(root, 'real-docs'), join(root, 'docs'));
+		write(join(root, '.agentuityignore'), 'docs/\n');
+
+		copyMonorepoTree(ctx(), dst, noopLogger, {
+			projectDir: join(root, 'apps', 'web'),
+			buildOutput: 'dist',
+		});
+
+		// The symlink directory itself is ignored via .agentuityignore.
+		expect(existsSync(join(dst, 'docs'))).toBe(false);
+		expect(existsSync(join(dst, 'apps/web/src/index.ts'))).toBe(true);
+	});
 });
 
 describe('parseAgentuityIgnore / deploy ignore matcher', () => {
@@ -410,12 +429,20 @@ describe('deployZipFilter', () => {
 		expect(deployZipFilter('stale.json', 'apps/web/.agentuity/stale.json')).toBe(false);
 	});
 
-	test('drops every .env* basename at any depth', () => {
+	test('drops every .env / .env.<suffix> basename at any depth', () => {
 		expect(deployZipFilter('.env', '.env')).toBe(false);
 		expect(deployZipFilter('.env.local', '.env.local')).toBe(false);
 		expect(deployZipFilter('.env.production', '.env.production')).toBe(false);
 		expect(deployZipFilter('.env', 'apps/web/.env')).toBe(false);
 		expect(deployZipFilter('.env.production', 'apps/web/.env.production')).toBe(false);
+		// Boundary-aware: not a prefix match on unrelated names.
+		expect(deployZipFilter('.envrc', '.envrc')).toBe(true);
+		expect(deployZipFilter('.environment', '.environment')).toBe(true);
+	});
+
+	test('drops .vite basename at any depth (aligned with ALWAYS_SKIP_BASENAMES)', () => {
+		expect(deployZipFilter('cache.json', '.vite/cache.json')).toBe(false);
+		expect(deployZipFilter('cache.json', 'apps/web/.vite/cache.json')).toBe(false);
 	});
 
 	test('does NOT drop unrelated dotfiles', () => {

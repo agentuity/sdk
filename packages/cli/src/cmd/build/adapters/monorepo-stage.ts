@@ -3,7 +3,7 @@
  * directory, applying `.agentuityignore` and built-in safety exclusions.
  */
 
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import type { Logger } from '@agentuity/core';
 import {
@@ -117,7 +117,17 @@ export function copyMonorepoTree(
 
 			if (relPosix === outRelPosix) continue;
 
-			const reason = matcher.classify(relPosix, entry.isDirectory());
+			// Resolve symlink targets so directory patterns (docs/) match.
+			let isDirectoryEntry = entry.isDirectory();
+			if (entry.isSymbolicLink()) {
+				try {
+					isDirectoryEntry = statSync(srcChild).isDirectory();
+				} catch {
+					isDirectoryEntry = false;
+				}
+			}
+
+			const reason = matcher.classify(relPosix, isDirectoryEntry);
 			if (reason) {
 				// Built-in safety (node_modules, .env, …) always wins.
 				// User patterns cannot strip the target package build output
@@ -131,11 +141,11 @@ export function copyMonorepoTree(
 						);
 					}
 					logger.trace?.(
-						`Deploy ignore: keeping protected ${entry.isDirectory() ? 'directory' : 'file'} ${relPosix}`
+						`Deploy ignore: keeping protected ${isDirectoryEntry ? 'directory' : 'file'} ${relPosix}`
 					);
 					// fall through to copy
 				} else {
-					const kind = entry.isDirectory() ? 'directory' : 'file';
+					const kind = isDirectoryEntry ? 'directory' : 'file';
 					if (reason === 'agentuityignore') {
 						skippedUser++;
 						logger.trace?.(`Deploy ignore: skipping ${kind} ${relPosix} (.agentuityignore)`);
@@ -147,7 +157,8 @@ export function copyMonorepoTree(
 				}
 			}
 
-			if (entry.isDirectory()) {
+			if (entry.isDirectory() || (entry.isSymbolicLink() && isDirectoryEntry)) {
+				// Regular dirs and symlink-to-dir: recurse so ignore applies nested.
 				walk(srcChild, dstChild);
 			} else if (entry.isSymbolicLink()) {
 				cpSync(srcChild, dstChild, { dereference: true, recursive: true });
