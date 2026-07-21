@@ -10,6 +10,7 @@ import type { BuildAdapter } from './types.ts';
 import { genericAdapter } from './generic.ts';
 import { nextjsAdapter } from './nextjs.ts';
 import { tanstackStartAdapter } from './tanstack-start.ts';
+import { viteAdapter } from './vite.ts';
 
 /**
  * Registry of framework-specific build adapters.
@@ -18,6 +19,7 @@ import { tanstackStartAdapter } from './tanstack-start.ts';
 const adapters: Record<string, BuildAdapter> = {
 	nextjs: nextjsAdapter,
 	'tanstack-start': tanstackStartAdapter,
+	vite: viteAdapter,
 };
 
 /**
