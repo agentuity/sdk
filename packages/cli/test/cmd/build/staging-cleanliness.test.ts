@@ -2,30 +2,28 @@
  * Staging-area cleanliness tests.
  *
  * Two layers of defense keep the deploy zip from accidentally including
- * developer-machine clutter (huge `node_modules` trees, `.git/`, dev
- * env files, ssh keys):
+ * developer-machine clutter:
  *
- *   1. `copyMonorepoTree` (the SDK's source-to-staging copy) skips a
- *      curated set of directories during the walk, so the staging dir
- *      never sees them in the first place.
- *
- *   2. `deployZipFilter` re-applies a smaller defensive net at zip
- *      time. The staging dir is SDK-controlled by then, so the filter
- *      only catches paths that are *always* unsafe to ship regardless
- *      of which adapter staged them (VCS, secrets, OS metadata).
- *
- * These tests pin both layers so a future "let me drop one of these
- * filters real quick" change doesn't silently leak hundreds of MB or,
- * worse, a `.env` file into a customer deploy.
+ *   1. `copyMonorepoTree` skips built-ins + `.agentuityignore` during staging.
+ *   2. `deployZipFilter` re-applies a defensive net at zip time.
  */
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { copyMonorepoTree } from '../../../src/cmd/build/adapters/generic';
+import { copyMonorepoTree } from '../../../src/cmd/build/adapters/monorepo-stage';
+import {
+	ALWAYS_IGNORE_PATTERNS,
+	DEPLOY_PACK_ZIP_BASENAME,
+	deployZipFilter,
+} from '../../../src/cmd/build/deploy-exclusions';
+import {
+	createDeployIgnoreMatcher,
+	loadDeployIgnoreMatcher,
+	parseAgentuityIgnore,
+} from '../../../src/cmd/build/deploy-ignore';
 import type { MonorepoContext } from '../../../src/cmd/build/detect/monorepo';
-import { deployZipFilter } from '../../../src/cmd/cloud/deploy/upload';
 
 function makeTmp(prefix: string): string {
 	const dir = join(tmpdir(), `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -59,10 +57,6 @@ describe('copyMonorepoTree', () => {
 	}
 
 	test("does not copy the user's node_modules at any depth", () => {
-		// Root, subpackage, and deeply-nested node_modules. The fake
-		// "bomb" file in each one would dwarf the real source tree on
-		// disk; if the copy walks into it the test will notice via the
-		// existence checks below.
 		write(join(root, 'node_modules', 'react', 'package.json'), '{"name":"react"}');
 		write(join(root, 'apps', 'web', 'node_modules', 'next', 'index.js'), '');
 		write(join(root, 'apps', 'web', 'src', 'index.ts'), 'export {};');
@@ -72,11 +66,9 @@ describe('copyMonorepoTree', () => {
 
 		copyMonorepoTree(ctx(), dst, noopLogger);
 
-		// Source files survive.
 		expect(existsSync(join(dst, 'package.json'))).toBe(true);
 		expect(existsSync(join(dst, 'apps/web/src/index.ts'))).toBe(true);
 		expect(existsSync(join(dst, 'packages/shared/src/index.ts'))).toBe(true);
-		// node_modules anywhere does not.
 		expect(existsSync(join(dst, 'node_modules'))).toBe(false);
 		expect(existsSync(join(dst, 'apps/web/node_modules'))).toBe(false);
 		expect(existsSync(join(dst, 'packages/shared/node_modules'))).toBe(false);
@@ -87,7 +79,6 @@ describe('copyMonorepoTree', () => {
 		write(join(root, '.ssh', 'id_rsa'), 'SECRET');
 		write(join(root, '.vite', 'cache.json'), '{}');
 		write(join(root, '.DS_Store'), '');
-		// A nested staging dir to make sure we don't recurse into ourselves.
 		write(join(root, '.agentuity', 'stale.txt'), 'should be ignored');
 		write(join(root, 'src', 'index.ts'), 'export {};');
 
@@ -128,7 +119,7 @@ describe('copyMonorepoTree', () => {
 		expect(existsSync(join(dst, 'apps/web/dist/chunk-abc.js'))).toBe(true);
 	});
 
-	test('dereferences relative symlinks at repo root (Node ERR_FS_EISDIR without recursive)', () => {
+	test('dereferences relative symlinks at repo root', () => {
 		write(join(root, 'real.txt'), 'hello from symlink');
 		symlinkSync('real.txt', join(root, 'link.txt'));
 		write(join(root, 'package.json'), '{"workspaces":["apps/*"]}');
@@ -141,9 +132,6 @@ describe('copyMonorepoTree', () => {
 	});
 
 	test('dereferences symlinks (so workspace-link targets ship as files)', () => {
-		// `packages/shared/src/index.ts` is the real file; `apps/web/src/shared.ts`
-		// is a symlink to it. We expect the symlink to be resolved to a
-		// regular file copy in the staging tree.
 		write(join(root, 'packages', 'shared', 'src', 'index.ts'), 'export const x = 1;');
 		mkdirSync(join(root, 'apps', 'web', 'src'), { recursive: true });
 		symlinkSync(
@@ -159,9 +147,6 @@ describe('copyMonorepoTree', () => {
 	});
 
 	test('skips the staging dir even when it sits inside the monorepo root', () => {
-		// Realistic case: the SDK puts `.agentuity/` at the monorepo
-		// root, so when copyMonorepoTree walks the root it must avoid
-		// recursing into its own destination.
 		const stagingInside = join(root, '.agentuity');
 		mkdirSync(stagingInside, { recursive: true });
 		write(join(stagingInside, 'old-build.txt'), 'previous run');
@@ -170,10 +155,166 @@ describe('copyMonorepoTree', () => {
 		copyMonorepoTree(ctx(), stagingInside, noopLogger);
 
 		expect(existsSync(join(stagingInside, 'src/index.ts'))).toBe(true);
-		// The pre-existing `old-build.txt` happens to share the dst
-		// dir; we don't try to clean it, but we also don't recurse
-		// into a `.agentuity/.agentuity/` infinite loop.
+		expect(existsSync(join(stagingInside, 'old-build.txt'))).toBe(false);
 		expect(existsSync(join(stagingInside, '.agentuity'))).toBe(false);
+	});
+
+	test('wipes stale ignored paths from a previous staging run', () => {
+		write(join(root, 'apps', 'web', 'src', 'index.ts'), 'export {};');
+		write(join(root, 'experiments', 'a.ts'), 'export {};');
+		copyMonorepoTree(ctx(), dst, noopLogger, { projectDir: join(root, 'apps', 'web') });
+		expect(existsSync(join(dst, 'experiments/a.ts'))).toBe(true);
+
+		write(join(root, 'apps', 'web', '.agentuityignore'), 'experiments\n');
+		copyMonorepoTree(ctx(), dst, noopLogger, { projectDir: join(root, 'apps', 'web') });
+
+		expect(existsSync(join(dst, 'apps/web/src/index.ts'))).toBe(true);
+		expect(existsSync(join(dst, 'experiments'))).toBe(false);
+	});
+
+	test('honors .agentuityignore patterns from monorepo root', () => {
+		write(join(root, 'apps', 'web', 'src', 'index.ts'), 'export {};');
+		write(join(root, 'apps', 'mobile', 'src', 'index.ts'), 'export {};');
+		write(join(root, 'docs', 'guide.md'), '# guide');
+		write(join(root, 'packages', 'shared', 'src', 'index.ts'), 'export {};');
+		write(join(root, '.agentuityignore'), ['apps/mobile/', 'docs/', '*.md'].join('\n'));
+
+		copyMonorepoTree(ctx(), dst, noopLogger, { projectDir: join(root, 'apps', 'web') });
+
+		expect(existsSync(join(dst, 'apps/web/src/index.ts'))).toBe(true);
+		expect(existsSync(join(dst, 'packages/shared/src/index.ts'))).toBe(true);
+		expect(existsSync(join(dst, 'apps/mobile'))).toBe(false);
+		expect(existsSync(join(dst, 'docs'))).toBe(false);
+	});
+
+	test('project-local .agentuityignore patterns match monorepo-root paths', () => {
+		write(join(root, 'apps', 'web', 'src', 'index.ts'), 'export {};');
+		write(join(root, 'experiments', 'a.ts'), 'export {};');
+		write(join(root, 'scripts', 'tool.ts'), 'export {};');
+		write(join(root, '.agents', 'skill.md'), '# skill');
+		write(
+			join(root, 'apps', 'web', '.agentuityignore'),
+			['.agents', 'experiments', 'scripts'].join('\n')
+		);
+
+		copyMonorepoTree(ctx(), dst, noopLogger, { projectDir: join(root, 'apps', 'web') });
+
+		expect(existsSync(join(dst, 'apps/web/src/index.ts'))).toBe(true);
+		expect(existsSync(join(dst, 'experiments'))).toBe(false);
+		expect(existsSync(join(dst, 'scripts'))).toBe(false);
+		expect(existsSync(join(dst, '.agents'))).toBe(false);
+	});
+
+	test('trace-logs each skipped path with reason (.agentuityignore vs built-in)', () => {
+		const traces: string[] = [];
+		const debugs: string[] = [];
+		const logger = {
+			debug: (msg: unknown) => {
+				debugs.push(String(msg));
+			},
+			trace: (msg: unknown) => {
+				traces.push(String(msg));
+			},
+		};
+
+		write(join(root, 'apps', 'web', 'src', 'index.ts'), 'export {};');
+		write(join(root, 'docs', 'guide.md'), '# guide');
+		write(join(root, 'node_modules', 'left-pad', 'index.js'), 'module.exports=1');
+		write(join(root, '.agentuityignore'), 'docs/\n');
+
+		copyMonorepoTree(ctx(), dst, logger, { projectDir: join(root, 'apps', 'web') });
+
+		expect(traces.some((t) => t.includes('patterns (1): docs/'))).toBe(true);
+		expect(
+			traces.some((t) => t.includes('skipping directory docs') && t.includes('.agentuityignore'))
+		).toBe(true);
+		expect(
+			traces.some((t) => t.includes('skipping directory node_modules') && t.includes('built-in'))
+		).toBe(true);
+		expect(debugs.some((t) => t.includes('Deploy ignore summary:'))).toBe(true);
+		expect(traces.some((t) => t.includes('apps/web/src/index.ts'))).toBe(false);
+	});
+
+	test('merges project-local .agentuityignore with monorepo root file', () => {
+		write(join(root, 'apps', 'web', 'src', 'index.ts'), 'export {};');
+		write(join(root, 'apps', 'web', 'fixtures', 'sample.json'), '{}');
+		write(join(root, 'docs', 'guide.md'), '# guide');
+		write(join(root, '.agentuityignore'), 'docs/\n');
+		write(join(root, 'apps', 'web', '.agentuityignore'), 'apps/web/fixtures/\n');
+
+		copyMonorepoTree(ctx(), dst, noopLogger, { projectDir: join(root, 'apps', 'web') });
+
+		expect(existsSync(join(dst, 'apps/web/src/index.ts'))).toBe(true);
+		expect(existsSync(join(dst, 'docs'))).toBe(false);
+		expect(existsSync(join(dst, 'apps/web/fixtures'))).toBe(false);
+	});
+
+	test('built-in safety skips cannot be re-included via negation', () => {
+		write(join(root, 'node_modules', 'left-pad', 'index.js'), 'module.exports=1');
+		write(join(root, '.env'), 'SECRET=1');
+		write(join(root, 'src', 'index.ts'), 'export {};');
+		write(
+			join(root, '.agentuityignore'),
+			['!node_modules', '!.env', '!node_modules/**'].join('\n')
+		);
+
+		copyMonorepoTree(ctx(), dst, noopLogger);
+
+		expect(existsSync(join(dst, 'src/index.ts'))).toBe(true);
+		expect(existsSync(join(dst, 'node_modules'))).toBe(false);
+		expect(existsSync(join(dst, '.env'))).toBe(false);
+	});
+});
+
+describe('parseAgentuityIgnore / deploy ignore matcher', () => {
+	test('parseAgentuityIgnore drops comments and blanks', () => {
+		const patterns = parseAgentuityIgnore(
+			['# header', '', 'docs/', '  apps/mobile/  ', '# trail'].join('\n')
+		);
+		expect(patterns).toEqual(['docs/', 'apps/mobile/']);
+	});
+
+	test('createDeployIgnoreMatcher matches gitignore directory patterns', () => {
+		const matcher = createDeployIgnoreMatcher({
+			userPatterns: ['docs/', 'apps/mobile', '**/*.test.ts'],
+		});
+		expect(matcher.classify('docs', true)).toBe('agentuityignore');
+		expect(matcher.classify('docs/guide.md')).toBe('agentuityignore');
+		expect(matcher.classify('apps/mobile', true)).toBe('agentuityignore');
+		expect(matcher.classify('apps/web/src/index.ts')).toBe(null);
+		expect(matcher.classify('apps/web/src/index.test.ts')).toBe('agentuityignore');
+	});
+
+	test('classify attributes built-in vs .agentuityignore skips', () => {
+		const matcher = createDeployIgnoreMatcher({
+			userPatterns: ['docs/'],
+			sources: ['/tmp/.agentuityignore'],
+			builtInPatterns: ALWAYS_IGNORE_PATTERNS,
+		});
+		expect(matcher.classify('docs', true)).toBe('agentuityignore');
+		expect(matcher.classify('docs/guide.md')).toBe('agentuityignore');
+		expect(matcher.classify('node_modules', true)).toBe('built-in');
+		expect(matcher.classify('.env.local')).toBe('built-in');
+		expect(matcher.classify('apps/web/src/index.ts')).toBe(null);
+	});
+
+	test('loadDeployIgnoreMatcher reads monorepo root file', () => {
+		const root = join(
+			tmpdir(),
+			`ignore-load-${Date.now()}-${Math.random().toString(36).slice(2)}`
+		);
+		mkdirSync(root, { recursive: true });
+		try {
+			writeFileSync(join(root, '.agentuityignore'), 'docs/\n.github/\n');
+			const matcher = loadDeployIgnoreMatcher(root);
+			expect(matcher.sources).toHaveLength(1);
+			expect(matcher.userPatterns).toEqual(['docs/', '.github/']);
+			expect(matcher.classify('docs/readme.md')).toBe('agentuityignore');
+			expect(matcher.classify('.github/workflows/ci.yml')).toBe('agentuityignore');
+			expect(matcher.classify('apps/web/src/index.ts')).toBe(null);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 });
 
@@ -184,7 +325,7 @@ describe('deployZipFilter', () => {
 		expect(deployZipFilter('launch.json', 'launch.json')).toBe(true);
 	});
 
-	test('keeps node_modules (Next.js standalone + future bundlers stage them deliberately)', () => {
+	test('keeps node_modules (Next.js standalone stages them deliberately)', () => {
 		expect(deployZipFilter('next.js', 'node_modules/next/dist/next.js')).toBe(true);
 		expect(deployZipFilter('package.json', 'apps/web/node_modules/react/package.json')).toBe(
 			true
@@ -210,11 +351,15 @@ describe('deployZipFilter', () => {
 	});
 
 	test('does NOT drop unrelated dotfiles', () => {
-		// `.npmrc`, `.gitignore`, `.eslintrc` etc. are legitimate to ship
-		// (or to expose to the deploy host). We only target the specific
-		// shapes that contain secrets / per-machine state.
 		expect(deployZipFilter('.npmrc', '.npmrc')).toBe(true);
 		expect(deployZipFilter('.gitignore', '.gitignore')).toBe(true);
 		expect(deployZipFilter('.eslintrc.json', '.eslintrc.json')).toBe(true);
+	});
+
+	test('drops pack-only artifact basename', () => {
+		expect(deployZipFilter(DEPLOY_PACK_ZIP_BASENAME, DEPLOY_PACK_ZIP_BASENAME)).toBe(false);
+		expect(
+			deployZipFilter(DEPLOY_PACK_ZIP_BASENAME, `apps/web/${DEPLOY_PACK_ZIP_BASENAME}`)
+		).toBe(false);
 	});
 });

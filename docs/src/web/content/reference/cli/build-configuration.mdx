@@ -130,6 +130,8 @@ Example:
 }
 ```
 
+## Monorepo Builds
+
 For a workspace app, a monorepo-aware build stages from the workspace root and adds `workingDirectory`:
 
 ```json title=".agentuity/launch.json"
@@ -151,6 +153,21 @@ For a workspace app, a monorepo-aware build stages from the workspace root and a
   }
 }
 ```
+
+Install and lockfile handling use the workspace root package manager. The staged tree is the monorepo root (not only the app package), so `workspace:*` dependencies resolve the same way they do locally.
+
+### Excluding paths with `.agentuityignore`
+
+Large monorepos often stage sibling apps, docs, and tooling that are not needed at runtime. Put a `.agentuityignore` file (gitignore syntax) at the monorepo root and/or in the app package. Patterns are always relative to the monorepo root.
+
+```gitignore title=".agentuityignore"
+apps/desktop/
+docs/
+.github/
+**/target/
+```
+
+Built-in rules always drop `node_modules`, `.git`, `.env*`, and similar paths. Full pattern rules, built-in exclusions, and pack-only inspection are documented under [Deploying to the Cloud](/reference/cli/deployment#monorepo-staging-and-agentuityignore).
 
 ## Custom Launchers
 

@@ -46,6 +46,44 @@ agentuity project import --dir apps/web --name web --confirm
 
 The project metadata and `.env` are written inside `apps/web`. A monorepo-aware build stages the deployment bundle from the workspace root and sets `workingDirectory` in `launch.json` for the app subdirectory.
 
+### Exclude monorepo paths from the deploy bundle
+
+Monorepo deploys copy the workspace root into the staging tree so `workspace:*` dependencies resolve at runtime. That can pull in sibling apps, docs, and other non-runtime weight. Add a `.agentuityignore` file (gitignore syntax) at the monorepo root and/or inside the app package:
+
+```gitignore title=".agentuityignore"
+# Sibling apps not needed at runtime
+apps/mobile/
+apps/desktop/
+
+# Docs, CI, and local tooling
+docs/
+.github/
+.turbo/
+coverage/
+**/target/
+**/*.test.ts
+```
+
+Key rules:
+
+- Patterns are **relative to the monorepo root**, even when the file is `apps/web/.agentuityignore`
+- Built-in exclusions always drop `node_modules`, `.git`, `.env*`, `.agentuity`, and similar (not overridable with `!`)
+- Do not exclude workspace packages your app needs for `workspace:*` resolution
+- Staging is wiped on every pack/deploy so new ignore rules take effect immediately
+
+Full reference (built-ins, merge order, gotchas): [Monorepo staging and `.agentuityignore`](/reference/cli/deployment#monorepo-staging-and-agentuityignore).
+
+### Inspect the deploy package without uploading
+
+```bash
+agentuity deploy --pack-only --log-level=trace
+agentuity deploy --pack-only --pack-output ./out/deploy.zip
+```
+
+Pack-only builds the same staging tree deploy would upload, writes `agentuity-deploy.zip` (or `--pack-output`), and skips encrypt/upload. Trace logs list staging exclusions and every zip entry. Inspect with `unzip -l agentuity-deploy.zip`.
+
+See [Inspect the package without uploading](/reference/cli/deployment#inspect-the-package-without-uploading).
+
 <Callout type="warning" title="Existing apps need import before non-interactive deploy">
 In an interactive terminal, `agentuity deploy` offers to register an unregistered project before it builds. In CI or any non-TTY context, deploy fails fast with `PROJECT_NOT_FOUND` if there is no `agentuity.json`. Run `agentuity project import --confirm` once before the first deploy.
 </Callout>

@@ -129,6 +129,8 @@ In a detected monorepo subpackage, the output is staged at the workspace root an
 
 Inspect `launch.json` after the first build. It shows the exact command the platform will run.
 
+To keep sibling apps, docs, and other non-runtime paths out of the monorepo deploy bundle, add a `.agentuityignore` file at the workspace root or in the app package (gitignore syntax; paths are relative to the monorepo root). See [Monorepo staging and `.agentuityignore`](/reference/cli/deployment#monorepo-staging-and-agentuityignore) and [Deploy Framework Apps](/deploy-operate/deploy-framework-apps#exclude-monorepo-paths-from-the-deploy-bundle).
+
 ## Next Steps
 
 - [App Configuration](/get-started/app-configuration): scripts, `agentuity.json`, env vars, and service clients

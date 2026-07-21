@@ -52,6 +52,7 @@ import { buildDiscoverStep } from './deploy/discover.ts';
 import { PreflightAptValidationError, runPreflight } from './deploy/preflight.ts';
 import { runRegister } from './deploy/register.ts';
 import type { DeployPipelineState } from './deploy/types.ts';
+import { runPackOnly } from './deploy/pack.ts';
 import { buildEncryptUploadStep, buildProvisionStep } from './deploy/upload.ts';
 import { runWaitForDeployment } from './deploy/wait.ts';
 import { parseDurationMs, waitForDeployment } from './deployment/wait-core.ts';
@@ -166,12 +167,17 @@ async function maybeHandoffLegacyDeploy(
 
 const DeployResponseSchema = z.object({
 	success: z.boolean().describe('Whether deployment succeeded'),
-	deploymentId: z.string().describe('Deployment ID'),
+	/** Omitted for `--pack-only` (no cloud deployment is created). */
+	deploymentId: z.string().optional().describe('Deployment ID'),
 	projectId: z.string().describe('Project ID'),
 	rolloutId: z
 		.string()
 		.optional()
 		.describe('Genesis managed rollout id when fan-out was triggered'),
+	/** Present when `--pack-only` wrote a local zip instead of uploading. */
+	packPath: z.string().optional().describe('Absolute path to the pack-only deployment zip'),
+	fileCount: z.number().optional().describe('Number of files in the pack-only zip'),
+	sizeBytes: z.number().optional().describe('Pack-only zip size in bytes'),
 	logs: z.array(z.string()).optional().describe('The deployment startup logs'),
 	urls: z
 		.object({
@@ -205,6 +211,14 @@ export const deploySubcommand = createSubcommand({
 		{
 			command: getCommand('cloud deploy --name "My Project"'),
 			description: 'Deploy and use a display name if the project must be registered',
+		},
+		{
+			command: getCommand('cloud deploy --pack-only --log-level=trace'),
+			description: 'Build and package the deploy zip without uploading (inspect contents)',
+		},
+		{
+			command: getCommand('cloud deploy --pack-only --pack-output ./out/deploy.zip'),
+			description: 'Write the pack-only zip to a custom path',
 		},
 	],
 	toplevel: true,
@@ -336,6 +350,29 @@ export const deploySubcommand = createSubcommand({
 			collector.setOutputPath(opts.reportFile);
 			collector.enableAutoWrite();
 			setGlobalCollector(collector);
+		}
+
+		// Pack-only: build + zip locally (no cloud deployment / upload).
+		// Report flush lives inside runPackOnly when --report-file is set.
+		if (opts.packOnly) {
+			const packResult = await runPackOnly({
+				project,
+				projectDir,
+				logger,
+				collector,
+				deployOptions: opts,
+				hasReportFile: Boolean(opts.reportFile),
+				packOutput: opts.packOutput,
+				json: isJSONMode(options),
+			});
+			return {
+				success: true,
+				projectId: packResult.projectId,
+				packPath: packResult.packPath,
+				fileCount: packResult.fileCount,
+				sizeBytes: packResult.sizeBytes,
+				logs: packResult.logs,
+			};
 		}
 
 		// Mutable state that survives between phases. The build/upload
