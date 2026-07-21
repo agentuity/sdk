@@ -449,8 +449,11 @@ export const genericAdapter: BuildAdapter = {
 		// the source workspace and the built output in one pass.
 		if (options.monorepo) {
 			// Single load+walk inside copyMonorepoTree (wipes staging first).
+			// Pass buildOutput so bare patterns like `dist/` cannot strip
+			// `apps/<pkg>/dist` (the package's deploy artifacts).
 			const copyStats = copyMonorepoTree(options.monorepo, resolve(outputDir), logger, {
 				projectDir,
+				buildOutput: framework.buildOutput,
 			});
 			const rootLabel = relative(buildCwd, options.monorepo.root) || '.';
 			logs.push(...formatMonorepoStageLogs(rootLabel, copyStats));

@@ -9,13 +9,17 @@ import type { Logger } from '@agentuity/core';
 import {
 	AGENTUITY_IGNORE_FILENAME,
 	type DeployIgnoreMatcher,
+	findRiskyBuildOutputIgnorePatterns,
+	isProtectedStagingPath,
 	loadDeployIgnoreMatcher,
+	type ProtectedStagingPaths,
+	resolveProtectedBuildOutputPath,
 	toPosixPath,
 } from '../deploy-ignore.ts';
 import type { MonorepoContext } from '../detect/monorepo.ts';
 
-/** Logger subset used while staging; `trace` is optional for test fixtures. */
-export type MonorepoStageLogger = Pick<Logger, 'debug'> & Partial<Pick<Logger, 'trace'>>;
+/** Logger subset used while staging; `trace`/`warn` optional for test fixtures. */
+export type MonorepoStageLogger = Pick<Logger, 'debug'> & Partial<Pick<Logger, 'trace' | 'warn'>>;
 
 export interface CopyMonorepoTreeOptions {
 	/**
@@ -29,12 +33,20 @@ export interface CopyMonorepoTreeOptions {
 	 * project-local `.agentuityignore` when `ignore` is not passed.
 	 */
 	projectDir?: string;
+	/**
+	 * Framework build output dir relative to the target package
+	 * (e.g. `dist`, `.output`). Used to protect that tree from bare
+	 * ignore patterns like `dist/` that would match at any depth.
+	 */
+	buildOutput?: string;
 }
 
 /** Stats from a monorepo staging copy (directory hits count as one path). */
 export interface CopyMonorepoTreeResult {
 	skippedUser: number;
 	skippedBuiltIn: number;
+	/** User ignore hits overridden because the path is required to deploy. */
+	protectedKept: number;
 	userPatternCount: number;
 	ignoreSources: readonly string[];
 }
@@ -61,6 +73,23 @@ export function copyMonorepoTree(
 
 	const matcher = options.ignore ?? loadDeployIgnoreMatcher(monorepo.root, options.projectDir);
 
+	const protect: ProtectedStagingPaths = {
+		subpath: monorepo.subpath,
+		buildOutput: options.buildOutput ?? '',
+	};
+	const protectedBuild = resolveProtectedBuildOutputPath(protect.subpath, protect.buildOutput);
+
+	const risky = findRiskyBuildOutputIgnorePatterns(matcher.userPatterns, protect.buildOutput);
+	if (risky.length > 0 && protectedBuild) {
+		logger.warn?.(
+			`.agentuityignore pattern(s) ${risky.map((p) => JSON.stringify(p)).join(', ')} ` +
+				`would match the deploy package build output at ${protectedBuild}/; ` +
+				`keeping ${protectedBuild}/ in the staging tree. Prefer a monorepo-root path ` +
+				`like "dist/" only when it is not the app output, or scope excludes ` +
+				`(e.g. "docs/dist/", "apps/other/dist/").`
+		);
+	}
+
 	if (matcher.sources.length > 0) {
 		logger.debug(
 			`Deploy ignore: ${matcher.userPatterns.length} user pattern(s) from ${matcher.sources
@@ -76,6 +105,8 @@ export function copyMonorepoTree(
 
 	let skippedUser = 0;
 	let skippedBuiltIn = 0;
+	let protectedKept = 0;
+	const protectedWarnOnce = new Set<string>();
 
 	function walk(src: string, dst: string): void {
 		mkdirSync(dst, { recursive: true });
@@ -88,15 +119,32 @@ export function copyMonorepoTree(
 
 			const reason = matcher.classify(relPosix, entry.isDirectory());
 			if (reason) {
-				const kind = entry.isDirectory() ? 'directory' : 'file';
-				if (reason === 'agentuityignore') {
-					skippedUser++;
-					logger.trace?.(`Deploy ignore: skipping ${kind} ${relPosix} (.agentuityignore)`);
+				// Built-in safety (node_modules, .env, …) always wins.
+				// User patterns cannot strip the target package build output
+				// or root lockfile — e.g. bare `dist/` matching apps/web/dist.
+				if (reason === 'agentuityignore' && isProtectedStagingPath(relPosix, protect)) {
+					protectedKept++;
+					if (!protectedWarnOnce.has(relPosix)) {
+						protectedWarnOnce.add(relPosix);
+						logger.warn?.(
+							`Deploy ignore: keeping protected path ${relPosix} (required for monorepo deploy; matched .agentuityignore)`
+						);
+					}
+					logger.trace?.(
+						`Deploy ignore: keeping protected ${entry.isDirectory() ? 'directory' : 'file'} ${relPosix}`
+					);
+					// fall through to copy
 				} else {
-					skippedBuiltIn++;
-					logger.trace?.(`Deploy ignore: skipping ${kind} ${relPosix} (built-in)`);
+					const kind = entry.isDirectory() ? 'directory' : 'file';
+					if (reason === 'agentuityignore') {
+						skippedUser++;
+						logger.trace?.(`Deploy ignore: skipping ${kind} ${relPosix} (.agentuityignore)`);
+					} else {
+						skippedBuiltIn++;
+						logger.trace?.(`Deploy ignore: skipping ${kind} ${relPosix} (built-in)`);
+					}
+					continue;
 				}
-				continue;
 			}
 
 			if (entry.isDirectory()) {
@@ -112,12 +160,13 @@ export function copyMonorepoTree(
 	logger.debug(`Mirroring monorepo from ${monorepo.root} to ${absOut}`);
 	walk(monorepo.root, absOut);
 	logger.debug(
-		`Deploy ignore summary: excluded ${skippedUser} path(s) via .agentuityignore, ${skippedBuiltIn} via built-in (dirs count as 1)`
+		`Deploy ignore summary: excluded ${skippedUser} path(s) via .agentuityignore, ${skippedBuiltIn} via built-in, kept ${protectedKept} protected (dirs count as 1)`
 	);
 
 	return {
 		skippedUser,
 		skippedBuiltIn,
+		protectedKept,
 		userPatternCount: matcher.userPatterns.length,
 		ignoreSources: matcher.sources,
 	};
@@ -137,6 +186,11 @@ export function formatMonorepoStageLogs(
 		lines.push(
 			`✓ Excluded ${stats.skippedUser} path(s) via .agentuityignore${builtIn} (dirs count as 1; contents never enter staging/zip)`
 		);
+		if (stats.protectedKept > 0) {
+			lines.push(
+				`⚠ Kept ${stats.protectedKept} protected path(s) that matched .agentuityignore (target package / build output / root manifests)`
+			);
+		}
 	} else {
 		lines.push(`✓ Copied monorepo (root: ${rootLabel})`);
 		if (stats.skippedBuiltIn > 0) {

@@ -69,6 +69,7 @@ Key rules:
 - Patterns are **relative to the monorepo root**, even when the file is `apps/web/.agentuityignore`
 - Built-in exclusions always drop `node_modules`, `.git`, `.env*`, `.agentuity`, and similar (not overridable with `!`)
 - Do not exclude workspace packages your app needs for `workspace:*` resolution
+- Bare `dist/` would also match `apps/web/dist`; the CLI keeps the target package’s build output and warns
 - Staging is wiped on every pack/deploy so new ignore rules take effect immediately
 
 Full reference (built-ins, merge order, gotchas): [Monorepo staging and `.agentuityignore`](/reference/cli/deployment#monorepo-staging-and-agentuityignore).

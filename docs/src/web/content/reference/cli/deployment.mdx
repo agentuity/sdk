@@ -163,7 +163,17 @@ security/
 
 Do **not** exclude workspace packages your app imports via `workspace:*` (for example `packages/shared`). Prefer excluding sibling **apps** and non-runtime trees.
 
-Avoid broad patterns like `dist/` if your app's build output is under a matching path and must ship.
+### Protected paths
+
+Bare patterns like `dist/` match **any** directory named `dist` (gitignore rules). That would also match the target package’s build output (`apps/web/dist`). The CLI **keeps** these required paths even when they match a user pattern, and logs a warning:
+
+| Always kept (cannot be ignored by `.agentuityignore`) | Why |
+|------------------------------------------------------|-----|
+| Root `package.json` and lockfiles | Runtime install / workspaces |
+| Target package directory and its `package.json` | Deployed app root |
+| Target package build output (e.g. `apps/web/dist`) | Framework compile artifacts |
+
+Built-in safety rules still apply under the package (`node_modules`, `.env*`, …). Prefer scoped excludes for other packages’ output, for example `docs/dist/` or `apps/other/dist/`, instead of bare `dist/`.
 
 ### Staging behavior
 

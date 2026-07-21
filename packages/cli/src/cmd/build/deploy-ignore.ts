@@ -163,3 +163,103 @@ export function loadDeployIgnoreMatcher(
 	const { userPatterns, sources } = loadDeployIgnorePatterns(monorepoRoot, projectDir);
 	return createDeployIgnoreMatcher({ userPatterns, sources });
 }
+
+/**
+ * Paths that must always stage for a monorepo deploy of `subpath`, even
+ * when a user `.agentuityignore` pattern would match (e.g. bare `dist/`
+ * matching `apps/web/dist`). Built-in safety skips (node_modules, .env)
+ * still win over protection.
+ */
+export interface ProtectedStagingPaths {
+	/** Posix subpath of the target package (e.g. `apps/web`). */
+	subpath: string;
+	/**
+	 * Framework build output relative to the package (e.g. `dist`,
+	 * `.output`). Empty / `.` means no dedicated build-output tree.
+	 */
+	buildOutput: string;
+}
+
+const ROOT_MANIFESTS = new Set([
+	'package.json',
+	'package-lock.json',
+	'npm-shrinkwrap.json',
+	'pnpm-lock.yaml',
+	'yarn.lock',
+	'bun.lock',
+	'bun.lockb',
+	'pnpm-workspace.yaml',
+]);
+
+function normalizePosixSegment(p: string): string {
+	return p.replace(/^\.\/+/, '').replace(/\/+$/, '');
+}
+
+/**
+ * Absolute posix path of the package build output under the monorepo root.
+ * Returns null when there is no dedicated build-output directory.
+ */
+export function resolveProtectedBuildOutputPath(
+	subpath: string,
+	buildOutput: string
+): string | null {
+	const sub = normalizePosixSegment(subpath);
+	const out = normalizePosixSegment(buildOutput);
+	if (!sub || !out || out === '.') return null;
+	return `${sub}/${out}`;
+}
+
+/**
+ * True when `relPosix` (monorepo-root-relative) must not be dropped by
+ * user ignore patterns.
+ */
+export function isProtectedStagingPath(relPosix: string, protect: ProtectedStagingPaths): boolean {
+	const posix = toPosixPath(relPosix).replace(/^\.\/+/, '');
+	if (!posix || posix === '.') return false;
+
+	if (ROOT_MANIFESTS.has(posix)) return true;
+
+	const sub = normalizePosixSegment(protect.subpath);
+	if (!sub) return false;
+
+	if (posix === sub) return true;
+	if (posix === `${sub}/package.json`) return true;
+
+	const buildRel = resolveProtectedBuildOutputPath(sub, protect.buildOutput);
+	if (buildRel && (posix === buildRel || posix.startsWith(`${buildRel}/`))) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * User patterns that are likely to match the target package's build
+ * output directory name at any depth (bare dist, dist/, or ** /dist).
+ */
+export function findRiskyBuildOutputIgnorePatterns(
+	userPatterns: readonly string[],
+	buildOutput: string
+): string[] {
+	const name = normalizePosixSegment(buildOutput).split('/').pop();
+	if (!name || name === '.') return [];
+
+	const risky: string[] = [];
+	const bareGlob = '**/' + name;
+	const bareChildren = name + '/**';
+	const bareGlobChildren = '**/' + name + '/**';
+	for (const raw of userPatterns) {
+		const p = raw.trim();
+		if (!p || p.startsWith('!') || p.startsWith('#')) continue;
+		const cleaned = p.replace(/^\//, '').replace(/\/+$/, '');
+		if (
+			cleaned === name ||
+			cleaned === bareGlob ||
+			cleaned === bareChildren ||
+			cleaned === bareGlobChildren
+		) {
+			risky.push(raw);
+		}
+	}
+	return risky;
+}

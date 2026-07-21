@@ -20,6 +20,8 @@ import {
 } from '../../../src/cmd/build/deploy-exclusions';
 import {
 	createDeployIgnoreMatcher,
+	findRiskyBuildOutputIgnorePatterns,
+	isProtectedStagingPath,
 	loadDeployIgnoreMatcher,
 	parseAgentuityIgnore,
 } from '../../../src/cmd/build/deploy-ignore';
@@ -264,6 +266,51 @@ describe('copyMonorepoTree', () => {
 		expect(existsSync(join(dst, 'node_modules'))).toBe(false);
 		expect(existsSync(join(dst, '.env'))).toBe(false);
 	});
+
+	test('keeps target package build output when bare dist/ is ignored', () => {
+		// Regression: gitignore `dist/` matches any path segment named dist,
+		// including apps/web/dist (the package's Vite/TS build artifacts).
+		write(join(root, 'apps', 'web', 'src', 'index.ts'), 'export {};');
+		write(join(root, 'apps', 'web', 'dist', 'server.js'), '// built');
+		write(join(root, 'apps', 'web', 'dist', 'chunk.js'), '');
+		write(join(root, 'dist', 'docs', 'index.html'), '<html>');
+		write(join(root, 'package.json'), '{"workspaces":["apps/*"]}');
+		write(join(root, '.agentuityignore'), 'dist/\n');
+
+		const warns: string[] = [];
+		const logger = {
+			debug: () => {},
+			warn: (msg: unknown) => {
+				warns.push(String(msg));
+			},
+		};
+
+		const stats = copyMonorepoTree(ctx(), dst, logger, {
+			projectDir: join(root, 'apps', 'web'),
+			buildOutput: 'dist',
+		});
+
+		expect(existsSync(join(dst, 'apps/web/dist/server.js'))).toBe(true);
+		expect(existsSync(join(dst, 'apps/web/dist/chunk.js'))).toBe(true);
+		expect(existsSync(join(dst, 'apps/web/src/index.ts'))).toBe(true);
+		expect(existsSync(join(dst, 'dist'))).toBe(false);
+		expect(stats.protectedKept).toBeGreaterThan(0);
+		expect(warns.some((w) => w.includes('apps/web/dist') || w.includes('protected'))).toBe(true);
+	});
+
+	test('still skips node_modules under the target package (built-in wins)', () => {
+		write(join(root, 'apps', 'web', 'dist', 'server.js'), '// built');
+		write(join(root, 'apps', 'web', 'node_modules', 'left-pad', 'index.js'), '1');
+		write(join(root, 'package.json'), '{"workspaces":["apps/*"]}');
+
+		copyMonorepoTree(ctx(), dst, noopLogger, {
+			projectDir: join(root, 'apps', 'web'),
+			buildOutput: 'dist',
+		});
+
+		expect(existsSync(join(dst, 'apps/web/dist/server.js'))).toBe(true);
+		expect(existsSync(join(dst, 'apps/web/node_modules'))).toBe(false);
+	});
 });
 
 describe('parseAgentuityIgnore / deploy ignore matcher', () => {
@@ -315,6 +362,27 @@ describe('parseAgentuityIgnore / deploy ignore matcher', () => {
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
+	});
+
+	test('isProtectedStagingPath covers package build output and root manifests', () => {
+		const protect = { subpath: 'apps/web', buildOutput: 'dist' };
+		expect(isProtectedStagingPath('package.json', protect)).toBe(true);
+		expect(isProtectedStagingPath('bun.lock', protect)).toBe(true);
+		expect(isProtectedStagingPath('apps/web', protect)).toBe(true);
+		expect(isProtectedStagingPath('apps/web/package.json', protect)).toBe(true);
+		expect(isProtectedStagingPath('apps/web/dist', protect)).toBe(true);
+		expect(isProtectedStagingPath('apps/web/dist/server.js', protect)).toBe(true);
+		expect(isProtectedStagingPath('dist', protect)).toBe(false);
+		expect(isProtectedStagingPath('dist/docs', protect)).toBe(false);
+		expect(isProtectedStagingPath('apps/web/src/index.ts', protect)).toBe(false);
+	});
+
+	test('findRiskyBuildOutputIgnorePatterns flags bare build-output names', () => {
+		expect(findRiskyBuildOutputIgnorePatterns(['dist/', 'docs/', '**/dist'], 'dist')).toEqual([
+			'dist/',
+			'**/dist',
+		]);
+		expect(findRiskyBuildOutputIgnorePatterns(['apps/other/dist/'], 'dist')).toEqual([]);
 	});
 });
 
