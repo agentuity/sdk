@@ -11,6 +11,7 @@
 
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { AGENTUITY_CDN_HOST } from '../cdn-origin.ts';
 
 const SERVER_CANDIDATES = ['src/server.ts', 'app/server.ts'] as const;
 
@@ -36,7 +37,7 @@ function resolveCdnOrigin(): string | undefined {
 	const explicit = process.env.AGENTUITY_CDN_ORIGIN?.replace(/\\/+$/, '');
 	if (explicit) return explicit;
 	const deploymentId = process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID;
-	return deploymentId ? \`https://cdn.agentuity.com/\${deploymentId}\` : undefined;
+	return deploymentId ? \`https://${AGENTUITY_CDN_HOST}/\${deploymentId}\` : undefined;
 }
 
 const cdnOrigin = resolveCdnOrigin();

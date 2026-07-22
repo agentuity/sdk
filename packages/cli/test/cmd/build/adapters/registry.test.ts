@@ -17,9 +17,9 @@ describe('Adapter Registry', () => {
 		expect(adapter.name).toBe('tanstack-start');
 	});
 
-	test('returns generic adapter for vite (no specific adapter)', () => {
+	test('returns vite adapter for vite framework', () => {
 		const adapter = getAdapter('vite');
-		expect(adapter.name).toBe('generic');
+		expect(adapter.name).toBe('vite');
 	});
 
 	test('returns generic adapter for sveltekit (no specific adapter yet)', () => {

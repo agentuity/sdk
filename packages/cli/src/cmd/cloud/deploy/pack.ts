@@ -15,6 +15,7 @@ import type { Logger } from '@agentuity/core';
 import { clearGlobalCollector, type BuildReportCollector } from '../../../build-report.ts';
 import * as tui from '../../../tui.ts';
 import type { DeployOptions, Project } from '../../../types.ts';
+import { PACK_ONLY_DEPLOYMENT_ID } from '../../build/adapters/cdn-origin.ts';
 import { runBuildPipeline } from '../../build/run.ts';
 import { DEPLOY_PACK_ZIP_BASENAME, packageDeploymentZip } from './package.ts';
 
@@ -116,7 +117,7 @@ export async function runPackOnly(params: PackOnlyParams): Promise<PackOnlyResul
 			projectId: project.projectId,
 			orgId: project.orgId,
 			region: project.region,
-			deploymentId: 'pack-only',
+			deploymentId: PACK_ONLY_DEPLOYMENT_ID,
 			deploymentOptions: deployOptions,
 			deploymentConfig: project.deployment,
 			skipTypeCheck: deployOptions.skipTypeCheck,

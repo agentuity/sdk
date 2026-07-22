@@ -157,9 +157,12 @@ jobs:
               # test — we're verifying scaffolding + deploy + cleanup
               # work end-to-end under WSL.
               echo "Creating project: $PROJECT_NAME"
+              # Explicit bun so Hadron runtime install matches local scaffold
+              # (default can vary; monorepo nesting is no longer relied upon).
               $CLI project create \
                 --name "$PROJECT_NAME" \
                 --framework hono \
+                --package-manager bun \
                 --database skip \
                 --storage skip \
                 --confirm
