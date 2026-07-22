@@ -136,24 +136,15 @@ jobs:
            run: |
               set -e
               source ~/test-env.sh
+              cd ~/sdk
 
               # Exercise the BUILT CLI under node (same flow as a real
               # user after `npm install -g @agentuity/cli`).
-              CLI="node $HOME/sdk/packages/cli/bin/cli.js"
+              CLI="node packages/cli/bin/cli.js"
               # Use GitHub expressions directly — env vars like GITHUB_RUN_ID
               # and GITHUB_BASE_REF are NOT available inside WSL, but
               # expressions are resolved at workflow parse time.
               PROJECT_NAME="test-wsl-${{ github.run_id }}-${{ github.run_attempt }}"
-
-              # Create the smoke app outside the SDK checkout. Nested under
-              # ~/sdk, monorepo detection treats the project as a workspace
-              # subpackage and packages the entire monorepo into the deploy
-              # (workingDirectory = test-wsl-…), which is not what this smoke
-              # test intends and has caused flaky warmup failures.
-              SMOKE_ROOT="$HOME/agentuity-smoke"
-              PROJECT_DIR="$SMOKE_ROOT/$PROJECT_NAME"
-              mkdir -p "$SMOKE_ROOT"
-              cd "$SMOKE_ROOT"
 
               # Verify authentication
               $CLI auth whoami
@@ -165,7 +156,7 @@ jobs:
               # detection). The exact framework doesn't matter for this
               # test — we're verifying scaffolding + deploy + cleanup
               # work end-to-end under WSL.
-              echo "Creating project: $PROJECT_DIR"
+              echo "Creating project: $PROJECT_NAME"
               $CLI project create \
                 --name "$PROJECT_NAME" \
                 --framework hono \
@@ -173,36 +164,29 @@ jobs:
                 --storage skip \
                 --confirm
 
-              # Persist local path before metadata parse so cleanup can remove
-              # the scaffold even when agentuity.json is missing/malformed.
-              echo "export PROJECT_NAME='$PROJECT_NAME'" >> ~/test-env.sh
-              echo "export PROJECT_DIR='$PROJECT_DIR'" >> ~/test-env.sh
-
-              # Extract project ID from agentuity.json (if ! so set -e still
-              # reaches the diagnostic branch when jq fails).
-              if ! PROJECT_ID=$(jq -r '.projectId' "$PROJECT_DIR/agentuity.json"); then
-                echo "❌ Failed to read project ID from agentuity.json"
-                cat "$PROJECT_DIR/agentuity.json" 2>/dev/null || echo "File not found"
-                exit 1
-              fi
+              # Extract project ID from agentuity.json
+              PROJECT_ID=$(jq -r '.projectId' "$PROJECT_NAME/agentuity.json")
               if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "null" ]; then
                 echo "❌ Failed to extract project ID from agentuity.json"
-                cat "$PROJECT_DIR/agentuity.json" 2>/dev/null || echo "File not found"
+                cat "$PROJECT_NAME/agentuity.json" 2>/dev/null || echo "File not found"
                 exit 1
               fi
 
+              # Persist project details for deploy and cleanup steps
               echo "export PROJECT_ID='$PROJECT_ID'" >> ~/test-env.sh
-              echo "✅ Project created: $PROJECT_ID ($PROJECT_DIR)"
+              echo "export PROJECT_NAME='$PROJECT_NAME'" >> ~/test-env.sh
+              echo "✅ Project created: $PROJECT_ID"
+
          - name: Deploy test project
            shell: wsl-bash {0}
            run: |
               set -e
               source ~/test-env.sh
-              cd "$PROJECT_DIR"
+              cd ~/sdk/$PROJECT_NAME
 
               CLI="node $HOME/sdk/packages/cli/bin/cli.js"
 
-              echo "Deploying project $PROJECT_ID from $PROJECT_DIR..."
+              echo "Deploying project $PROJECT_ID..."
               $CLI cloud deploy
 
               echo "✅ Deploy succeeded"
@@ -212,8 +196,9 @@ jobs:
            shell: wsl-bash {0}
            run: |
               source ~/test-env.sh 2>/dev/null || true
+              cd ~/sdk 2>/dev/null || exit 0
 
-              CLI="node $HOME/sdk/packages/cli/bin/cli.js"
+              CLI="node packages/cli/bin/cli.js"
 
               if [ -n "${PROJECT_ID:-}" ]; then
                 echo "Deleting project: $PROJECT_ID"
@@ -221,9 +206,4 @@ jobs:
                   || echo "⚠️ Warning: Failed to delete project $PROJECT_ID (manual cleanup may be needed)"
               else
                 echo "No project to clean up"
-              fi
-
-              # Drop local scaffold so the WSL home does not accumulate smoke trees
-              if [ -n "${PROJECT_DIR:-}" ] && [ -d "${PROJECT_DIR}" ]; then
-                rm -rf "${PROJECT_DIR}" || true
               fi
