@@ -68,6 +68,24 @@ export function resolveDevOrgId(options: ResolveDevOrgIdOptions): string | undef
 	);
 }
 
+const DEV_ORG_ENV_ALIASES = [
+	'AGENTUITY_ORGID',
+	'AGENTUITY_ORG_ID',
+	'AGENTUITY_CLOUD_ORG_ID',
+] as const;
+
+export function applyDevOrgEnv(
+	env: Record<string, string | undefined>,
+	orgId: string | undefined
+): void {
+	if (!orgId) return;
+	for (const name of DEV_ORG_ENV_ALIASES) {
+		if (!normalizeOrgId(env[name])) {
+			env[name] = orgId;
+		}
+	}
+}
+
 export const command = createCommand({
 	name: 'dev',
 	description: 'Run the project development server',
@@ -175,14 +193,14 @@ export const command = createCommand({
 		// Load agentuity.json (if present) so we can surface the project's
 		// orgId to the dev process. The aigateway client and other service
 		// clients accept orgId as a constructor option but otherwise have no
-		// way to pick it up under `agentuity dev`. Other parts of the platform
-		// (pi, coder-tui) already read AGENTUITY_ORGID from env, so we match
-		// that name here.
+		// way to pick it up under `agentuity dev`. Consumers read different
+		// subsets of the org env aliases (pi reads all of them, coder-tui
+		// reads AGENTUITY_ORGID and AGENTUITY_CLOUD_ORG_ID, the docs point
+		// apps at AGENTUITY_CLOUD_ORG_ID), so publish under every alias the
+		// developer has not already set.
 		const projectConfig = await tryLoadProjectConfig(rootDir, config);
 		const orgId = resolveDevOrgId({ env, projectConfig, config });
-		if (orgId && !normalizeOrgId(env.AGENTUITY_ORGID)) {
-			env.AGENTUITY_ORGID = orgId;
-		}
+		applyDevOrgEnv(env, orgId);
 
 		// Inject AI Gateway env vars so LLM SDKs route through Agentuity
 		const gatewayInjected = injectGatewayEnv(env, logger);
