@@ -77,6 +77,57 @@ function readWorkspacePatterns(pkgJson: unknown): string[] | null {
 }
 
 /**
+ * Minimal `pnpm-workspace.yaml` package-pattern parser.
+ * Handles the common `packages:` list form used by pnpm workspaces.
+ */
+function readPnpmWorkspacePatterns(yamlText: string): string[] {
+	const patterns: string[] = [];
+	let inPackages = false;
+	for (const rawLine of yamlText.split(/\r?\n/)) {
+		const line = rawLine.replace(/#.*$/, '');
+		if (/^\s*packages\s*:\s*$/.test(line)) {
+			inPackages = true;
+			continue;
+		}
+		if (!inPackages) continue;
+		// Next top-level key ends the packages list.
+		if (/^\S/.test(line) && !/^\s*-\s*/.test(line)) {
+			break;
+		}
+		const item = line.match(/^\s*-\s*['"]?([^'"]+?)['"]?\s*$/);
+		if (item?.[1]) patterns.push(item[1]);
+	}
+	return patterns;
+}
+
+/**
+ * True when `subpath` (posix, relative to workspace root) matches a workspace
+ * glob such as `packages/*`, `apps/**`, or an exact name like `docs`.
+ *
+ * Directories that merely live under a monorepo root but are not workspace
+ * members (e.g. CI smoke apps created next to `packages/`) must not trigger
+ * monorepo packaging — that ships the whole tree with a non-member
+ * `workingDirectory` and breaks Hadron readiness.
+ */
+export function matchesWorkspacePattern(subpath: string, pattern: string): boolean {
+	const normalizedSubpath = subpath.replace(/^\/+|\/+$/g, '');
+	const normalizedPattern = pattern.replace(/^\/+|\/+$/g, '');
+	if (!normalizedSubpath || !normalizedPattern) return false;
+
+	// Escape regex metacharacters, then expand * / ** as path globs.
+	const escaped = normalizedPattern
+		.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+		.replace(/\*\*/g, '<<<GLOBSTAR>>>')
+		.replace(/\*/g, '[^/]+')
+		.replace(/<<<GLOBSTAR>>>/g, '.*');
+	return new RegExp(`^${escaped}$`).test(normalizedSubpath);
+}
+
+export function isWorkspaceMember(subpath: string, patterns: string[]): boolean {
+	return patterns.some((pattern) => matchesWorkspacePattern(subpath, pattern));
+}
+
+/**
  * Choose the package manager when the root is identified by a
  * `package.json:workspaces` (i.e. not the pnpm marker case). We trust
  * the most specific lockfile present at the root, falling back to npm.
@@ -119,6 +170,10 @@ async function readJsonSafe(path: string): Promise<unknown | null> {
  *   - `pnpm-workspace.yaml`, or
  *   - a `package.json` with a `workspaces` array (or `{ packages: [...] }`).
  *
+ * The project must also match a workspace package pattern. Nested dirs that
+ * are not workspace members (CI smoke apps under a monorepo clone, scratch
+ * folders, etc.) return `null` so deploy packages only that project.
+ *
  * Returns `null` if no marker is found, or if the marker happens to sit
  * at `projectDir` itself (in that case the user is deploying the
  * monorepo root directly — not the subpackage flow this function
@@ -127,12 +182,24 @@ async function readJsonSafe(path: string): Promise<unknown | null> {
 export async function detectMonorepoContext(projectDir: string): Promise<MonorepoContext | null> {
 	let current = projectDir;
 	for (let i = 0; i < MAX_PARENTS; i++) {
-		// pnpm marker — definitive, no further verification needed.
-		if (await pathExists(join(current, 'pnpm-workspace.yaml'))) {
+		// pnpm marker
+		const pnpmWorkspacePath = join(current, 'pnpm-workspace.yaml');
+		if (await pathExists(pnpmWorkspacePath)) {
 			if (current === projectDir) return null;
+			const subpath = toPosix(relative(current, projectDir));
+			try {
+				const yamlText = await readFile(pnpmWorkspacePath, 'utf-8');
+				const patterns = readPnpmWorkspacePatterns(yamlText);
+				// Empty/unparsed patterns: keep prior behavior (treat as monorepo).
+				if (patterns.length > 0 && !isWorkspaceMember(subpath, patterns)) {
+					return null;
+				}
+			} catch {
+				// Unreadable yaml — fall through to monorepo context.
+			}
 			return {
 				root: current,
-				subpath: toPosix(relative(current, projectDir)),
+				subpath,
 				packageManager: 'pnpm',
 			};
 		}
@@ -143,9 +210,13 @@ export async function detectMonorepoContext(projectDir: string): Promise<Monorep
 			const patterns = readWorkspacePatterns(await readJsonSafe(pkgJsonPath));
 			if (patterns && patterns.length > 0) {
 				if (current === projectDir) return null;
+				const subpath = toPosix(relative(current, projectDir));
+				if (!isWorkspaceMember(subpath, patterns)) {
+					return null;
+				}
 				return {
 					root: current,
-					subpath: toPosix(relative(current, projectDir)),
+					subpath,
 					packageManager: await detectPackageManagerAtRoot(current),
 				};
 			}

@@ -20,14 +20,18 @@ app.get('/', (c) => {
 });
 
 const port = Number(process.env.PORT ?? 3000);
+// Bind all interfaces so container readiness probes (e.g. `nc -z 127.0.0.1`)
+// can reach the server; default Node bind can be IPv6-only on some images.
+const hostname = process.env.HOST ?? '0.0.0.0';
 
 serve(
 	{
 		fetch: app.fetch,
 		port,
+		hostname,
 	},
 	(info) => {
-		console.log(`Server is running on http://localhost:${info.port}`);
+		console.log(`Server is running on http://${hostname}:${info.port}`);
 	}
 );
 

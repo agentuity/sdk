@@ -176,4 +176,37 @@ describe('detectMonorepoContext', () => {
 		const ctx = await detectMonorepoContext(root);
 		expect(ctx).toBeNull();
 	});
+
+	test('returns null for directories under a monorepo that are not workspace members', async () => {
+		// Mirrors WSL CI: smoke apps are created as siblings of packages/, not
+		// listed in workspaces — they must not trigger monorepo packaging.
+		writeJson(join(root, 'package.json'), {
+			name: 'mono',
+			private: true,
+			workspaces: ['packages/*', 'apps/*'],
+		});
+		writeFileSync(join(root, 'bun.lock'), '');
+		const smokeDir = join(root, 'test-wsl-123-1');
+		mkdirSync(smokeDir, { recursive: true });
+		writeJson(join(smokeDir, 'package.json'), { name: 'smoke-app' });
+
+		const ctx = await detectMonorepoContext(smokeDir);
+		expect(ctx).toBeNull();
+	});
+
+	test('still detects real workspace members under packages/*', async () => {
+		writeJson(join(root, 'package.json'), {
+			name: 'mono',
+			private: true,
+			workspaces: ['packages/*'],
+		});
+		writeFileSync(join(root, 'bun.lock'), '');
+		const pkgDir = join(root, 'packages', 'cli');
+		mkdirSync(pkgDir, { recursive: true });
+		writeJson(join(pkgDir, 'package.json'), { name: '@x/cli' });
+
+		const ctx = await detectMonorepoContext(pkgDir);
+		expect(ctx).not.toBeNull();
+		expect(ctx!.subpath).toBe('packages/cli');
+	});
 });
