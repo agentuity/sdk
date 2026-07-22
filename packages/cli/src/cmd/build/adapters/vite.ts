@@ -13,7 +13,7 @@ export const viteAdapter: BuildAdapter = {
 	name: 'vite',
 
 	async build(options: BuildAdapterOptions): Promise<BuildResult> {
-		const preparation = prepareViteCdnBuild({
+		const preparation = await prepareViteCdnBuild({
 			projectDir: options.projectDir,
 			deploymentId: options.deploymentId,
 			framework: options.framework,
@@ -27,7 +27,7 @@ export const viteAdapter: BuildAdapter = {
 				logs: [...preparation.logs, ...result.logs],
 			};
 		} finally {
-			preparation.cleanup();
+			await preparation.cleanup();
 		}
 	},
 };

@@ -16,8 +16,9 @@
  *   2. Otherwise temporarily patch `vite.config.*` (reverted after build)
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathExists } from '../../../../node-compat/fs.ts';
 
 const VITE_CONFIG_NAMES = [
 	'vite.config.ts',
@@ -30,16 +31,16 @@ const VITE_CONFIG_NAMES = [
 export const PACK_ONLY_DEPLOYMENT_ID = 'pack-only';
 
 export interface ViteCdnBuildPreparation {
-	cleanup: () => void;
+	cleanup: () => Promise<void>;
 	logs: string[];
 	/** Absolute CDN base ending with `/`, or undefined when CDN wiring is skipped. */
 	cdnBase?: string;
 }
 
-export function findViteConfigPath(projectDir: string): string | null {
+export async function findViteConfigPath(projectDir: string): Promise<string | null> {
 	for (const name of VITE_CONFIG_NAMES) {
 		const path = join(projectDir, name);
-		if (existsSync(path)) return name;
+		if (await pathExists(path)) return name;
 	}
 	return null;
 }
@@ -63,17 +64,28 @@ export function resolveViteCdnBase(options: {
 }
 
 /**
- * Append `--base=<cdnBase>` to a shell build command that invokes vite.
- * No-op when vite is not on the command line or `--base` is already set.
+ * Append `--base=<cdnBase>` to the shell segment that invokes vite.
+ * Leaves other compound-command segments (before/after `&&` / `||` / `;`) unchanged.
+ * No-op when vite is not on the command line or that segment already has `--base`.
  */
 export function injectViteBaseFlag(buildCommand: string, cdnBase: string): string {
 	const trimmed = buildCommand.trim();
 	if (!trimmed) return buildCommand;
-	if (/\s--base(?:=|\s|$)/.test(trimmed)) return buildCommand;
 	if (!/\bvite\b/.test(trimmed)) return buildCommand;
 
-	// `--base=url` form avoids shell word-splitting issues.
-	return `${trimmed} --base=${cdnBase}`;
+	// Split on shell separators while retaining them in the result.
+	const parts = trimmed.split(/(\s*(?:&&|\|\||;)\s*)/);
+	let changed = false;
+	const out = parts.map((part) => {
+		// Separator tokens (&&, ||, ;)
+		if (/^\s*(?:&&|\|\||;)\s*$/.test(part)) return part;
+		if (!/\bvite\b/.test(part)) return part;
+		if (/(?:^|\s)--base(?:=|\s|$)/.test(part)) return part;
+		changed = true;
+		return `${part.trimEnd()} --base=${cdnBase}`;
+	});
+
+	return changed ? out.join('') : buildCommand;
 }
 
 /**
@@ -85,14 +97,6 @@ export function patchViteConfigCdnBase(
 	cdnBase: string
 ): { content: string; changed: boolean } {
 	const quoted = JSON.stringify(cdnBase);
-
-	// Already pointing at this CDN base.
-	if (source.includes(quoted) || source.includes(cdnBase.replace(/\/$/, ''))) {
-		// Only skip when an explicit base assignment already uses this value.
-		if (new RegExp(String.raw`\bbase\s*:\s*${escapeRegExp(quoted)}`).test(source)) {
-			return { content: source, changed: false };
-		}
-	}
 
 	// base: '/' → CDN
 	if (/\bbase\s*:\s*['"]\/['"]/.test(source)) {
@@ -110,7 +114,7 @@ export function patchViteConfigCdnBase(
 		};
 	}
 
-	// Any other explicit base (e.g. '/app/') — do not override.
+	// Any other explicit base (e.g. '/app/' or already CDN) — do not override.
 	if (/\bbase\s*:/.test(source)) {
 		return { content: source, changed: false };
 	}
@@ -126,10 +130,6 @@ export function patchViteConfigCdnBase(
 	};
 }
 
-function escapeRegExp(value: string): string {
-	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 export interface PrepareViteCdnBuildOptions {
 	projectDir: string;
 	deploymentId?: string;
@@ -142,15 +142,29 @@ export interface PrepareViteCdnBuildOptions {
 	env?: NodeJS.ProcessEnv;
 }
 
+type CleanupFn = () => void | Promise<void>;
+
+async function runCleanups(cleanups: CleanupFn[]): Promise<void> {
+	for (const cleanup of [...cleanups].reverse()) {
+		await cleanup();
+	}
+}
+
 /**
  * Apply CDN base wiring for a Vite project deploy build.
- * Always call `cleanup()` in a finally block so config/command mutations revert.
+ * Always await `cleanup()` in a finally block so config/command mutations revert.
  */
-export function prepareViteCdnBuild(options: PrepareViteCdnBuildOptions): ViteCdnBuildPreparation {
+export async function prepareViteCdnBuild(
+	options: PrepareViteCdnBuildOptions
+): Promise<ViteCdnBuildPreparation> {
 	const { projectDir, framework, logger } = options;
 	const env = options.env ?? process.env;
 	const logs: string[] = [];
-	const cleanups: Array<() => void> = [];
+	const cleanups: CleanupFn[] = [];
+
+	const runCleanup = async () => {
+		await runCleanups(cleanups);
+	};
 
 	const cdnBase = resolveViteCdnBase({
 		deploymentId: options.deploymentId,
@@ -161,76 +175,82 @@ export function prepareViteCdnBuild(options: PrepareViteCdnBuildOptions): ViteCd
 		logger.debug('Vite CDN base: skipped (no deployment id / AGENTUITY_CDN_ORIGIN)');
 		return {
 			logs,
-			cleanup: () => {},
+			cleanup: async () => {},
 		};
 	}
 
-	const cdnOrigin = cdnBase.replace(/\/+$/, '');
-	const deploymentId =
-		options.deploymentId?.trim() || env.AGENTUITY_CLOUD_DEPLOYMENT_ID?.trim() || undefined;
+	try {
+		const cdnOrigin = cdnBase.replace(/\/+$/, '');
+		const deploymentId =
+			options.deploymentId?.trim() || env.AGENTUITY_CLOUD_DEPLOYMENT_ID?.trim() || undefined;
 
-	// Expose CDN env to the build process (and any config that reads it).
-	const previousBuildEnv = framework.buildEnv;
-	framework.buildEnv = {
-		...previousBuildEnv,
-		AGENTUITY_CDN_ORIGIN: cdnOrigin,
-		...(deploymentId && deploymentId !== PACK_ONLY_DEPLOYMENT_ID
-			? { AGENTUITY_CLOUD_DEPLOYMENT_ID: deploymentId }
-			: {}),
-	};
-	cleanups.push(() => {
-		framework.buildEnv = previousBuildEnv;
-	});
-
-	// Preferred: pass --base on the vite CLI (overrides vite.config).
-	const previousCommand = framework.buildCommand;
-	const withBaseFlag = injectViteBaseFlag(previousCommand, cdnBase);
-	let appliedViaFlag = false;
-	if (withBaseFlag !== previousCommand) {
-		framework.buildCommand = withBaseFlag;
+		// Expose CDN env to the build process (and any config that reads it).
+		const previousBuildEnv = framework.buildEnv;
+		framework.buildEnv = {
+			...previousBuildEnv,
+			AGENTUITY_CDN_ORIGIN: cdnOrigin,
+			...(deploymentId && deploymentId !== PACK_ONLY_DEPLOYMENT_ID
+				? { AGENTUITY_CLOUD_DEPLOYMENT_ID: deploymentId }
+				: {}),
+		};
 		cleanups.push(() => {
-			framework.buildCommand = previousCommand;
+			framework.buildEnv = previousBuildEnv;
 		});
-		appliedViaFlag = true;
-		logs.push(`✓ Vite CDN base via CLI: --base=${cdnBase}`);
-		logger.debug('Vite CDN: injected --base into build command');
-	}
 
-	// Fallback: patch vite.config when the build script does not invoke vite
-	// directly (e.g. a custom wrapper that still reads config).
-	if (!appliedViaFlag) {
-		const viteConfigRel = findViteConfigPath(projectDir);
-		if (viteConfigRel) {
-			const vitePath = join(projectDir, viteConfigRel);
-			const original = readFileSync(vitePath, 'utf-8');
-			const patched = patchViteConfigCdnBase(original, cdnBase);
-			if (patched.changed) {
-				writeFileSync(vitePath, patched.content, 'utf-8');
-				cleanups.push(() => writeFileSync(vitePath, original, 'utf-8'));
-				logs.push(`✓ Vite CDN base via ${viteConfigRel}: base=${cdnBase}`);
-				logger.debug('Vite CDN: patched %s base to %s', viteConfigRel, cdnBase);
+		// Preferred: pass --base on the vite CLI segment (overrides vite.config).
+		const previousCommand = framework.buildCommand;
+		const withBaseFlag = injectViteBaseFlag(previousCommand, cdnBase);
+		let appliedViaFlag = false;
+		if (withBaseFlag !== previousCommand) {
+			framework.buildCommand = withBaseFlag;
+			cleanups.push(() => {
+				framework.buildCommand = previousCommand;
+			});
+			appliedViaFlag = true;
+			logs.push(`✓ Vite CDN base via CLI: --base=${cdnBase}`);
+			logger.debug('Vite CDN: injected --base into build command');
+		}
+
+		// Fallback: patch vite.config when the build script does not invoke vite
+		// directly (e.g. a custom wrapper that still reads config).
+		if (!appliedViaFlag) {
+			const viteConfigRel = await findViteConfigPath(projectDir);
+			if (viteConfigRel) {
+				const vitePath = join(projectDir, viteConfigRel);
+				const original = await readFile(vitePath, 'utf-8');
+				const patched = patchViteConfigCdnBase(original, cdnBase);
+				if (patched.changed) {
+					await writeFile(vitePath, patched.content, 'utf-8');
+					cleanups.push(async () => {
+						await writeFile(vitePath, original, 'utf-8');
+					});
+					logs.push(`✓ Vite CDN base via ${viteConfigRel}: base=${cdnBase}`);
+					logger.debug('Vite CDN: patched %s base to %s', viteConfigRel, cdnBase);
+				} else {
+					logger.debug(
+						'Vite CDN: could not patch %s (custom base already set or unrecognized config shape)',
+						viteConfigRel
+					);
+					logs.push(
+						`⚠ Vite CDN: could not set base in ${viteConfigRel}; asset URLs may stay on the app origin`
+					);
+				}
 			} else {
-				logger.debug(
-					'Vite CDN: could not patch %s (custom base already set or unrecognized config shape)',
-					viteConfigRel
-				);
+				logger.debug('Vite CDN: no vite.config found and build command has no vite binary');
 				logs.push(
-					`⚠ Vite CDN: could not set base in ${viteConfigRel}; asset URLs may stay on the app origin`
+					'⚠ Vite CDN: no vite.config and build command does not invoke vite; asset URLs may stay on the app origin'
 				);
 			}
-		} else {
-			logger.debug('Vite CDN: no vite.config found and build command has no vite binary');
-			logs.push(
-				'⚠ Vite CDN: no vite.config and build command does not invoke vite; asset URLs may stay on the app origin'
-			);
 		}
-	}
 
-	return {
-		cdnBase,
-		logs,
-		cleanup: () => {
-			for (const cleanup of cleanups.reverse()) cleanup();
-		},
-	};
+		return {
+			cdnBase,
+			logs,
+			cleanup: runCleanup,
+		};
+	} catch (error) {
+		// Restore any mutations applied before the failure.
+		await runCleanup();
+		throw error;
+	}
 }

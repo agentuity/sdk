@@ -173,20 +173,26 @@ jobs:
                 --storage skip \
                 --confirm
 
-              # Extract project ID from agentuity.json
-              PROJECT_ID=$(jq -r '.projectId' "$PROJECT_DIR/agentuity.json")
+              # Persist local path before metadata parse so cleanup can remove
+              # the scaffold even when agentuity.json is missing/malformed.
+              echo "export PROJECT_NAME='$PROJECT_NAME'" >> ~/test-env.sh
+              echo "export PROJECT_DIR='$PROJECT_DIR'" >> ~/test-env.sh
+
+              # Extract project ID from agentuity.json (if ! so set -e still
+              # reaches the diagnostic branch when jq fails).
+              if ! PROJECT_ID=$(jq -r '.projectId' "$PROJECT_DIR/agentuity.json"); then
+                echo "❌ Failed to read project ID from agentuity.json"
+                cat "$PROJECT_DIR/agentuity.json" 2>/dev/null || echo "File not found"
+                exit 1
+              fi
               if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "null" ]; then
                 echo "❌ Failed to extract project ID from agentuity.json"
                 cat "$PROJECT_DIR/agentuity.json" 2>/dev/null || echo "File not found"
                 exit 1
               fi
 
-              # Persist project details for deploy and cleanup steps
               echo "export PROJECT_ID='$PROJECT_ID'" >> ~/test-env.sh
-              echo "export PROJECT_NAME='$PROJECT_NAME'" >> ~/test-env.sh
-              echo "export PROJECT_DIR='$PROJECT_DIR'" >> ~/test-env.sh
               echo "✅ Project created: $PROJECT_ID ($PROJECT_DIR)"
-
          - name: Deploy test project
            shell: wsl-bash {0}
            run: |
