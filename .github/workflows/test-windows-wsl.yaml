@@ -162,7 +162,7 @@ jobs:
               $CLI project create \
                 --name "$PROJECT_NAME" \
                 --framework hono \
-                --packageManager bun \
+                --package-manager bun \
                 --database skip \
                 --storage skip \
                 --confirm
