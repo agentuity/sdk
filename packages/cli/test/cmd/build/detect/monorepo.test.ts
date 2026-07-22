@@ -110,6 +110,17 @@ describe('detectMonorepoContext', () => {
 		expect(ctx!.subpath).toBe('apps/web');
 	});
 
+	test('pnpm fails closed for non-members under the workspace root', async () => {
+		writeJson(join(root, 'package.json'), { name: 'mono', private: true });
+		writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - "apps/*"\n');
+		const smokeDir = join(root, 'test-wsl-smoke');
+		mkdirSync(smokeDir, { recursive: true });
+		writeJson(join(smokeDir, 'package.json'), { name: 'smoke' });
+
+		const ctx = await detectMonorepoContext(smokeDir);
+		expect(ctx).toBeNull();
+	});
+
 	test('walks multiple levels up to find the workspace root', async () => {
 		writeJson(join(root, 'package.json'), {
 			name: 'mono',

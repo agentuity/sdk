@@ -182,20 +182,21 @@ async function readJsonSafe(path: string): Promise<unknown | null> {
 export async function detectMonorepoContext(projectDir: string): Promise<MonorepoContext | null> {
 	let current = projectDir;
 	for (let i = 0; i < MAX_PARENTS; i++) {
-		// pnpm marker
+		// pnpm marker — fail closed on membership (same as npm/yarn/bun workspaces).
 		const pnpmWorkspacePath = join(current, 'pnpm-workspace.yaml');
 		if (await pathExists(pnpmWorkspacePath)) {
 			if (current === projectDir) return null;
 			const subpath = toPosix(relative(current, projectDir));
+			let patterns: string[] = [];
 			try {
 				const yamlText = await readFile(pnpmWorkspacePath, 'utf-8');
-				const patterns = readPnpmWorkspacePatterns(yamlText);
-				// Empty/unparsed patterns: keep prior behavior (treat as monorepo).
-				if (patterns.length > 0 && !isWorkspaceMember(subpath, patterns)) {
-					return null;
-				}
+				patterns = readPnpmWorkspacePatterns(yamlText);
 			} catch {
-				// Unreadable yaml — fall through to monorepo context.
+				// Unreadable yaml: cannot prove membership.
+				return null;
+			}
+			if (patterns.length === 0 || !isWorkspaceMember(subpath, patterns)) {
+				return null;
 			}
 			return {
 				root: current,

@@ -13,21 +13,26 @@ export const viteAdapter: BuildAdapter = {
 	name: 'vite',
 
 	async build(options: BuildAdapterOptions): Promise<BuildResult> {
-		const preparation = await prepareViteCdnBuild({
-			projectDir: options.projectDir,
+		const overrides = prepareViteCdnBuild({
 			deploymentId: options.deploymentId,
-			framework: options.framework,
+			buildCommand: options.framework.buildCommand,
+			buildEnv: options.framework.buildEnv,
 			logger: options.logger,
 		});
 
-		try {
-			const result = await genericAdapter.build(options);
-			return {
-				...result,
-				logs: [...preparation.logs, ...result.logs],
-			};
-		} finally {
-			await preparation.cleanup();
-		}
+		// Apply overrides on a shallow framework copy — never mutate detection results.
+		const result = await genericAdapter.build({
+			...options,
+			framework: {
+				...options.framework,
+				buildCommand: overrides.buildCommand,
+				buildEnv: overrides.buildEnv,
+			},
+		});
+
+		return {
+			...result,
+			logs: [...overrides.logs, ...result.logs],
+		};
 	},
 };
