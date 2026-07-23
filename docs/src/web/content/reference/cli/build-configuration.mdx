@@ -221,6 +221,8 @@ export default defineConfig({
 });
 ```
 
+On cloud deploy, Agentuity uploads hashed Vite assets to the CDN. The Vite adapter injects `--base=<cdn-origin>/` into the segment of your build command that runs `vite` when a deployment id or `AGENTUITY_CDN_ORIGIN` is available, so chunk URLs point at the CDN instead of the app origin. Local builds and `agentuity deploy --pack-only` skip this when no CDN origin can be resolved. If the build command does not invoke `vite`, the CLI cannot inject `--base` and asset URLs may stay on the app origin.
+
 <Callout type="warning" title="Public env vars are browser-visible">
 Values exposed through Vite public prefixes are bundled into frontend code. Do not put secrets or API keys in public variables.
 </Callout>
