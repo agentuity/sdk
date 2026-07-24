@@ -3,12 +3,171 @@
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { homedir } from 'node:os';
+import { isAbsolute, join, resolve } from 'node:path';
 import { parse as parseDotenv } from 'dotenv';
 import { pathExists } from './node-compat/fs.ts';
 
 export interface EnvVars {
 	[key: string]: string;
+}
+
+/** Absolute paths of env files loaded via global `--env` (in load order). */
+let activeEnvFilePaths: string[] = [];
+
+/**
+ * Env files currently active from global `--env` flags (absolute paths, load order).
+ * Empty when the user did not pass `--env`.
+ */
+export function getActiveEnvFilePaths(): string[] {
+	return activeEnvFilePaths;
+}
+
+/** @internal Reset for tests. */
+export function resetActiveEnvFilePaths(): void {
+	activeEnvFilePaths = [];
+}
+
+function expandTilde(path: string): string {
+	if (path.startsWith('~/')) {
+		return join(homedir(), path.slice(2));
+	}
+	return path;
+}
+
+/**
+ * Resolve an env file path (absolute, `~/…`, or relative to cwd).
+ */
+export function resolveEnvFilePath(path: string): string {
+	return resolve(expandTilde(path.trim()));
+}
+
+/**
+ * True when a `--env` value looks like a KEY:VALUE / KEY=VALUE assignment
+ * (used by `project import --env`, sandbox `--env KEY=VALUE`) rather than a file path.
+ */
+export function looksLikeEnvAssignment(value: string): boolean {
+	const v = value.trim();
+	if (!v) return false;
+	// Path-like values are never treated as assignments
+	if (looksLikeEnvFilePath(v)) {
+		return false;
+	}
+	// KEY:value or KEY=value (import / docker-style), not a bare filename
+	return /^[A-Za-z_][A-Za-z0-9_]*[:=]/.test(v);
+}
+
+/**
+ * True when a `--env` value is intended as an env *file* path.
+ *
+ * Other commands reuse `--env` for environment filters (`session list --env=production`)
+ * or KEY=VALUE pairs. Only path-like values are loaded as files so those keep working.
+ */
+export function looksLikeEnvFilePath(value: string): boolean {
+	const v = value.trim();
+	if (!v) return false;
+	if (
+		v.startsWith('.') ||
+		v.startsWith('/') ||
+		v.startsWith('~') ||
+		v.includes('/') ||
+		v.includes('\\') ||
+		isAbsolute(v)
+	) {
+		return true;
+	}
+	// Bare filenames that clearly look like env files
+	return v.includes('.env') || v.endsWith('.local');
+}
+
+export type LoadEnvFilesResult = {
+	/** Merged variables (later files override earlier for the same key). */
+	vars: EnvVars;
+	/** Absolute paths of files that were loaded, in order. */
+	files: string[];
+};
+
+/**
+ * Load one or more env files in order. Later files override earlier keys.
+ *
+ * Values that look like KEY:VALUE assignments (not file paths) are skipped so
+ * global `--env` coexists with `project import --env KEY:VALUE`.
+ *
+ * @param paths - File paths from `--env` (repeatable)
+ * @param options.applyToProcessEnv - When true, merge into `process.env` (does not overwrite existing process env keys)
+ * @param options.overwriteProcessEnv - When true with applyToProcessEnv, file values win over existing process env
+ */
+export async function loadEnvFiles(
+	paths: string[],
+	options?: {
+		applyToProcessEnv?: boolean;
+		overwriteProcessEnv?: boolean;
+	}
+): Promise<LoadEnvFilesResult> {
+	const vars: EnvVars = {};
+	const files: string[] = [];
+
+	for (const raw of paths) {
+		const trimmed = raw?.trim();
+		if (!trimmed) continue;
+
+		// Leave KEY:VALUE-style values and bare filters alone
+		// (project import --env, sandbox --env KEY=VALUE, session list --env=production)
+		if (!looksLikeEnvFilePath(trimmed)) {
+			continue;
+		}
+
+		const filePath = resolveEnvFilePath(trimmed);
+		if (!(await pathExists(filePath))) {
+			throw new Error(`Env file not found: ${filePath}`);
+		}
+
+		const fileVars = await readEnvFile(filePath);
+		Object.assign(vars, fileVars);
+		files.push(filePath);
+	}
+
+	if (options?.applyToProcessEnv) {
+		const overwrite = options.overwriteProcessEnv ?? true;
+		for (const [key, value] of Object.entries(vars)) {
+			if (overwrite || process.env[key] === undefined) {
+				process.env[key] = value;
+			}
+		}
+	}
+
+	activeEnvFilePaths = files;
+	return { vars, files };
+}
+
+/**
+ * Load project env vars for deploy/push/etc.
+ *
+ * Prefer explicit `--env` files when provided; otherwise the default `.env`
+ * in the project directory (missing file → empty object).
+ */
+export async function loadProjectEnvVars(
+	dir: string,
+	explicitFiles?: string[] | null
+): Promise<LoadEnvFilesResult> {
+	if (explicitFiles && explicitFiles.length > 0) {
+		return loadEnvFiles(explicitFiles, { applyToProcessEnv: false });
+	}
+
+	const active = getActiveEnvFilePaths();
+	if (active.length > 0) {
+		// Already loaded at startup — re-read so callers get a clean merge
+		// without process.env noise from the host environment.
+		const vars: EnvVars = {};
+		for (const filePath of active) {
+			Object.assign(vars, await readEnvFile(filePath));
+		}
+		return { vars, files: active };
+	}
+
+	const defaultPath = join(dir, '.env');
+	const vars = await readEnvFile(defaultPath);
+	return { vars, files: (await pathExists(defaultPath)) ? [defaultPath] : [] };
 }
 
 /**

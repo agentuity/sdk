@@ -148,6 +148,19 @@ Profile-specific `.env` files let you pair CLI profiles with local environment v
 
 For `agentuity dev`, the CLI checks `.env.{profile}`, `.env.development`, then `.env`. Later files override earlier files. See [App Configuration](/get-started/app-configuration) for the full loading order.
 
+Project config can also be profile-specific: when profile `staging` is active, the CLI prefers `agentuity.staging.json` over `agentuity.json` if that file exists.
+
+For explicit multi-environment deploys without switching profiles, use `--project-config` and global `--env` instead:
+
+```bash
+agentuity deploy \
+  --project-config agentuity.staging.json \
+  --env .env \
+  --env .env.staging
+```
+
+See [Multiple environments](/reference/cli/deployment#multiple-environments).
+
 ## Manage Profiles
 
 Show a profile's configuration:

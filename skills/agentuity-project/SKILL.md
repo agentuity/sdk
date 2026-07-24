@@ -80,7 +80,19 @@ Deploy from a linked project:
 agentuity deploy
 ```
 
-The deploy flow syncs non-Agentuity `.env` values, builds the app, packages the
+For multiple environments (same code, different cloud projects):
+
+```bash
+agentuity deploy \
+  --project-config agentuity.staging.json \
+  --env .env \
+  --env .env.staging
+```
+
+`--project-config` selects the project metadata file (default `agentuity.json`).
+Global `--env` loads env files in order; later files override earlier keys.
+
+The deploy flow syncs non-Agentuity env values, builds the app, packages the
 bundle, uploads assets, provisions the deployment, and prints the deployment ID
 plus URLs.
 

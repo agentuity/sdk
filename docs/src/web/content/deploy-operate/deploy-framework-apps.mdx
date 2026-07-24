@@ -142,6 +142,24 @@ Deploy compares the local region with the server's record. If they diverge, an i
 
 Domains live on `deployment.domains` as an array of strings. See [Custom Domains](/deploy-operate/custom-domains) for DNS records, validation behavior, and TLS provisioning.
 
+## Multiple Environments
+
+Point the same app directory at different cloud projects with `--project-config` and layered env files via global `--env`:
+
+```bash
+agentuity deploy \
+  --project-config agentuity.staging.json \
+  --env .env \
+  --env .env.staging
+
+agentuity deploy \
+  --project-config agentuity.production.json \
+  --env .env \
+  --env .env.production
+```
+
+Each config file holds that environment's `projectId`, `orgId`, `region`, domains, and resources. See [Multiple environments](/reference/cli/deployment#multiple-environments) and [Layered env files](/deploy-operate/environment-variables#layered-env-files-with-env).
+
 ## Build and Inspect
 
 `agentuity deploy` runs the build internally. Run it explicitly when you want to see the detector output, the bundled launch metadata, or the static assets that will be uploaded:

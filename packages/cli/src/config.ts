@@ -599,30 +599,69 @@ export function generateYAMLTemplate(name: string): string {
 	return lines.join('\n');
 }
 
-export const ProjectConfigNotFoundException = StructuredError('ProjectConfigNotFoundException');
+export const ProjectConfigNotFoundException = StructuredError('ProjectConfigNotFoundException')<{
+	message?: string;
+	/** True when the path came from an explicit `--project-config` flag. */
+	explicit?: boolean;
+	/** Absolute path that was attempted. */
+	configPath?: string;
+}>();
 
 type ProjectConfig = z.infer<typeof ProjectSchema>;
 
-export async function loadProjectConfig(
-	dir: string,
-	config?: Config | null
-): Promise<ProjectConfig> {
-	let configPath = join(dir, 'agentuity.json');
+export type ProjectConfigPathOptions = {
+	/** Explicit project config file path from `--project-config`. */
+	configPath?: string;
+};
 
-	// Check for profile-specific override if config is provided
+/**
+ * Resolve the path to the project config (`agentuity.json` or override).
+ *
+ * Precedence:
+ * 1. Explicit `--project-config` path (absolute, `~/…`, or relative to cwd)
+ * 2. Profile-specific `agentuity.<profile>.json` in `dir` if it exists
+ * 3. `agentuity.json` in `dir`
+ */
+export async function resolveProjectConfigPath(
+	dir: string,
+	config?: Config | null,
+	options?: ProjectConfigPathOptions
+): Promise<{ path: string; explicit: boolean }> {
+	if (options?.configPath) {
+		const explicit = options.configPath.trim();
+		if (explicit) {
+			return { path: resolve(expandTilde(explicit)), explicit: true };
+		}
+	}
+
+	// Profile-specific override (e.g. agentuity.staging.json for profile "staging")
 	if (config?.name) {
 		const profileConfigPath = join(dir, `agentuity.${config.name}.json`);
 		if (await pathExists(profileConfigPath)) {
-			configPath = profileConfigPath;
+			return { path: profileConfigPath, explicit: false };
 		}
 	}
+
+	return { path: join(dir, 'agentuity.json'), explicit: false };
+}
+
+export async function loadProjectConfig(
+	dir: string,
+	config?: Config | null,
+	options?: ProjectConfigPathOptions
+): Promise<ProjectConfig> {
+	const { path: configPath, explicit } = await resolveProjectConfigPath(dir, config, options);
 
 	if (!(await pathExists(configPath))) {
 		// TODO: check to see if a valid project that was created unauthenticated
 		// and then if so:
 		// 1. if authentication, offer to import the project
 		// 2. tell them that they need to login to use the command and import the project
-		throw new ProjectConfigNotFoundException({ message: 'project config not found' });
+		throw new ProjectConfigNotFoundException({
+			message: explicit ? `project config not found: ${configPath}` : 'project config not found',
+			explicit,
+			configPath,
+		});
 	}
 	const text = await readFile(configPath, 'utf-8');
 	const parsedConfig = parseJSONC(text);
@@ -712,16 +751,10 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 export async function updateProjectConfig(
 	dir: string,
 	updates: Partial<z.infer<typeof ProjectSchema>>,
-	config?: Config | null
+	config?: Config | null,
+	options?: ProjectConfigPathOptions
 ): Promise<void> {
-	let configPath = join(dir, 'agentuity.json');
-
-	if (config?.name) {
-		const profileConfigPath = join(dir, `agentuity.${config.name}.json`);
-		if (await pathExists(profileConfigPath)) {
-			configPath = profileConfigPath;
-		}
-	}
+	const { path: configPath } = await resolveProjectConfigPath(dir, config, options);
 
 	if (!(await pathExists(configPath))) {
 		throw new Error(`Project config not found at ${configPath}`);
@@ -767,19 +800,36 @@ export async function loadProjectSDKKey(
 	logger: Logger,
 	projectDir: string
 ): Promise<string | undefined> {
-	const c = await getOrInitConfig();
-	const files: string[] =
-		process.env.NODE_ENV === 'production' || c?.name !== 'local'
-			? ['.env', '.env.production']
-			: ['.env.development', '.env'];
-	if (c) {
-		files.unshift(`.env.${c.name}`);
+	// Prefer process.env when set (includes values loaded via global `--env`).
+	const fromEnv = process.env.AGENTUITY_SDK_KEY?.trim();
+	if (fromEnv) {
+		logger.trace('[SDK_KEY] Found AGENTUITY_SDK_KEY in process.env');
+		return fromEnv;
 	}
-	logger.trace(`[SDK_KEY] Searching for AGENTUITY_SDK_KEY in files: ${files.join(', ')}`);
+
+	const c = await getOrInitConfig();
+	const { getActiveEnvFilePaths } = await import('./env-util.ts');
+	const activeEnvFiles = getActiveEnvFilePaths();
+
+	let searchFiles: string[];
+	if (activeEnvFiles.length > 0) {
+		// Absolute paths from `--env`; search last-loaded first so latest wins.
+		searchFiles = [...activeEnvFiles].reverse();
+	} else {
+		const relative =
+			process.env.NODE_ENV === 'production' || c?.name !== 'local'
+				? ['.env', '.env.production']
+				: ['.env.development', '.env'];
+		if (c) {
+			relative.unshift(`.env.${c.name}`);
+		}
+		searchFiles = relative.map((filename) => join(projectDir, filename));
+	}
+
+	logger.trace(`[SDK_KEY] Searching for AGENTUITY_SDK_KEY in files: ${searchFiles.join(', ')}`);
 	logger.trace(`[SDK_KEY] Project directory: ${projectDir}`);
 	logger.trace(`[SDK_KEY] NODE_ENV: ${process.env.NODE_ENV}`);
-	for (const filename of files) {
-		const fn = join(projectDir, filename);
+	for (const fn of searchFiles) {
 		logger.trace(`[SDK_KEY] Checking file: ${fn}`);
 		if (existsSync(fn)) {
 			logger.trace(`[SDK_KEY] File exists: ${fn}`);

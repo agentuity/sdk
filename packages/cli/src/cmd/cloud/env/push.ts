@@ -3,9 +3,8 @@ import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { projectEnvUpdate, orgEnvUpdate, projectGet, orgEnvGet } from '@agentuity/server';
 import {
-	findExistingEnvFile,
-	readEnvFile,
 	filterAgentuitySdkKeys,
+	loadProjectEnvVars,
 	splitEnvAndSecrets,
 	validateNoPublicSecrets,
 } from '../../../env-util.ts';
@@ -50,7 +49,7 @@ export const pushSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { apiClient, project, projectDir, config, opts } = ctx;
+		const { apiClient, project, projectDir, config, opts, options } = ctx;
 		const useOrgScope = isOrgScope(opts?.org);
 
 		// Always require projectDir since push reads from local .env file
@@ -58,9 +57,12 @@ export const pushSubcommand = createSubcommand({
 			tui.fatal('Project directory required. Run from a project directory.');
 		}
 
-		// Read local env file
-		const envFilePath = await findExistingEnvFile(projectDir);
-		const localEnv = await readEnvFile(envFilePath);
+		// Read local env file(s) — honors global `--env` (layered)
+		const { vars: localEnv, files: envSources } = await loadProjectEnvVars(
+			projectDir,
+			options.env
+		);
+		const envFilePath = envSources[envSources.length - 1] ?? `${projectDir}/.env`;
 
 		// Filter out reserved AGENTUITY_ prefixed keys
 		const filteredEnv = filterAgentuitySdkKeys(localEnv);

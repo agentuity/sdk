@@ -24,10 +24,34 @@ The CLI looks up `AGENTUITY_SDK_KEY` in your `.env` files using the active profi
 | `local` (and `NODE_ENV` is not `production`) | `.env.local` → `.env.development` → `.env` |
 | any other profile, or `NODE_ENV=production` | `.env.<profile>` → `.env` → `.env.production` |
 
-Switch profiles with `--profile <name>` or `AGENTUITY_PROFILE=...`. Your framework's runtime reads its own variables. The CLI parses these files only for the SDK key it needs to wire the gateway during `agentuity dev`.
+Switch profiles with `--profile <name>` or `AGENTUITY_PROFILE=...`. Your framework's runtime reads its own variables. Without `--env`, the CLI parses these files mainly for the SDK key it needs to wire the gateway during `agentuity dev`.
+
+### Layered env files with `--env`
+
+Use the global `--env` flag to load one or more env files explicitly. Files are applied in the order you pass them; **later files override earlier keys**. Values are merged into `process.env` for the CLI process.
+
+```bash
+# Shared base, then environment-specific overrides
+agentuity --env .env --env .env.staging deploy
+agentuity --env .env --env .env.staging cloud env push
+agentuity --env .env.production cloud env list
+```
+
+Comma-separated paths work too: `--env .env,.env.staging`.
+
+When `--env` is set, deploy and `cloud env push` sync from those files (merged) instead of only `.env`. Pair this with `--project-config` when each environment is a different Agentuity project:
+
+```bash
+agentuity deploy \
+  --project-config agentuity.staging.json \
+  --env .env \
+  --env .env.staging
+```
+
+See [Multiple environments](/reference/cli/deployment#multiple-environments) for the full multi-project pattern.
 
 <Callout type="info" title="The CLI does not load every local var for your framework">
-`agentuity dev` patches `AGENTUITY_SDK_KEY` and three provider env pairs (see below). Your app reads everything else through your framework's own loader, your shell, or a process manager. Keep `.env` for shared values and `.env.local` for personal overrides.
+`agentuity dev` patches `AGENTUITY_SDK_KEY` and three provider env pairs (see below). Your app reads everything else through your framework's own loader, your shell, or a process manager. Keep `.env` for shared values and `.env.local` for personal overrides. When you pass `--env`, the CLI process also receives those file values.
 </Callout>
 
 ## AI Gateway in Local Dev
@@ -76,11 +100,14 @@ agentuity cloud env pull
 agentuity cloud env pull --force
 agentuity cloud env push
 agentuity cloud env push --force
+
+# Push a layered local env set (later files win)
+agentuity --env .env --env .env.staging cloud env push
 ```
 
 `pull` writes cloud values into `.env`. Without `--force`, local values win when a key already exists locally. With `--force`, cloud values overwrite local after a confirmation.
 
-`push` reads `.env`, drops reserved Agentuity keys (see below), classifies the rest, and writes to the cloud project. Without `--force`, the CLI prompts before overwriting an existing cloud value.
+`push` reads `.env` by default (or the files from global `--env` when provided), drops reserved Agentuity keys (see below), classifies the rest, and writes to the cloud project. Without `--force`, the CLI prompts before overwriting an existing cloud value.
 
 A project pull also writes `AGENTUITY_SDK_KEY` when the cloud project returns one. Use it to recover the key on a fresh checkout.
 

@@ -133,10 +133,20 @@ Prefer explicit context:
 
 | Context | Prefer |
 |---|---|
-| Project | run from the app directory or pass `--dir` / `--project-id` |
+| Project | run from the app directory or pass `--dir` / `--project-id` / `--project-config` |
+| Env files | global `--env <path>` (repeatable; later files override earlier keys) |
 | Organization | pass `--org-id` or select it in auth/profile setup |
 | Region | pass `--region` or select one before automation |
 | Destructive commands | pass `--force` or `--confirm` when supported |
+
+Multi-environment deploy example:
+
+```bash
+agentuity deploy \
+  --project-config agentuity.staging.json \
+  --env .env \
+  --env .env.staging
+```
 
 The CLI has strong JSON support, but a few command gaps remain. Use bounded
 polling and explicit timeouts when waiting for deployments or logs.
