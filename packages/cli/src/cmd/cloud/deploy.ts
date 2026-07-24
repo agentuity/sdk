@@ -22,12 +22,7 @@ import {
 	updateProjectConfig,
 } from '../../config.ts';
 import * as domain from '../../domain.ts';
-import {
-	filterAgentuitySdkKeys,
-	findExistingEnvFile,
-	readEnvFile,
-	splitEnvAndSecrets,
-} from '../../env-util.ts';
+import { filterAgentuitySdkKeys, loadProjectEnvVars, splitEnvAndSecrets } from '../../env-util.ts';
 import { ErrorCode, getExitCode } from '../../errors.ts';
 import {
 	pauseStepUI,
@@ -220,6 +215,16 @@ export const deploySubcommand = createSubcommand({
 			description: 'Deploy and use a display name if the project must be registered',
 		},
 		{
+			command: getCommand('cloud deploy --project-config agentuity.staging.json'),
+			description: 'Deploy using an alternate project config (different project id/domains)',
+		},
+		{
+			command: getCommand(
+				'cloud deploy --project-config agentuity.staging.json --env .env --env .env.staging'
+			),
+			description: 'Deploy with staging project config and layered env files',
+		},
+		{
 			command: getCommand('cloud deploy --pack-only --log-level=trace'),
 			description: 'Build and package the deploy zip without uploading (inspect contents)',
 		},
@@ -287,7 +292,19 @@ export const deploySubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { apiClient, projectDir, config, options, logger, opts, auth, orgId, region } = ctx;
+		const {
+			apiClient,
+			projectDir,
+			config,
+			options,
+			logger,
+			opts,
+			auth,
+			orgId,
+			region,
+			projectConfigPath,
+		} = ctx;
+		const projectConfigOpts = projectConfigPath ? { configPath: projectConfigPath } : undefined;
 
 		// Legacy handoff: a legacy (v1/v2) Agentuity app cannot be deployed by
 		// the v3 buildpack pipeline (its `agentuity build` bakes route/agent ids
@@ -348,6 +365,7 @@ export const deploySubcommand = createSubcommand({
 			orgId,
 			region,
 			name: opts.name,
+			projectConfigPath,
 		});
 		const project = registerResult.project;
 
@@ -457,6 +475,18 @@ export const deploySubcommand = createSubcommand({
 			if (opts.skipDnsValidation) childArgs.push('--skip-dns-validation');
 			if (opts.skipTypeCheck) childArgs.push('--skip-type-check');
 			if (opts.metadata) childArgs.push(`--metadata=${opts.metadata}`);
+			// Preserve multi-env flags so the child reloads the same project
+			// config and env files (parent already applied env to process.env,
+			// but Sync Env re-reads files by path).
+			if (projectConfigPath) {
+				childArgs.push(`--project-config=${projectConfigPath}`);
+			}
+			const envFiles = options.env;
+			if (Array.isArray(envFiles)) {
+				for (const envFile of envFiles) {
+					childArgs.push(`--env=${envFile}`);
+				}
+			}
 
 			const result = await runForkedDeploy({
 				projectDir,
@@ -611,7 +641,12 @@ export const deploySubcommand = createSubcommand({
 								tui.newline();
 							}
 						} else {
-							await updateProjectConfig(projectDir, { skipGitSetup: true }, config);
+							await updateProjectConfig(
+								projectDir,
+								{ skipGitSetup: true },
+								config,
+								projectConfigOpts
+							);
 							tui.newline();
 							tui.info(
 								`Skipping GitHub setup. Run ${tui.bold(getCommand('git link'))} later to enable it.`
@@ -667,9 +702,11 @@ export const deploySubcommand = createSubcommand({
 								if (isCIBuild) {
 									return stepSkipped('skipped in CI build');
 								}
-								// Read env file
-								const envFilePath = await findExistingEnvFile(projectDir);
-								const localEnv = await readEnvFile(envFilePath);
+								// Read env file(s) — honors global `--env` (layered)
+								const { vars: localEnv } = await loadProjectEnvVars(
+									projectDir,
+									options.env
+								);
 
 								// Filter out AGENTUITY_ keys
 								const filteredEnv = filterAgentuitySdkKeys(localEnv);

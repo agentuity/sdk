@@ -47,6 +47,12 @@ Upload variables from `.env` to cloud:
 agentuity cloud env push
 ```
 
+Layer multiple files with global `--env` (later files override earlier keys):
+
+```bash
+agentuity --env .env --env .env.staging cloud env push
+```
+
 This filters out `AGENTUITY_` prefixed keys automatically.
 
 ### Pull to Local File

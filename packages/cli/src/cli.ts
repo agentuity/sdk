@@ -27,7 +27,13 @@ import { type RegionList, ValidationOutputError } from '@agentuity/server';
 import { fetchRegionsWithCache } from './regions.ts';
 import * as tui from './tui.ts';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInputAsync } from './schema-parser.ts';
-import { defaultProfileName, loadProjectConfig, saveProjectId, saveRegion } from './config.ts';
+import {
+	defaultProfileName,
+	loadProjectConfig,
+	resolveProjectConfigPath,
+	saveProjectId,
+	saveRegion,
+} from './config.ts';
 import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api.ts';
 import { ErrorCode, ExitCode, createError, exitWithError, formatErrorJSON } from './errors.ts';
 import { getCommand } from './command-prefix.ts';
@@ -507,6 +513,20 @@ export async function createCLI(version: string): Promise<Command> {
 
 	program
 		.option('--config <path>', 'Config file path')
+		.option(
+			'--env <path>',
+			'Load environment variables from a file (repeatable; later files override earlier)',
+			(value: string, previous: string[]) => {
+				// Accept repeated flags (--env .env --env .env.staging) or one
+				// comma-separated value (--env .env,.env.staging).
+				const parts = value
+					.split(',')
+					.map((v) => v.trim())
+					.filter((v) => v.length > 0);
+				return (previous ?? []).concat(parts);
+			},
+			[] as string[]
+		)
 		.option('--log-level <level>', 'Log level', process.env.AGENTUITY_LOG_LEVEL ?? 'info')
 		.option('--log-timestamp', 'Show timestamps in log output', false)
 		.option('--no-log-prefix', 'Hide log level prefixes', true)
@@ -1127,6 +1147,10 @@ async function registerSubcommand(
 
 	if (requiresProject || optionalProject) {
 		cmd.option('--dir <path>', 'project directory (default: current directory)');
+		cmd.option(
+			'--project-config <path>',
+			'path to project config file (default: agentuity.json)'
+		);
 	}
 
 	// Note: --org-id may also be added below if the schema defines orgId;
@@ -1416,7 +1440,9 @@ async function registerSubcommand(
 
 		let project: ProjectConfig | undefined;
 		let projectDir: string | undefined;
+		let projectConfigPath: string | undefined;
 		const dirNeeded = normalized.requiresProject || normalized.optionalProject;
+		const projectConfigOption = options.projectConfig as string | undefined;
 
 		if (dirNeeded) {
 			const optionsProjectId = options.projectId as string | undefined;
@@ -1457,7 +1483,7 @@ async function registerSubcommand(
 
 			// Resolution precedence:
 			// 1. --project-id flag (or AGENTUITY_CLOUD_PROJECT_ID env var)
-			// 2. agentuity.json in project directory
+			// 2. --project-config / agentuity.json in project directory
 			// 3. config.preferences.projectId (global preference) - fallback only
 			// 4. Interactive selection (if TTY)
 
@@ -1483,7 +1509,7 @@ async function registerSubcommand(
 					}
 				}
 			} else {
-				// Priority 2: Try to load from agentuity.json in directory
+				// Priority 2: Try to load from agentuity.json (or --project-config) in directory
 				const dir = (options.dir as string | undefined) ?? process.cwd();
 				projectDir = dir;
 				if (projectDir.startsWith('~/')) {
@@ -1491,7 +1517,16 @@ async function registerSubcommand(
 				}
 				projectDir = resolve(projectDir);
 				try {
-					project = await loadProjectConfig(dir, baseCtx.config);
+					const loadOpts = projectConfigOption
+						? { configPath: projectConfigOption }
+						: undefined;
+					const resolved = await resolveProjectConfigPath(
+						projectDir,
+						baseCtx.config,
+						loadOpts
+					);
+					projectConfigPath = resolved.path;
+					project = await loadProjectConfig(projectDir, baseCtx.config, loadOpts);
 				} catch (error) {
 					const isConfigNotFound =
 						error &&
@@ -1564,6 +1599,7 @@ async function registerSubcommand(
 										[
 											'Use --dir to specify a different directory',
 											'Use --project-id to specify a project by ID',
+											'Use --project-config to specify a project config file',
 											'Change to a directory containing agentuity.json',
 											`Run "${getCommand('project create')}" to create a new project`,
 										]
@@ -1621,6 +1657,9 @@ async function registerSubcommand(
 							ctx.project = project;
 						}
 						ctx.projectDir = projectDir;
+						if (projectConfigPath) {
+							ctx.projectConfigPath = projectConfigPath;
+						}
 					}
 					if (subcommand.schema.args) {
 						ctx.args = parseArgs(subcommand.schema.args, input.args);
@@ -1754,6 +1793,9 @@ async function registerSubcommand(
 						ctx.project = project;
 					}
 					ctx.projectDir = projectDir;
+					if (projectConfigPath) {
+						ctx.projectConfigPath = projectConfigPath;
+					}
 				}
 				if (normalized.requiresAPIClient) {
 					// Recreate apiClient with auth credentials
@@ -1921,6 +1963,9 @@ async function registerSubcommand(
 							ctx.project = project;
 						}
 						ctx.projectDir = projectDir;
+						if (projectConfigPath) {
+							ctx.projectConfigPath = projectConfigPath;
+						}
 					}
 					if (subcommand.schema.args) {
 						ctx.args = parseArgs(subcommand.schema.args, input.args);
@@ -2054,6 +2099,9 @@ async function registerSubcommand(
 						ctx.project = project;
 					}
 					ctx.projectDir = projectDir;
+					if (projectConfigPath) {
+						ctx.projectConfigPath = projectConfigPath;
+					}
 				}
 				if (normalized.requiresAPIClient) {
 					// Recreate apiClient with auth credentials if auth was provided
@@ -2182,6 +2230,9 @@ async function registerSubcommand(
 							ctx.project = project;
 						}
 						ctx.projectDir = projectDir;
+						if (projectConfigPath) {
+							ctx.projectConfigPath = projectConfigPath;
+						}
 					}
 					if (subcommand.schema.args) {
 						ctx.args = parseArgs(subcommand.schema.args, input.args);
@@ -2234,6 +2285,9 @@ async function registerSubcommand(
 						ctx.project = project;
 					}
 					ctx.projectDir = projectDir;
+					if (projectConfigPath) {
+						ctx.projectConfigPath = projectConfigPath;
+					}
 				}
 				if (normalized.requiresAPIClient && !ctx.apiClient) {
 					ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);

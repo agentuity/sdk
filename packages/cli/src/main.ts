@@ -188,6 +188,17 @@ let logger: ReturnType<typeof createCompositeLogger> | undefined;
  * is enclosed in a single try/catch whose error handler respects --json.
  */
 async function main() {
+	// Load env files from global `--env` early so SDK keys and other vars are
+	// available for the rest of startup (auth, deploy, etc.). Later files win.
+	// KEY:VALUE-style values (used by `project import --env`) are skipped.
+	if (Array.isArray(earlyOpts.env) && earlyOpts.env.length > 0) {
+		const { loadEnvFiles } = await import('./env-util.ts');
+		await loadEnvFiles(earlyOpts.env as string[], {
+			applyToProcessEnv: true,
+			overwriteProcessEnv: true,
+		});
+	}
+
 	// Detect or override terminal color scheme
 	let colorScheme = await detectColorScheme();
 	if (earlyOpts.colorScheme === 'light' || earlyOpts.colorScheme === 'dark') {

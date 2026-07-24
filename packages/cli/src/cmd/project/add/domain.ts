@@ -48,7 +48,8 @@ export const domainSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, projectDir, config, logger } = ctx;
+		const { args, opts, options, projectDir, config, logger, projectConfigPath } = ctx;
+		const projectConfigOpts = projectConfigPath ? { configPath: projectConfigPath } : undefined;
 
 		if (isDryRunMode(options)) {
 			const message = `Would add domain "${args.domain}" to project in ${projectDir}`;
@@ -65,7 +66,7 @@ export const domainSubcommand = createSubcommand({
 			};
 		}
 
-		const project = await loadProjectConfig(projectDir, config);
+		const project = await loadProjectConfig(projectDir, config, projectConfigOpts);
 		const existingDomains = project.deployment?.domains ?? [];
 
 		const domain = args.domain.toLowerCase().trim();
@@ -170,7 +171,8 @@ export const domainSubcommand = createSubcommand({
 					domains: updatedDomains,
 				},
 			},
-			config
+			config,
+			projectConfigOpts
 		);
 
 		if (!options.json) {

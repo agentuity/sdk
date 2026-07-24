@@ -47,8 +47,9 @@ export const checkSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { opts, options, projectDir, config, project } = ctx;
+		const { opts, options, projectDir, config, project, projectConfigPath } = ctx;
 		const jsonMode = isJSONMode(options);
+		const projectConfigOpts = projectConfigPath ? { configPath: projectConfigPath } : undefined;
 
 		// Determine which domains to check
 		let domainsToCheck: string[];
@@ -56,7 +57,7 @@ export const checkSubcommand = createSubcommand({
 		if (opts?.domain) {
 			domainsToCheck = [opts.domain.toLowerCase().trim()];
 		} else {
-			const projectConfig = await loadProjectConfig(projectDir, config);
+			const projectConfig = await loadProjectConfig(projectDir, config, projectConfigOpts);
 			domainsToCheck = projectConfig.deployment?.domains ?? [];
 		}
 

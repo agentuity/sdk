@@ -55,6 +55,11 @@ export interface ReconcileOptions {
 	/** Existing cloud project ID to bind the local directory to. */
 	projectId?: string;
 	/**
+	 * Explicit project config path from `--project-config`.
+	 * When set, load/write this file instead of the default agentuity.json.
+	 */
+	projectConfigPath?: string;
+	/**
 	 * When true, suppress the "Would you like to register it now?"
 	 * confirmation in `createNewProject`. Use this when the caller has
 	 * already obtained explicit consent to register — e.g. the user
@@ -98,10 +103,15 @@ const defaultDeps: ReconcileDeps = {
 export async function tryLoadProjectConfig(
 	dir: string,
 	config: Config | null,
-	deps: Pick<ReconcileDeps, 'loadProjectConfig'> = defaultDeps
+	deps: Pick<ReconcileDeps, 'loadProjectConfig'> = defaultDeps,
+	projectConfigPath?: string
 ): Promise<Project | null> {
 	try {
-		return await deps.loadProjectConfig(dir, config);
+		return await deps.loadProjectConfig(
+			dir,
+			config,
+			projectConfigPath ? { configPath: projectConfigPath } : undefined
+		);
 	} catch {
 		return null;
 	}
@@ -722,10 +732,18 @@ async function importIntoExistingProject(opts: ReconcileOptions): Promise<Reconc
  * and offers to register the project with Agentuity Cloud.
  */
 export async function reconcileProject(opts: ReconcileOptions): Promise<ReconcileResult> {
-	const { dir, apiClient, config, logger, interactive = isTTY(), validateOnly } = opts;
+	const {
+		dir,
+		apiClient,
+		config,
+		logger,
+		interactive = isTTY(),
+		validateOnly,
+		projectConfigPath,
+	} = opts;
 
-	// 1. Check if agentuity.json exists
-	const projectConfig = await tryLoadProjectConfig(dir, config);
+	// 1. Check if agentuity.json (or --project-config) exists
+	const projectConfig = await tryLoadProjectConfig(dir, config, defaultDeps, projectConfigPath);
 
 	if (projectConfig) {
 		// 2. Validate access to existing project
@@ -800,11 +818,18 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
  * Run project import directly (for the import command)
  */
 export async function runProjectImport(opts: ReconcileOptions): Promise<ReconcileResult> {
-	const { dir, apiClient, config, interactive = true, validateOnly = false } = opts;
+	const {
+		dir,
+		apiClient,
+		config,
+		interactive = true,
+		validateOnly = false,
+		projectConfigPath,
+	} = opts;
 	const projectId = opts.projectId?.trim();
 
-	// Check if agentuity.json already exists and is valid
-	const projectConfig = await tryLoadProjectConfig(dir, config);
+	// Check if agentuity.json (or --project-config) already exists and is valid
+	const projectConfig = await tryLoadProjectConfig(dir, config, defaultDeps, projectConfigPath);
 
 	if (validateOnly && projectId && projectConfig?.projectId !== projectId) {
 		const isValid = await isValidProjectStructure(dir);

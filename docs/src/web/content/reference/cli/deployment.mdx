@@ -54,13 +54,64 @@ npm run deploy
 The deploy flow:
 
 1. Checks project registration and region.
-2. Syncs non-Agentuity values from `.env`.
+2. Syncs non-Agentuity values from local env files (default `.env`, or files passed with `--env`).
 3. Creates a deployment record.
 4. Builds, verifies, and packages the deployment bundle.
 5. Sends launch metadata and static asset metadata to Agentuity Cloud.
 6. Encrypts and uploads the deployment bundle.
 7. Uploads static assets when the build emitted them.
 8. Provisions and activates the deployment.
+
+## Multiple Environments
+
+Use the same codebase against different Agentuity projects (staging, production, and so on) with two flags:
+
+| Flag | Scope | Purpose |
+|------|-------|---------|
+| `--project-config <path>` | Project-aware commands (including `deploy`) | Read project id, org, region, domains, and resources from a file other than `agentuity.json` |
+| `--env <path>` | **Global** (any command) | Load environment variables from a file; repeatable, later files override earlier keys |
+
+```bash
+# Staging
+agentuity deploy \
+  --project-config agentuity.staging.json \
+  --env .env \
+  --env .env.staging
+
+# Production
+agentuity deploy \
+  --project-config agentuity.production.json \
+  --env .env \
+  --env .env.production
+```
+
+Typical layout:
+
+```text
+agentuity.json                 # local default (optional)
+agentuity.staging.json         # staging projectId, domains, resources
+agentuity.production.json      # production projectId, domains, resources
+.env                           # shared base values
+.env.staging                   # staging overrides (including AGENTUITY_SDK_KEY)
+.env.production                # production overrides
+```
+
+Each config file is a full `agentuity.json` shape: different `projectId`, `orgId`, `region`, and `deployment.domains` as needed. Register each environment once (for example by importing against a copy of the config, or creating separate cloud projects and saving the resulting metadata under the staging/production filenames).
+
+`--env` is global, so it works with other commands too:
+
+```bash
+agentuity --env .env --env .env.staging cloud env push
+agentuity --env .env.staging dev
+```
+
+You can also pass comma-separated paths: `--env .env,.env.staging`.
+
+<Callout type="info" title="`--env` values that are not file paths">
+Some commands reuse `--env` for other meanings (`project import --env KEY:VALUE`, `session list --env=production`). The CLI only treats path-like values (`.env`, `./…`, absolute paths, names containing `.env`) as env files. Other forms are left alone.
+</Callout>
+
+Profile-based alternatives still work: an active CLI profile named `staging` prefers `agentuity.staging.json` and `.env.staging` when those files exist. Prefer `--project-config` and `--env` when you want an explicit path without switching profiles. See [CLI Profiles](/reference/cli/profiles).
 
 Example output:
 
@@ -213,7 +264,8 @@ Pack-only still expects a registered project (`agentuity.json`) for the same pro
 | Option | Description |
 |--------|-------------|
 | `--dir <path>` | Project directory, defaults to the current directory |
-| `--project-id <id>` | Project ID, alternative to resolving from `--dir` |
+| `--project-config <path>` | Path to project config file (default: `agentuity.json`, or `agentuity.<profile>.json` when present) |
+| `--project-id <id>` | Project ID, alternative to resolving from `--dir` / config file |
 | `--report-file <path>` | Write build and deploy diagnostics as JSON |
 | `-y, --confirm` | Confirm region changes in non-interactive environments |
 | `--pack-only` | Build and package a local zip without uploading |
@@ -237,7 +289,14 @@ agentuity --log-level debug deploy
 agentuity --log-level=trace deploy --pack-only
 agentuity --dry-run deploy
 agentuity --json deploy
+agentuity --env .env --env .env.staging deploy --project-config agentuity.staging.json
 ```
+
+| Global option | Description |
+|---------------|-------------|
+| `--env <path>` | Load environment variables from a file (repeatable; later files override earlier keys) |
+| `--profile <name>` | Use a named CLI profile |
+| `--config <path>` | Path to a CLI profile YAML (not project config; use `--project-config` for `agentuity.json`) |
 
 ## Deployment URLs
 
@@ -308,7 +367,13 @@ Deleting a deployment removes it permanently. Undeploying only stops the active 
 
 ## Environment Variables
 
-Deploy syncs values from `.env` before the build step. Keys that start with `AGENTUITY_` are filtered out because the platform manages them.
+Deploy syncs values from local env files before the build step. By default it reads `.env`. Pass global `--env` one or more times to load a different set of files (merged in order; later keys win):
+
+```bash
+agentuity deploy --env .env --env .env.staging
+```
+
+Keys that start with `AGENTUITY_` are filtered out of the cloud sync because the platform manages them. `AGENTUITY_SDK_KEY` is still required locally for the deploy client; it is loaded from `process.env` after `--env` files are applied, or from the usual profile file search.
 
 ```bash
 # .env
@@ -318,6 +383,8 @@ MY_CUSTOM_API_KEY=xxx
 ```
 
 Variables with secret-looking suffixes such as `_SECRET`, `_KEY`, `_TOKEN`, `_PASSWORD`, or `_PRIVATE` are stored as secrets. Other values are stored as regular environment variables.
+
+See [Managing Environment Variables](/deploy-operate/environment-variables#layered-env-files-with-env) for layered `--env` details.
 
 <Callout type="info" title="Set provider keys unless gateway env is verified">
 For deployed apps, set provider keys such as `OPENAI_API_KEY` when you want an explicit provider-owned path. Rely on AI Gateway env only after you have verified the deployed project receives the gateway values your provider SDK expects.

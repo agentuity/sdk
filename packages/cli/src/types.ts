@@ -90,6 +90,11 @@ export interface AuthData {
 export interface GlobalOptions {
 	config?: string;
 	profile?: string;
+	/**
+	 * Env file paths from global `--env` (repeatable).
+	 * Loaded in order; later files override earlier keys.
+	 */
+	env?: string[];
 	logLevel: LogLevel;
 	logTimestamp?: boolean;
 	logPrefix?: boolean;
@@ -217,9 +222,9 @@ type AddAuth<M extends 'required' | 'optional' | 'none'> = M extends 'required'
 		: Record<string, never>;
 
 type AddProject<M extends 'required' | 'optional' | 'none'> = M extends 'required'
-	? { project: ProjectConfig; projectDir: string }
+	? { project: ProjectConfig; projectDir: string; projectConfigPath?: string }
 	: M extends 'optional'
-		? { project?: ProjectConfig; projectDir: string }
+		? { project?: ProjectConfig; projectDir: string; projectConfigPath?: string }
 		: Record<string, never>;
 
 type OrgMode<R extends Requires | undefined, O extends Optional | undefined> = R extends {

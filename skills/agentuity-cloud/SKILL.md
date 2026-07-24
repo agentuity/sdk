@@ -23,6 +23,12 @@ Deploy from a linked project:
 
 ```bash
 agentuity deploy
+
+# Multi-environment: alternate project config + layered env files
+agentuity deploy \
+  --project-config agentuity.staging.json \
+  --env .env \
+  --env .env.staging
 ```
 
 List recent deployments:
@@ -81,10 +87,11 @@ agentuity cloud env set NODE_ENV production
 agentuity cloud env set API_KEY "sk_live_..." --secret
 ```
 
-Sync `.env`:
+Sync `.env` (or layered files via global `--env`):
 
 ```bash
 agentuity cloud env push
+agentuity --env .env --env .env.staging cloud env push
 agentuity cloud env pull
 agentuity cloud env pull --force
 agentuity cloud env import .env.staging

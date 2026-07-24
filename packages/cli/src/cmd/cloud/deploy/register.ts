@@ -55,6 +55,11 @@ export interface RegisterParams {
 	region?: string;
 	/** Project name to use when deploy auto-registers this directory. */
 	name?: string;
+	/**
+	 * Explicit project config path from `--project-config`.
+	 * When set, reconcile loads/writes this file instead of agentuity.json.
+	 */
+	projectConfigPath?: string;
 }
 
 export interface RegisterResult {
@@ -84,6 +89,7 @@ export async function runRegister(params: RegisterParams): Promise<RegisterResul
 		orgId,
 		region,
 		name,
+		projectConfigPath,
 	} = params;
 
 	// Lazy-load reconcile to keep the deploy command's startup cost low
@@ -101,6 +107,7 @@ export async function runRegister(params: RegisterParams): Promise<RegisterResul
 		orgId,
 		region,
 		name,
+		projectConfigPath,
 	});
 
 	if (reconcileResult.status === 'error') {
