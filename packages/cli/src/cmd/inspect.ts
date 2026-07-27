@@ -1,0 +1,108 @@
+import { resolve } from 'node:path';
+import { z } from 'zod';
+import { getCommand } from '../command-prefix.ts';
+import { detectFrameworkWithPackageJson } from './build/detect/index.ts';
+import { detectMonorepoContext } from './build/detect/monorepo.ts';
+import { ErrorCode } from '../errors.ts';
+import * as tui from '../tui.ts';
+import { createCommand } from '../types.ts';
+
+const InspectOptionsSchema = z.object({
+	dir: z.string().optional().describe('Project directory to inspect (default: current directory)'),
+});
+
+const InspectResponseSchema = z.object({
+	directory: z.string().describe('Absolute path to the inspected project directory'),
+	framework: z.string().describe('Detected framework slug'),
+	runtime: z.enum(['node', 'bun']).describe('Runtime used to start the built application'),
+	packageManager: z.enum(['bun', 'npm', 'pnpm', 'yarn']).describe('Detected package manager'),
+	entrypoints: z.array(z.string()).describe('Detected server entrypoints'),
+	commands: z.object({
+		dev: z.string().nullable().describe('Development command from package.json'),
+		build: z.string().describe('Detected build command'),
+		start: z.string().nullable().describe('Detected start command'),
+	}),
+	buildOutput: z.string().describe('Build output path relative to the project directory'),
+	monorepo: z
+		.object({
+			root: z.string().describe('Absolute path to the workspace root'),
+			workingDirectory: z.string().describe('Project path relative to the workspace root'),
+			packageManager: z
+				.enum(['bun', 'npm', 'pnpm', 'yarn'])
+				.describe('Package manager used by the workspace'),
+		})
+		.nullable()
+		.describe('Enclosing workspace details, when the project is a workspace member'),
+});
+
+export const command = createCommand({
+	name: 'inspect',
+	description: 'Inspect a local project without authentication or a project link',
+	skipUpgradeCheck: true,
+	skipInternalLogging: true,
+	tags: ['read-only', 'fast', 'offline'],
+	idempotent: true,
+	examples: [
+		{
+			command: getCommand('--json inspect'),
+			description: 'Inspect the current directory as JSON',
+		},
+		{
+			command: getCommand('--json inspect --dir ./apps/web'),
+			description: 'Inspect a project in another directory',
+		},
+	],
+	schema: {
+		options: InspectOptionsSchema,
+		response: InspectResponseSchema,
+	},
+
+	async handler(ctx) {
+		const directory = resolve(ctx.opts.dir ?? process.cwd());
+		const [{ framework, packageJson }, monorepo] = await Promise.all([
+			detectFrameworkWithPackageJson(directory),
+			detectMonorepoContext(directory),
+		]);
+
+		if (!framework) {
+			tui.fatal(
+				`Could not detect a deployable project in ${directory}`,
+				ErrorCode.PROJECT_NOT_FOUND
+			);
+		}
+
+		const result = {
+			directory,
+			framework: framework.name,
+			runtime: framework.runtime,
+			packageManager: framework.packageManager,
+			entrypoints: framework.serverEntry ? [framework.serverEntry] : [],
+			commands: {
+				dev: packageJson?.scripts?.dev ?? null,
+				build: framework.buildCommand,
+				start: framework.startCommand ?? null,
+			},
+			buildOutput: framework.buildOutput,
+			monorepo: monorepo
+				? {
+						root: monorepo.root,
+						workingDirectory: monorepo.subpath,
+						packageManager: monorepo.packageManager,
+					}
+				: null,
+		};
+
+		if (!ctx.options.json) {
+			tui.output(`Framework: ${result.framework}`);
+			tui.output(`Runtime: ${result.runtime}`);
+			tui.output(`Package manager: ${result.packageManager}`);
+			tui.output(`Build command: ${result.commands.build}`);
+			if (result.commands.dev) tui.output(`Dev command: ${result.commands.dev}`);
+			if (result.monorepo) {
+				tui.output(`Working directory: ${result.monorepo.workingDirectory}`);
+			}
+		}
+
+		return result;
+	},
+});

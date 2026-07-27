@@ -298,14 +298,16 @@ async function main() {
 
 	config = await loadConfig(earlyOpts.config, false, earlyOpts.profile);
 
-	// Update internal logger with userId if available from auth (keychain or config)
-	try {
-		const auth = await getAuth();
-		if (auth?.userId) {
-			internalLogger.setUserId(auth.userId);
+	// Commands that disable internal logging should not touch local auth state.
+	if (!shouldSkipInternalLogging) {
+		try {
+			const auth = await getAuth();
+			if (auth?.userId) {
+				internalLogger.setUserId(auth.userId);
+			}
+		} catch {
+			// Ignore auth errors - user might not be logged in
 		}
-	} catch {
-		// Ignore auth errors - user might not be logged in
 	}
 
 	const ctx = {

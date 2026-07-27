@@ -12,6 +12,7 @@ export async function discoverCommands(): Promise<CommandDefinition[]> {
 		import('./dev/index.ts').then((m) => m.command),
 		import('./git/index.ts').then((m) => m.gitCommand),
 		import('./help/index.ts').then((m) => m.command),
+		import('./inspect.ts').then((m) => m.command),
 		import('./profile/index.ts').then((m) => m.command),
 		import('./project/index.ts').then((m) => m.command),
 		import('./repl/index.ts').then((m) => m.command),
