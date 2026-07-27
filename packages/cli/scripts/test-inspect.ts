@@ -19,6 +19,23 @@ const cliEnv = {
 	HTTP_PROXY: 'http://127.0.0.1:1',
 };
 
+type InspectResult = {
+	readonly schemaVersion: number;
+	readonly framework: string;
+	readonly runtime: string;
+	readonly packageManager: string;
+	readonly entrypoints: readonly string[];
+	readonly commands: {
+		readonly dev: string | null;
+		readonly build: string;
+		readonly start: string | null;
+	};
+	readonly port: number | null;
+	readonly confidence: 'high' | 'medium' | 'low';
+	readonly warnings: readonly string[];
+	readonly monorepo: unknown;
+};
+
 async function runInspect(directory: string): Promise<{
 	readonly exitCode: number;
 	readonly stdout: string;
@@ -29,6 +46,7 @@ async function runInspect(directory: string): Promise<{
 		env: cliEnv,
 		stdout: 'pipe',
 		stderr: 'pipe',
+		timeout: 15_000,
 	});
 	const [exitCode, stdout, stderr] = await Promise.all([
 		cli.exited,
@@ -38,16 +56,23 @@ async function runInspect(directory: string): Promise<{
 	return { exitCode, stdout, stderr };
 }
 
-try {
-	writeFileSync(
-		join(testDir, 'package.json'),
-		JSON.stringify({
-			name: 'unlinked-vite-app',
-			scripts: { dev: 'vite', build: 'vite build' },
-			devDependencies: { vite: '^7.0.0' },
-		})
-	);
+async function inspectFixture(
+	directory: string,
+	packageJson: Readonly<Record<string, unknown>>
+): Promise<InspectResult> {
+	mkdirSync(directory, { recursive: true });
+	writeFileSync(join(directory, 'package.json'), JSON.stringify(packageJson));
+	const { exitCode, stdout, stderr } = await runInspect(directory);
+	if (exitCode !== 0) {
+		throw new Error(`inspect exited ${exitCode}: ${stderr}`);
+	}
+	if (stderr.trim()) {
+		throw new Error(`inspect wrote to stderr: ${stderr}`);
+	}
+	return JSON.parse(stdout) as InspectResult;
+}
 
+try {
 	if (command.requires || command.optional) {
 		throw new Error('inspect must not declare auth or project context');
 	}
@@ -64,27 +89,11 @@ try {
 		throw new Error('an inspect directory value must not bypass delegation for another command');
 	}
 
-	const { exitCode, stdout, stderr } = await runInspect(testDir);
-
-	if (exitCode !== 0) {
-		throw new Error(`inspect exited ${exitCode}: ${stderr}`);
-	}
-	if (stderr.trim()) {
-		throw new Error(`inspect wrote to stderr: ${stderr}`);
-	}
-
-	const result = JSON.parse(stdout) as {
-		schemaVersion: number;
-		framework: string;
-		runtime: string;
-		packageManager: string;
-		entrypoints: string[];
-		commands: { dev: string | null; build: string; start: string | null };
-		port: number | null;
-		confidence: 'high' | 'medium' | 'low';
-		warnings: readonly string[];
-		monorepo: unknown;
-	};
+	const result = await inspectFixture(testDir, {
+		name: 'unlinked-vite-app',
+		scripts: { dev: 'vite', build: 'vite build' },
+		devDependencies: { vite: '^7.0.0' },
+	});
 
 	if (result.schemaVersion !== 1) {
 		throw new Error(`expected schema version 1, got ${result.schemaVersion}`);
@@ -106,24 +115,11 @@ try {
 	}
 
 	const tanstackDir = join(testDir, 'tanstack-start');
-	mkdirSync(tanstackDir);
-	writeFileSync(
-		join(tanstackDir, 'package.json'),
-		JSON.stringify({
-			name: 'tanstack-start-app',
-			dependencies: { '@tanstack/react-start': '^1.0.0' },
-			scripts: { build: 'vite build' },
-		})
-	);
-	const { exitCode: tanstackExitCode, stdout: tanstackStdout } = await runInspect(tanstackDir);
-	if (tanstackExitCode !== 0) {
-		throw new Error(`tanstack inspect exited ${tanstackExitCode}`);
-	}
-	const tanstackResult = JSON.parse(tanstackStdout) as {
-		framework: string;
-		confidence: string;
-		warnings: readonly string[];
-	};
+	const tanstackResult = await inspectFixture(tanstackDir, {
+		name: 'tanstack-start-app',
+		dependencies: { '@tanstack/react-start': '^1.0.0' },
+		scripts: { build: 'vite build' },
+	});
 	if (tanstackResult.framework !== 'tanstack-start') {
 		throw new Error(`expected tanstack-start, got ${tanstackResult.framework}`);
 	}
@@ -137,25 +133,11 @@ try {
 	}
 
 	const legacyDir = join(testDir, 'agentuity-legacy');
-	mkdirSync(legacyDir);
-	writeFileSync(
-		join(legacyDir, 'package.json'),
-		JSON.stringify({
-			name: 'legacy-app',
-			scripts: { build: 'agentuity build', start: 'bun .agentuity/app.js' },
-			dependencies: { '@agentuity/runtime': '^2.0.0' },
-		})
-	);
-	const { exitCode: legacyExitCode, stdout: legacyStdout } = await runInspect(legacyDir);
-	if (legacyExitCode !== 0) {
-		throw new Error(`legacy inspect exited ${legacyExitCode}`);
-	}
-	const legacyResult = JSON.parse(legacyStdout) as {
-		framework: string;
-		port: number | null;
-		confidence: string;
-		warnings: readonly string[];
-	};
+	const legacyResult = await inspectFixture(legacyDir, {
+		name: 'legacy-app',
+		scripts: { build: 'agentuity build', start: 'bun .agentuity/app.js' },
+		dependencies: { '@agentuity/runtime': '^2.0.0' },
+	});
 	if (legacyResult.framework !== 'agentuity-legacy') {
 		throw new Error(`expected agentuity-legacy, got ${legacyResult.framework}`);
 	}
