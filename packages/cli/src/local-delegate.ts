@@ -16,9 +16,10 @@
  *   - Only runs when the invoked binary is a global install.
  *   - Only delegates when the local version differs from the global version
  *     (same version → run in-process, no extra spawn).
- *   - Delegates every command except `inspect`. Inspection must use the current
- *     CLI's detector and stay offline, even for legacy projects whose local CLI
- *     would otherwise be installed or invoked before command registration.
+ *   - Delegates every command except `inspect`. Genesis inspects imported
+ *     repositories before the user authenticates, adds `agentuity.json`, or
+ *     links a cloud project. Inspection must use this CLI's detector without
+ *     installing or invoking a project-local CLI first.
  *   - A loop guard env var (`AGENTUITY_DELEGATED`) prevents the local CLI
  *     from delegating again.
  *

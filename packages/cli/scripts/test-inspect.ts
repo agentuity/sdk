@@ -119,7 +119,7 @@ try {
 		throw new Error(`unexpected empty directory error: ${invalidStderr}`);
 	}
 
-	console.log('inspect command passed offline, unlinked Vite project test');
+	console.log('inspect passed without auth, agentuity.json, or a linked cloud project');
 } finally {
 	rmSync(testDir, { recursive: true, force: true });
 }

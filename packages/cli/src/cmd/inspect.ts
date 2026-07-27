@@ -15,9 +15,7 @@ const InspectOptionsSchema = z.object({
 });
 
 const InspectResponseSchema = z.object({
-	schemaVersion: z
-		.literal(INSPECT_SCHEMA_VERSION)
-		.describe('Version of the inspect response contract'),
+	schemaVersion: z.literal(INSPECT_SCHEMA_VERSION).describe('Version of this response shape'),
 	directory: z.string().describe('Absolute path to the inspected project directory'),
 	framework: z.string().describe('Detected framework slug'),
 	runtime: z.enum(['node', 'bun']).describe('Runtime used to start the built application'),
@@ -43,10 +41,11 @@ const InspectResponseSchema = z.object({
 
 export const command = createCommand({
 	name: 'inspect',
-	description: 'Inspect a local project without authentication or a project link',
+	description:
+		'Inspect a Genesis import before the user authenticates, adds agentuity.json, or links a cloud project',
 	skipUpgradeCheck: true,
 	skipInternalLogging: true,
-	tags: ['read-only', 'fast', 'offline'],
+	tags: ['read-only', 'fast'],
 	idempotent: true,
 	examples: [
 		{
