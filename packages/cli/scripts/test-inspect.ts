@@ -80,6 +80,9 @@ try {
 		packageManager: string;
 		entrypoints: string[];
 		commands: { dev: string | null; build: string; start: string | null };
+		port: number | null;
+		confidence: 'high' | 'medium' | 'low';
+		warnings: readonly string[];
 		monorepo: unknown;
 	};
 
@@ -94,6 +97,79 @@ try {
 		throw new Error(`unexpected build command: ${result.commands.build}`);
 	}
 	if (result.monorepo !== null) throw new Error('standalone project must not report a monorepo');
+	if (result.port !== null) throw new Error(`expected null port for vite, got ${result.port}`);
+	if (result.confidence !== 'high') {
+		throw new Error(`expected high confidence for vite, got ${result.confidence}`);
+	}
+	if (result.warnings.length !== 0) {
+		throw new Error(`expected no warnings for vite, got ${JSON.stringify(result.warnings)}`);
+	}
+
+	const tanstackDir = join(testDir, 'tanstack-start');
+	mkdirSync(tanstackDir);
+	writeFileSync(
+		join(tanstackDir, 'package.json'),
+		JSON.stringify({
+			name: 'tanstack-start-app',
+			dependencies: { '@tanstack/react-start': '^1.0.0' },
+			scripts: { build: 'vite build' },
+		})
+	);
+	const { exitCode: tanstackExitCode, stdout: tanstackStdout } = await runInspect(tanstackDir);
+	if (tanstackExitCode !== 0) {
+		throw new Error(`tanstack inspect exited ${tanstackExitCode}`);
+	}
+	const tanstackResult = JSON.parse(tanstackStdout) as {
+		framework: string;
+		confidence: string;
+		warnings: readonly string[];
+	};
+	if (tanstackResult.framework !== 'tanstack-start') {
+		throw new Error(`expected tanstack-start, got ${tanstackResult.framework}`);
+	}
+	if (tanstackResult.confidence !== 'high') {
+		throw new Error(
+			`expected high confidence for tanstack-start, got ${tanstackResult.confidence}`
+		);
+	}
+	if (!tanstackResult.warnings.some((warning) => warning.includes('Nitro'))) {
+		throw new Error(`expected Nitro warning, got ${JSON.stringify(tanstackResult.warnings)}`);
+	}
+
+	const legacyDir = join(testDir, 'agentuity-legacy');
+	mkdirSync(legacyDir);
+	writeFileSync(
+		join(legacyDir, 'package.json'),
+		JSON.stringify({
+			name: 'legacy-app',
+			scripts: { build: 'agentuity build', start: 'bun .agentuity/app.js' },
+			dependencies: { '@agentuity/runtime': '^2.0.0' },
+		})
+	);
+	const { exitCode: legacyExitCode, stdout: legacyStdout } = await runInspect(legacyDir);
+	if (legacyExitCode !== 0) {
+		throw new Error(`legacy inspect exited ${legacyExitCode}`);
+	}
+	const legacyResult = JSON.parse(legacyStdout) as {
+		framework: string;
+		port: number | null;
+		confidence: string;
+		warnings: readonly string[];
+	};
+	if (legacyResult.framework !== 'agentuity-legacy') {
+		throw new Error(`expected agentuity-legacy, got ${legacyResult.framework}`);
+	}
+	if (legacyResult.port !== 3000) {
+		throw new Error(`expected port 3000 for agentuity-legacy, got ${legacyResult.port}`);
+	}
+	if (legacyResult.confidence !== 'high') {
+		throw new Error(
+			`expected high confidence for agentuity-legacy, got ${legacyResult.confidence}`
+		);
+	}
+	if (!legacyResult.warnings.some((warning) => warning.includes('@agentuity/cli'))) {
+		throw new Error(`expected CLI warning, got ${JSON.stringify(legacyResult.warnings)}`);
+	}
 
 	const emptyDir = join(testDir, 'empty');
 	mkdirSync(emptyDir);

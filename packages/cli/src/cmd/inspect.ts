@@ -27,6 +27,13 @@ const InspectResponseSchema = z.object({
 		start: z.string().nullable().describe('Detected start command'),
 	}),
 	buildOutput: z.string().describe('Build output path relative to the project directory'),
+	port: z.number().int().nullable().describe('Port the application listens on, when known'),
+	confidence: z
+		.enum(['high', 'medium', 'low'])
+		.describe('How confidently the framework detector matched this project'),
+	warnings: z
+		.array(z.string())
+		.describe('Non-fatal advisories from framework detection (empty when none)'),
 	monorepo: z
 		.object({
 			root: z.string().describe('Absolute path to the workspace root'),
@@ -93,6 +100,9 @@ export const command = createCommand({
 				start: framework.startCommand ?? null,
 			},
 			buildOutput: framework.buildOutput,
+			port: framework.port ?? null,
+			confidence: framework.confidence,
+			warnings: framework.warnings ?? [],
 			monorepo: monorepo
 				? {
 						root: monorepo.root,
