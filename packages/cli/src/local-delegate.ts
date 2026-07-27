@@ -54,6 +54,7 @@ const GLOBAL_OPTIONS_WITH_VALUES = new Set([
 	'--error-format',
 	'--input',
 	'--fields',
+	'--profile',
 ]);
 
 /** Return whether the first command operand is `inspect`. */

@@ -4,14 +4,20 @@ import { getCommand } from '../command-prefix.ts';
 import { detectFrameworkWithPackageJson } from './build/detect/index.ts';
 import { detectMonorepoContext } from './build/detect/monorepo.ts';
 import { ErrorCode } from '../errors.ts';
+import { isJSONMode } from '../output.ts';
 import * as tui from '../tui.ts';
 import { createCommand } from '../types.ts';
+
+const INSPECT_SCHEMA_VERSION = 1;
 
 const InspectOptionsSchema = z.object({
 	dir: z.string().optional().describe('Project directory to inspect (default: current directory)'),
 });
 
 const InspectResponseSchema = z.object({
+	schemaVersion: z
+		.literal(INSPECT_SCHEMA_VERSION)
+		.describe('Version of the inspect response contract'),
 	directory: z.string().describe('Absolute path to the inspected project directory'),
 	framework: z.string().describe('Detected framework slug'),
 	runtime: z.enum(['node', 'bun']).describe('Runtime used to start the built application'),
@@ -71,7 +77,8 @@ export const command = createCommand({
 			);
 		}
 
-		const result = {
+		const result: z.infer<typeof InspectResponseSchema> = {
+			schemaVersion: INSPECT_SCHEMA_VERSION,
 			directory,
 			framework: framework.name,
 			runtime: framework.runtime,
@@ -92,7 +99,7 @@ export const command = createCommand({
 				: null,
 		};
 
-		if (!ctx.options.json) {
+		if (!isJSONMode(ctx.options)) {
 			tui.output(`Framework: ${result.framework}`);
 			tui.output(`Runtime: ${result.runtime}`);
 			tui.output(`Package manager: ${result.packageManager}`);

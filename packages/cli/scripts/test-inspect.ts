@@ -28,6 +28,9 @@ try {
 	if (!isInspectInvocation(['--json', 'inspect', '--dir', testDir])) {
 		throw new Error('inspect must bypass local CLI installation and delegation');
 	}
+	if (!isInspectInvocation(['--profile', 'work', '--json', 'inspect'])) {
+		throw new Error('inspect must bypass delegation when a profile is selected');
+	}
 	if (isInspectInvocation(['build', '--dir', 'inspect'])) {
 		throw new Error('an inspect directory value must not bypass delegation for another command');
 	}
@@ -63,6 +66,7 @@ try {
 	}
 
 	const result = JSON.parse(stdout) as {
+		schemaVersion: number;
 		framework: string;
 		runtime: string;
 		packageManager: string;
@@ -71,7 +75,11 @@ try {
 		monorepo: unknown;
 	};
 
+	if (result.schemaVersion !== 1) {
+		throw new Error(`expected schema version 1, got ${result.schemaVersion}`);
+	}
 	if (result.framework !== 'vite') throw new Error(`expected vite, got ${result.framework}`);
+	if (result.runtime !== 'node') throw new Error(`expected node, got ${result.runtime}`);
 	if (result.commands.dev !== 'vite')
 		throw new Error(`unexpected dev command: ${result.commands.dev}`);
 	if (result.commands.build !== 'vite build') {
