@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getCommand } from '../command-prefix.ts';
 import { detectFrameworkWithPackageJson } from './build/detect/index.ts';
 import { detectMonorepoContext } from './build/detect/monorepo.ts';
-import { ErrorCode } from '../errors.ts';
+import { createError, ErrorCode, exitWithError } from '../errors.ts';
 import { isJSONMode } from '../output.ts';
 import * as tui from '../tui.ts';
 import { createCommand } from '../types.ts';
@@ -71,9 +71,13 @@ export const command = createCommand({
 		]);
 
 		if (!framework) {
-			tui.fatal(
-				`Could not detect a deployable project in ${directory}`,
-				ErrorCode.PROJECT_NOT_FOUND
+			exitWithError(
+				createError(
+					ErrorCode.PROJECT_NOT_FOUND,
+					`Could not detect a deployable project in ${directory}`
+				),
+				ctx.logger,
+				ctx.options.errorFormat
 			);
 		}
 

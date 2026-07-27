@@ -9,6 +9,35 @@ import { isInspectInvocation } from '../src/local-delegate.ts';
 const testDir = join(tmpdir(), `agentuity-inspect-${process.pid}-${Date.now()}`);
 mkdirSync(testDir, { recursive: true });
 
+const cliPath = join(import.meta.dir, '..', 'src', 'main.ts');
+const cliEnv = {
+	...process.env,
+	AGENTUITY_AGENT_MODE: 'none',
+	AGENTUITY_API_KEY: '',
+	AGENTUITY_USER_ID: '',
+	HTTPS_PROXY: 'http://127.0.0.1:1',
+	HTTP_PROXY: 'http://127.0.0.1:1',
+};
+
+async function runInspect(directory: string): Promise<{
+	readonly exitCode: number;
+	readonly stdout: string;
+	readonly stderr: string;
+}> {
+	const cli = Bun.spawn(['bun', cliPath, '--json', 'inspect', '--dir', directory], {
+		cwd: directory,
+		env: cliEnv,
+		stdout: 'pipe',
+		stderr: 'pipe',
+	});
+	const [exitCode, stdout, stderr] = await Promise.all([
+		cli.exited,
+		new Response(cli.stdout).text(),
+		new Response(cli.stderr).text(),
+	]);
+	return { exitCode, stdout, stderr };
+}
+
 try {
 	writeFileSync(
 		join(testDir, 'package.json'),
@@ -35,28 +64,7 @@ try {
 		throw new Error('an inspect directory value must not bypass delegation for another command');
 	}
 
-	const cli = Bun.spawn(
-		['bun', join(import.meta.dir, '..', 'src', 'main.ts'), '--json', 'inspect', '--dir', testDir],
-		{
-			cwd: testDir,
-			env: {
-				...process.env,
-				AGENTUITY_AGENT_MODE: 'none',
-				AGENTUITY_API_KEY: '',
-				AGENTUITY_USER_ID: '',
-				HTTPS_PROXY: 'http://127.0.0.1:1',
-				HTTP_PROXY: 'http://127.0.0.1:1',
-			},
-			stdout: 'pipe',
-			stderr: 'pipe',
-		}
-	);
-
-	const [exitCode, stdout, stderr] = await Promise.all([
-		cli.exited,
-		new Response(cli.stdout).text(),
-		new Response(cli.stderr).text(),
-	]);
+	const { exitCode, stdout, stderr } = await runInspect(testDir);
 
 	if (exitCode !== 0) {
 		throw new Error(`inspect exited ${exitCode}: ${stderr}`);
@@ -86,6 +94,30 @@ try {
 		throw new Error(`unexpected build command: ${result.commands.build}`);
 	}
 	if (result.monorepo !== null) throw new Error('standalone project must not report a monorepo');
+
+	const emptyDir = join(testDir, 'empty');
+	mkdirSync(emptyDir);
+	const {
+		exitCode: invalidExitCode,
+		stdout: invalidStdout,
+		stderr: invalidStderr,
+	} = await runInspect(emptyDir);
+	if (invalidExitCode !== 12) {
+		throw new Error(`empty directory inspect exited ${invalidExitCode}: ${invalidStderr}`);
+	}
+	if (invalidStdout.trim()) {
+		throw new Error(`empty directory inspect wrote to stdout: ${invalidStdout}`);
+	}
+	const invalidResult = JSON.parse(invalidStderr) as {
+		error?: { code?: string; message?: string; exitCode?: number };
+	};
+	if (
+		invalidResult.error?.code !== 'PROJECT_NOT_FOUND' ||
+		invalidResult.error.exitCode !== 12 ||
+		!invalidResult.error.message?.includes(emptyDir)
+	) {
+		throw new Error(`unexpected empty directory error: ${invalidStderr}`);
+	}
 
 	console.log('inspect command passed offline, unlinked Vite project test');
 } finally {
