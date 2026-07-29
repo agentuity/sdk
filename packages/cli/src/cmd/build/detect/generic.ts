@@ -88,6 +88,7 @@ export const genericDetector: FrameworkDetector = {
 			runtime,
 			packageManager: pm,
 			buildCommand: buildCommand ?? 'echo "No build step"',
+			buildCommandKind: buildCommand ? 'package-script' : 'none',
 			buildOutput: '.', // Generic — build output could be anywhere
 			startCommand,
 			serverEntry,

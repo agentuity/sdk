@@ -105,6 +105,7 @@ export async function detectAgentuityLegacy(
 		runtime: 'bun',
 		packageManager: 'bun',
 		buildCommand,
+		buildCommandKind: 'command',
 		buildOutput: LEGACY_OUTPUT_DIR,
 		// The legacy build emits its client assets under `.agentuity/client`.
 		staticDir: join(LEGACY_OUTPUT_DIR, 'client'),

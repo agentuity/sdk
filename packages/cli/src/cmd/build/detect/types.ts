@@ -47,6 +47,14 @@ export interface DetectedFramework {
 	/** The build command to execute (e.g., "next build", "vite build") */
 	buildCommand: string;
 
+	/**
+	 * How `buildCommand` should be interpreted by public surfaces (inspect).
+	 * Internal provenance, not inferred from the string: script names and
+	 * raw commands can collide, and the generic detector's "no build step"
+	 * fallback is a real string too, not a marker on its own.
+	 */
+	buildCommandKind?: 'package-script' | 'command' | 'none';
+
 	/** Directory where build output is written (relative to project root) */
 	buildOutput: string;
 
