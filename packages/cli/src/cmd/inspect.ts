@@ -12,7 +12,7 @@ import { createCommand } from '../types.ts';
 const INSPECT_SCHEMA_VERSION = 1;
 
 const InspectOptionsSchema = z.object({
-	dir: z.string().optional().describe('Project directory to inspect (default: current directory)'),
+	dir: z.string().default('.').describe('Project directory to inspect'),
 });
 
 const InspectBuildCommandSchema = z

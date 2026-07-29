@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { z } from 'zod';
 import { command as inspectCommand } from '../../src/cmd/inspect.ts';
 import { isInspectInvocation } from '../../src/local-delegate.ts';
+import { extractCommandSchema } from '../../src/schema-generator.ts';
 
 const CLI_ROOT = resolve(import.meta.dir, '..', '..');
 const SRC_ENTRY = join(CLI_ROOT, 'src', 'main.ts');
@@ -271,6 +272,13 @@ describe('inspect command definition', () => {
 
 	test('describes itself without mentioning Genesis', () => {
 		expect(inspectCommand.description.toLowerCase()).not.toContain('genesis');
+	});
+
+	test('describes --dir as optional with the current directory default', () => {
+		const schema = extractCommandSchema(inspectCommand);
+		const dir = schema.options?.find((option) => option.name === 'dir');
+		expect(dir?.required).toBe(false);
+		expect(dir?.default).toBe('.');
 	});
 
 	test('response schema marks build/detectedServerEntry as detector-level facts', () => {
