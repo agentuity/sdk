@@ -40,14 +40,14 @@ export interface PackageResult {
  * its fields override the generated launch metadata. See
  * `readUserLaunchOverride` for the merge semantics.
  */
-export function packageBuildOutput(
+export async function packageBuildOutput(
 	framework: DetectedFramework,
 	buildResult: BuildResult,
 	outputDir: string,
 	projectDir?: string,
 	monorepo?: MonorepoContext
-): PackageResult {
-	const override = projectDir ? readUserLaunchOverride(projectDir) : null;
+): Promise<PackageResult> {
+	const override = projectDir ? await readUserLaunchOverride(projectDir) : null;
 
 	// Generate launch metadata (with optional user override applied).
 	// In monorepo mode, every process inherits the subpackage as its

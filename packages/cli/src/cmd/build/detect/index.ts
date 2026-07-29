@@ -38,7 +38,7 @@ async function detectCustomLauncher(
 	projectDir: string,
 	pkg: PackageJsonData | null
 ): Promise<DetectedFramework | null> {
-	const override = readUserLaunchOverride(projectDir);
+	const override = await readUserLaunchOverride(projectDir);
 	if (!override) return null;
 
 	const webProcess =

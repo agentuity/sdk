@@ -102,7 +102,11 @@ describe('Static Asset CDN Upload', () => {
 		expect(existsSync(buildResult.staticDir!)).toBe(true);
 
 		// Package
-		const packageResult = packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		const packageResult = await packageBuildOutput(
+			framework!,
+			buildResult,
+			buildResult.outputDir
+		);
 
 		// Generate deploy metadata (non-Agentuity path)
 		const metadata = await generateDeployMetadata({
@@ -184,7 +188,11 @@ describe('Static Asset CDN Upload', () => {
 		expect(buildResult.staticDir).toBeDefined();
 
 		// Package
-		const packageResult = packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		const packageResult = await packageBuildOutput(
+			framework!,
+			buildResult,
+			buildResult.outputDir
+		);
 
 		// Generate deploy metadata
 		const metadata = await generateDeployMetadata({
@@ -254,7 +262,11 @@ describe('Static Asset CDN Upload', () => {
 		expect(buildResult.staticDir!.startsWith(resolve(outputDir))).toBe(true);
 
 		// Package
-		const packageResult = packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		const packageResult = await packageBuildOutput(
+			framework!,
+			buildResult,
+			buildResult.outputDir
+		);
 
 		// Generate deploy metadata
 		const metadata = await generateDeployMetadata({
@@ -314,7 +326,11 @@ describe('Static Asset CDN Upload', () => {
 		expect(buildResult.staticDir).toBeDefined();
 		expect(existsSync(buildResult.staticDir!)).toBe(true);
 
-		const packageResult = packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		const packageResult = await packageBuildOutput(
+			framework!,
+			buildResult,
+			buildResult.outputDir
+		);
 		const metadata = await generateDeployMetadata({
 			buildResult,
 			packageResult,
@@ -364,7 +380,11 @@ describe('Static Asset CDN Upload', () => {
 			logger,
 		});
 
-		const packageResult = packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		const packageResult = await packageBuildOutput(
+			framework!,
+			buildResult,
+			buildResult.outputDir
+		);
 		const metadata = await generateDeployMetadata({
 			buildResult,
 			packageResult,
@@ -413,7 +433,11 @@ describe('Static Asset CDN Upload', () => {
 		// No static dir in result
 		expect(buildResult.staticDir).toBeUndefined();
 
-		const packageResult = packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		const packageResult = await packageBuildOutput(
+			framework!,
+			buildResult,
+			buildResult.outputDir
+		);
 
 		const metadata = await generateDeployMetadata({
 			buildResult,
@@ -464,7 +488,11 @@ describe('Static Asset CDN Upload', () => {
 			logger,
 		});
 
-		const packageResult = packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		const packageResult = await packageBuildOutput(
+			framework!,
+			buildResult,
+			buildResult.outputDir
+		);
 
 		const metadata = await generateDeployMetadata({
 			buildResult,
@@ -576,7 +604,11 @@ describe('Static Asset CDN Upload', () => {
 			logger,
 		});
 
-		const packageResult = packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		const packageResult = await packageBuildOutput(
+			framework!,
+			buildResult,
+			buildResult.outputDir
+		);
 
 		const metadata = await generateDeployMetadata({
 			buildResult,

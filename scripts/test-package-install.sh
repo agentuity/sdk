@@ -145,8 +145,8 @@ AGENTUITY_CONFIG_DIR="$INSPECT_CONFIG_DIR" \
   HTTP_PROXY='http://127.0.0.1:1' \
   HTTPS_PROXY='http://127.0.0.1:1' \
   "${CLI_RUNTIME:-node}" node_modules/.bin/agentuity --json inspect --dir "$INSPECT_FIXTURE_DIR" \
-  >inspect-output.log 2>&1
-inspect_exit=$?
+  >inspect-output.log 2>&1 || inspect_exit=$?
+inspect_exit=${inspect_exit:-0}
 
 if [ "$inspect_exit" -ne 0 ]; then
   log_error "inspect exited $inspect_exit"

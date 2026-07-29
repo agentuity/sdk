@@ -104,7 +104,7 @@ export const command = createCommand({
 			// the custom-launcher fallback (e.g. a Vite project) — otherwise a
 			// malformed override passes inspect but still fails build later.
 			// Return value unused; the call's only job here is validation.
-			readUserLaunchOverride(directory);
+			await readUserLaunchOverride(directory);
 			[{ framework, packageJson }, monorepo] = await Promise.all([
 				detectFrameworkWithPackageJson(directory),
 				detectMonorepoContext(directory),

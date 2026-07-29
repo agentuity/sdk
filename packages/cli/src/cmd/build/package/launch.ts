@@ -6,8 +6,10 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
+import { pathExists } from '../../../node-compat/fs.ts';
 import type { BuildResult } from '../adapters/types.ts';
 import type { DetectedFramework } from '../detect/types.ts';
 import type { MonorepoContext } from '../detect/monorepo.ts';
@@ -129,13 +131,15 @@ export class LaunchConfigError extends Error {
  * inference (or, worse, crashing deep inside a consumer that assumed the
  * shape was already validated).
  */
-export function readUserLaunchOverride(projectDir: string): UserLaunchOverride | null {
+export async function readUserLaunchOverride(
+	projectDir: string
+): Promise<UserLaunchOverride | null> {
 	const path = join(projectDir, USER_LAUNCH_FILENAME);
-	if (!existsSync(path)) return null;
+	if (!(await pathExists(path))) return null;
 
 	let parsed: unknown;
 	try {
-		parsed = JSON.parse(readFileSync(path, 'utf-8'));
+		parsed = JSON.parse(await readFile(path, 'utf-8'));
 	} catch (ex) {
 		const message = (ex as Error).message;
 		throw new LaunchConfigError(
