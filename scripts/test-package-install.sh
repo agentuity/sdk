@@ -124,6 +124,50 @@ else
   cat cli-output.log
 fi
 
+# Step 3b: Validate `inspect` from the packed tarball, isolated from any
+# real profile config or auth, across the runtime matrix (Node/Bun via
+# CLI_RUNTIME). Guards against the offline inspect surface regressing when
+# installed as a real package rather than run from the repo checkout.
+echo ""
+log_info "Step 3b: Validating inspect from packed tarball (runtime: ${CLI_RUNTIME:-node})..."
+
+INSPECT_FIXTURE_DIR="$CLI_TEST_DIR/inspect-fixture"
+INSPECT_CONFIG_DIR="$CLI_TEST_DIR/inspect-config"
+mkdir -p "$INSPECT_FIXTURE_DIR" "$INSPECT_CONFIG_DIR"
+cat >"$INSPECT_FIXTURE_DIR/package.json" <<'EOF'
+{"name":"inspect-smoke-app","scripts":{"dev":"vite","build":"vite build"},"devDependencies":{"vite":"^7.0.0"}}
+EOF
+
+AGENTUITY_CONFIG_DIR="$INSPECT_CONFIG_DIR" \
+  AGENTUITY_API_KEY='' \
+  AGENTUITY_USER_ID='' \
+  AGENTUITY_AGENT_MODE='none' \
+  HTTP_PROXY='http://127.0.0.1:1' \
+  HTTPS_PROXY='http://127.0.0.1:1' \
+  "${CLI_RUNTIME:-node}" node_modules/.bin/agentuity --json inspect --dir "$INSPECT_FIXTURE_DIR" \
+  >inspect-output.log 2>&1
+inspect_exit=$?
+
+if [ "$inspect_exit" -ne 0 ]; then
+  log_error "inspect exited $inspect_exit"
+  cat inspect-output.log || true
+  exit 1
+fi
+
+if ! grep -q '"framework": *"vite"' inspect-output.log; then
+  log_error "inspect did not report framework \"vite\""
+  cat inspect-output.log || true
+  exit 1
+fi
+
+if grep -q '__agentuity_internal__' inspect-output.log; then
+  log_error "inspect leaked the internal build-command sentinel"
+  cat inspect-output.log || true
+  exit 1
+fi
+
+log_success "inspect runs from packed tarball with an isolated profile and reports vite"
+
 cd "$SDK_ROOT"
 
 # Step 4: Create a test project

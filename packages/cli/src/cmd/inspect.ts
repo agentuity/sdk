@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getCommand } from '../command-prefix.ts';
 import { detectFrameworkWithPackageJson } from './build/detect/index.ts';
 import { detectMonorepoContext } from './build/detect/monorepo.ts';
+import { LaunchConfigError, readUserLaunchOverride } from './build/package/launch.ts';
 import { createError, ErrorCode, exitWithError } from '../errors.ts';
 import { isJSONMode } from '../output.ts';
 import * as tui from '../tui.ts';
@@ -14,16 +15,39 @@ const InspectOptionsSchema = z.object({
 	dir: z.string().optional().describe('Project directory to inspect (default: current directory)'),
 });
 
+const InspectBuildCommandSchema = z
+	.discriminatedUnion('kind', [
+		z.object({
+			kind: z.literal('package-script'),
+			name: z
+				.string()
+				.describe('package.json script name to run via the detected package manager'),
+		}),
+		z.object({
+			kind: z.literal('command'),
+			command: z.string().describe('Raw shell command'),
+		}),
+	])
+	.nullable()
+	.describe(
+		'Detector-level classification of the build step, not the final build/launch instruction — adapters may resolve the real command at build time. Null when no build step is required.'
+	);
+
 const InspectResponseSchema = z.object({
 	schemaVersion: z.literal(INSPECT_SCHEMA_VERSION).describe('Version of this response shape'),
 	directory: z.string().describe('Absolute path to the inspected project directory'),
 	framework: z.string().describe('Detected framework slug'),
 	runtime: z.enum(['node', 'bun']).describe('Runtime used to start the built application'),
 	packageManager: z.enum(['bun', 'npm', 'pnpm', 'yarn']).describe('Detected package manager'),
-	entrypoints: z.array(z.string()).describe('Detected server entrypoints'),
+	detectedServerEntry: z
+		.string()
+		.nullable()
+		.describe(
+			'Server entry the detector inferred, relative to buildOutput; not the final launch entrypoint — adapters may resolve the real entry at build time'
+		),
 	commands: z.object({
 		dev: z.string().nullable().describe('Development command from package.json'),
-		build: z.string().describe('Detected build command'),
+		build: InspectBuildCommandSchema,
 		start: z.string().nullable().describe('Detected start command'),
 	}),
 	buildOutput: z.string().describe('Build output path relative to the project directory'),
@@ -48,10 +72,10 @@ const InspectResponseSchema = z.object({
 
 export const command = createCommand({
 	name: 'inspect',
-	description:
-		'Inspect a Genesis import before the user authenticates, adds agentuity.json, or links a cloud project',
+	description: 'Inspect a local project without authentication or cloud linking.',
 	skipUpgradeCheck: true,
 	skipInternalLogging: true,
+	skipConfigLoad: true,
 	tags: ['read-only', 'fast'],
 	idempotent: true,
 	examples: [
@@ -71,10 +95,30 @@ export const command = createCommand({
 
 	async handler(ctx) {
 		const directory = resolve(ctx.opts.dir ?? process.cwd());
-		const [{ framework, packageJson }, monorepo] = await Promise.all([
-			detectFrameworkWithPackageJson(directory),
-			detectMonorepoContext(directory),
-		]);
+
+		let framework: Awaited<ReturnType<typeof detectFrameworkWithPackageJson>>['framework'];
+		let packageJson: Awaited<ReturnType<typeof detectFrameworkWithPackageJson>>['packageJson'];
+		let monorepo: Awaited<ReturnType<typeof detectMonorepoContext>>;
+		try {
+			// Validate launch.json structurally even when detection never reaches
+			// the custom-launcher fallback (e.g. a Vite project) — otherwise a
+			// malformed override passes inspect but still fails build later.
+			// Return value unused; the call's only job here is validation.
+			readUserLaunchOverride(directory);
+			[{ framework, packageJson }, monorepo] = await Promise.all([
+				detectFrameworkWithPackageJson(directory),
+				detectMonorepoContext(directory),
+			]);
+		} catch (error) {
+			if (error instanceof LaunchConfigError) {
+				exitWithError(
+					createError(ErrorCode.CONFIG_INVALID, error.message, { issues: error.issues }),
+					ctx.logger,
+					ctx.options.errorFormat
+				);
+			}
+			throw error;
+		}
 
 		if (!framework) {
 			exitWithError(
@@ -87,16 +131,26 @@ export const command = createCommand({
 			);
 		}
 
+		const build: z.infer<typeof InspectBuildCommandSchema> = (() => {
+			if (framework.buildCommandKind === 'none') return null;
+			if (framework.buildCommandKind === 'package-script') {
+				return { kind: 'package-script' as const, name: framework.buildCommand };
+			}
+			// 'command', or undefined for detectors that predate this field —
+			// buildCommand is a terminal-runnable string either way.
+			return { kind: 'command' as const, command: framework.buildCommand };
+		})();
+
 		const result: z.infer<typeof InspectResponseSchema> = {
 			schemaVersion: INSPECT_SCHEMA_VERSION,
 			directory,
 			framework: framework.name,
 			runtime: framework.runtime,
 			packageManager: framework.packageManager,
-			entrypoints: framework.serverEntry ? [framework.serverEntry] : [],
+			detectedServerEntry: framework.serverEntry ?? null,
 			commands: {
 				dev: packageJson?.scripts?.dev ?? null,
-				build: framework.buildCommand,
+				build,
 				start: framework.startCommand ?? null,
 			},
 			buildOutput: framework.buildOutput,
@@ -116,7 +170,12 @@ export const command = createCommand({
 			tui.output(`Framework: ${result.framework}`);
 			tui.output(`Runtime: ${result.runtime}`);
 			tui.output(`Package manager: ${result.packageManager}`);
-			tui.output(`Build command: ${result.commands.build}`);
+			const buildLabel = result.commands.build
+				? result.commands.build.kind === 'package-script'
+					? `${result.packageManager} run ${result.commands.build.name}`
+					: result.commands.build.command
+				: 'none';
+			tui.output(`Build command: ${buildLabel}`);
 			if (result.commands.dev) tui.output(`Dev command: ${result.commands.dev}`);
 			if (result.monorepo) {
 				tui.output(`Working directory: ${result.monorepo.workingDirectory}`);
