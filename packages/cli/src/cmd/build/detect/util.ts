@@ -8,6 +8,13 @@ import { pathExists } from '../../../node-compat/fs.ts';
 import type { PackageJsonData, PackageManager } from './types.ts';
 
 /**
+ * Marks a `buildCommand` that adapters must skip entirely — the project
+ * is either a bare static-HTML deploy or ships its own prebuilt output
+ * via a custom `launch.json`. Not a real command to run.
+ */
+export const NO_BUILD_SENTINEL = '__agentuity_internal__';
+
+/**
  * Check if a file exists (any of the given names) in a directory.
  * Returns the first matching filename, or null.
  */

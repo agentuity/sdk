@@ -254,6 +254,12 @@ async function main() {
 		earlyCommandDef?.skipInternalLogging ||
 		earlySubcommandDef?.skipInternalLogging;
 
+	// Commands that opt out of config loading (e.g. `inspect`) must produce
+	// identical output whether the profile config is absent, valid, or
+	// malformed — loadConfig's schema-invalid path calls process.exit(1),
+	// which would otherwise take the whole command down with it.
+	const shouldSkipConfigLoad = earlyCommandDef?.skipConfigLoad === true;
+
 	// Create internal logger for trace/debug logging (always at trace level)
 	const internalLogger = createInternalLogger(version, getPackageName());
 
@@ -296,16 +302,23 @@ async function main() {
 		process.env.AGENTUITY_SKIP_VERSION_CHECK = '1';
 	}
 
-	config = await loadConfig(earlyOpts.config, false, earlyOpts.profile);
+	config = shouldSkipConfigLoad
+		? null
+		: await loadConfig(earlyOpts.config, false, earlyOpts.profile);
 
-	// Update internal logger with userId if available from auth (keychain or config)
-	try {
-		const auth = await getAuth();
-		if (auth?.userId) {
-			internalLogger.setUserId(auth.userId);
+	// Commands that disable internal logging should not touch local auth state.
+	// getAuth() calls loadConfig() again internally, so config-independent
+	// commands must skip this too — otherwise a malformed profile config
+	// would still exit(1) here even though `config` above was left null.
+	if (!shouldSkipInternalLogging && !shouldSkipConfigLoad) {
+		try {
+			const auth = await getAuth();
+			if (auth?.userId) {
+				internalLogger.setUserId(auth.userId);
+			}
+		} catch {
+			// Ignore auth errors - user might not be logged in
 		}
-	} catch {
-		// Ignore auth errors - user might not be logged in
 	}
 
 	const ctx = {

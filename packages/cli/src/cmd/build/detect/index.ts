@@ -13,7 +13,12 @@
 import { join } from 'node:path';
 import { pathExists } from '../../../node-compat/fs.ts';
 import type { DetectedFramework, PackageJsonData } from './types.ts';
-import { readPackageJson, detectPackageManager, isAgentuityCliInvocation } from './util.ts';
+import {
+	readPackageJson,
+	detectPackageManager,
+	isAgentuityCliInvocation,
+	NO_BUILD_SENTINEL,
+} from './util.ts';
 import { detectAgentuityLegacy } from './agentuity-legacy.ts';
 import { frameworkDefinitions, type FrameworkDefinition } from './frameworks.ts';
 import { detectFromDatabase } from './engine.ts';
@@ -33,7 +38,7 @@ async function detectCustomLauncher(
 	projectDir: string,
 	pkg: PackageJsonData | null
 ): Promise<DetectedFramework | null> {
-	const override = readUserLaunchOverride(projectDir);
+	const override = await readUserLaunchOverride(projectDir);
 	if (!override) return null;
 
 	const webProcess =
@@ -63,7 +68,8 @@ async function detectCustomLauncher(
 		packageManager: pm,
 		// Sentinel that tells the generic adapter to skip the build step.
 		// The user is on the hook for prebuilding before `agentuity deploy`.
-		buildCommand: '__agentuity_internal__',
+		buildCommand: NO_BUILD_SENTINEL,
+		buildCommandKind: 'none',
 		buildOutput: '.',
 		startCommand,
 		port: override.runtime?.port,
@@ -246,6 +252,9 @@ async function frameworkDefToDetected(
 		runtime,
 		packageManager: pm,
 		buildCommand: resolvedBuildCommand,
+		// Resolved from either the user's script body or the framework
+		// definition's raw command — both are terminal-runnable as-is.
+		buildCommandKind: 'command',
 		buildOutput: resolvedOutputDir,
 		staticDir: resolvedStaticDir,
 		staticAssetPublicPath: resolvedStaticAssetPublicPath,
@@ -270,7 +279,8 @@ function bareStaticHtmlDetected(): DetectedFramework {
 		name: 'static-html',
 		runtime: 'node',
 		packageManager: 'npm',
-		buildCommand: '__agentuity_internal__',
+		buildCommand: NO_BUILD_SENTINEL,
+		buildCommandKind: 'none',
 		buildOutput: '.',
 		staticDir: '.',
 		startCommand: 'npx serve',

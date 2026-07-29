@@ -211,7 +211,7 @@ export async function runBuildPipeline(input: BuildPipelineInput): Promise<Build
 
 	// 5. Package the output — writes launch.json with `workingDirectory`
 	//    set from monorepo.subpath when in monorepo mode.
-	const packageResult = packageBuildOutput(
+	const packageResult = await packageBuildOutput(
 		framework,
 		buildResult,
 		buildResult.outputDir,

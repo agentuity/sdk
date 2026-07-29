@@ -133,7 +133,7 @@ function main(): void {
 
 			// launch.json must not get monorepo workingDirectory
 			const outDir = join(smokeDir, '.agentuity-validate');
-			const packageResult = packageBuildOutput(
+			const packageResult = await packageBuildOutput(
 				framework,
 				{
 					outputDir: outDir,

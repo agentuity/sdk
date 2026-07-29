@@ -158,7 +158,7 @@ describe('WSL smoke layout (monorepo non-member)', () => {
 		// is not set to the smoke subpath of a monorepo root.
 		expect(monorepo).toBeNull();
 
-		const packageResult = packageBuildOutput(
+		const packageResult = await packageBuildOutput(
 			framework!,
 			{
 				outputDir: join(smokeDir, '.agentuity'),

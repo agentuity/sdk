@@ -365,6 +365,7 @@ export function createCommand<
 	hidden?: boolean;
 	executable?: boolean;
 	skipUpgradeCheck?: boolean;
+	skipConfigLoad?: boolean;
 	passThroughArgs?: boolean;
 	skipInternalLogging?: boolean;
 	requires?: R;
@@ -408,6 +409,7 @@ type CommandDefBase =
 			banner?: boolean;
 			executable?: boolean;
 			skipUpgradeCheck?: boolean;
+			skipConfigLoad?: boolean;
 			passThroughArgs?: boolean;
 			skipSkill?: boolean;
 			skipInternalLogging?: boolean;
@@ -429,6 +431,7 @@ type CommandDefBase =
 			banner?: boolean;
 			executable?: boolean;
 			skipUpgradeCheck?: boolean;
+			skipConfigLoad?: boolean;
 			passThroughArgs?: boolean;
 			skipSkill?: boolean;
 			skipInternalLogging?: boolean;

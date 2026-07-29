@@ -13,7 +13,7 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 import { run } from '../../../node-compat/proc.ts';
-import { getRunCommand, isAgentuityCliInvocation } from '../detect/util.ts';
+import { getRunCommand, isAgentuityCliInvocation, NO_BUILD_SENTINEL } from '../detect/util.ts';
 import { copyMonorepoTree, formatMonorepoStageLogs } from './monorepo-stage.ts';
 import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
 
@@ -204,7 +204,7 @@ export async function runBuildCommand(
 	const isScriptName = /^[a-zA-Z0-9_:-]+$/.test(buildCommand);
 
 	let cmd: string[];
-	if (isScriptName && buildCommand !== '__agentuity_internal__') {
+	if (isScriptName && buildCommand !== NO_BUILD_SENTINEL) {
 		const runCmd = getRunCommand(packageManager as 'bun' | 'npm' | 'pnpm' | 'yarn');
 		cmd = runCmd.split(' ').concat(buildCommand);
 	} else {
@@ -423,7 +423,7 @@ export const genericAdapter: BuildAdapter = {
 			preparation = await prepareFrameworkBuild(projectDir, framework, logger);
 
 			// Step 2: Run the build command
-			if (framework.buildCommand && framework.buildCommand !== '__agentuity_internal__') {
+			if (framework.buildCommand && framework.buildCommand !== NO_BUILD_SENTINEL) {
 				logger.debug(`Running build: ${framework.buildCommand}`);
 				const buildStart = Date.now();
 				await runBuildCommand(

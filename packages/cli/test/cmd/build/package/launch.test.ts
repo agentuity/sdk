@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
 	generateLaunchMetadata,
+	LaunchConfigError,
 	readUserLaunchOverride,
 	writeLaunchMetadata,
 } from '../../../../src/cmd/build/package/launch';
@@ -236,7 +237,7 @@ describe('Launch Metadata', () => {
 	// ── packageBuildOutput ──
 
 	describe('packageBuildOutput', () => {
-		test('returns hasStaticAssets when staticDir exists', () => {
+		test('returns hasStaticAssets when staticDir exists', async () => {
 			const staticDir = join(testDir, 'static');
 			mkdirSync(staticDir, { recursive: true });
 
@@ -258,12 +259,12 @@ describe('Launch Metadata', () => {
 				logs: [],
 			};
 
-			const result = packageBuildOutput(framework, buildResult, testDir);
+			const result = await packageBuildOutput(framework, buildResult, testDir);
 			expect(result.hasStaticAssets).toBe(true);
 			expect(result.staticDir).toBe(staticDir);
 		});
 
-		test('returns hasStaticAssets false when no static dir', () => {
+		test('returns hasStaticAssets false when no static dir', async () => {
 			const framework: DetectedFramework = {
 				name: 'generic',
 				runtime: 'node',
@@ -281,11 +282,11 @@ describe('Launch Metadata', () => {
 				logs: [],
 			};
 
-			const result = packageBuildOutput(framework, buildResult, testDir);
+			const result = await packageBuildOutput(framework, buildResult, testDir);
 			expect(result.hasStaticAssets).toBe(false);
 		});
 
-		test('user override at projectDir replaces processes and runtime fields', () => {
+		test('user override at projectDir replaces processes and runtime fields', async () => {
 			const framework: DetectedFramework = {
 				name: 'nextjs',
 				runtime: 'node',
@@ -313,7 +314,7 @@ describe('Launch Metadata', () => {
 				})
 			);
 
-			packageBuildOutput(framework, buildResult, testDir, testDir);
+			await packageBuildOutput(framework, buildResult, testDir, testDir);
 
 			const parsed = JSON.parse(readFileSync(join(testDir, 'launch.json'), 'utf-8'));
 			expect(parsed.processes).toHaveLength(2);
@@ -326,7 +327,7 @@ describe('Launch Metadata', () => {
 			expect(parsed.build.duration).toBe(2000);
 		});
 
-		test('writes launch metadata output files', () => {
+		test('writes launch metadata output files', async () => {
 			const framework: DetectedFramework = {
 				name: 'sveltekit',
 				runtime: 'node',
@@ -344,7 +345,7 @@ describe('Launch Metadata', () => {
 				logs: [],
 			};
 
-			packageBuildOutput(framework, buildResult, testDir);
+			await packageBuildOutput(framework, buildResult, testDir);
 
 			expect(existsSync(join(testDir, 'launch.json'))).toBe(true);
 		});
@@ -353,19 +354,72 @@ describe('Launch Metadata', () => {
 	// ── readUserLaunchOverride ──
 
 	describe('readUserLaunchOverride', () => {
-		test('returns null when no launch.json present', () => {
-			expect(readUserLaunchOverride(testDir)).toBeNull();
+		test('returns null when no launch.json present', async () => {
+			expect(await readUserLaunchOverride(testDir)).toBeNull();
 		});
 
-		test('parses a partial override', () => {
+		test('parses a partial override', async () => {
 			writeFileSync(join(testDir, 'launch.json'), JSON.stringify({ runtime: { name: 'bun' } }));
-			const result = readUserLaunchOverride(testDir);
+			const result = await readUserLaunchOverride(testDir);
 			expect(result?.runtime?.name).toBe('bun');
 		});
 
-		test('throws on invalid JSON', () => {
+		test('throws on invalid JSON', async () => {
 			writeFileSync(join(testDir, 'launch.json'), '{ not json');
-			expect(() => readUserLaunchOverride(testDir)).toThrow(/Invalid launch\.json/);
+			await expect(readUserLaunchOverride(testDir)).rejects.toThrow(/Invalid launch\.json/);
+		});
+
+		test('treats JSON null on optional top-level fields as absent, matching pre-Zod `?.` semantics', async () => {
+			writeFileSync(
+				join(testDir, 'launch.json'),
+				JSON.stringify({ processes: null, runtime: null })
+			);
+			const result = await readUserLaunchOverride(testDir);
+			expect(result?.processes).toBeUndefined();
+			expect(result?.runtime).toBeUndefined();
+		});
+
+		test('treats JSON null on a nested optional field (runtime.port) as absent', async () => {
+			writeFileSync(
+				join(testDir, 'launch.json'),
+				JSON.stringify({ runtime: { name: 'bun', port: null } })
+			);
+			const result = await readUserLaunchOverride(testDir);
+			expect(result?.runtime?.name).toBe('bun');
+			expect(result?.runtime?.port).toBeUndefined();
+		});
+
+		test('rejects a string runtime.port, reporting the path runtime.port', async () => {
+			writeFileSync(join(testDir, 'launch.json'), JSON.stringify({ runtime: { port: '3000' } }));
+			let thrown: unknown;
+			try {
+				await readUserLaunchOverride(testDir);
+			} catch (ex) {
+				thrown = ex;
+			}
+			expect(thrown).toBeInstanceOf(LaunchConfigError);
+			expect((thrown as LaunchConfigError).issues.some((i) => i.path === 'runtime.port')).toBe(
+				true
+			);
+		});
+
+		test('rejects a string processes[].default, reporting a path that mentions default', async () => {
+			writeFileSync(
+				join(testDir, 'launch.json'),
+				JSON.stringify({
+					processes: [{ type: 'web', command: 'node server.js', default: 'true' }],
+				})
+			);
+			let thrown: unknown;
+			try {
+				await readUserLaunchOverride(testDir);
+			} catch (ex) {
+				thrown = ex;
+			}
+			expect(thrown).toBeInstanceOf(LaunchConfigError);
+			expect((thrown as LaunchConfigError).issues.some((i) => i.path.includes('default'))).toBe(
+				true
+			);
 		});
 	});
 });

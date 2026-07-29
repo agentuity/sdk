@@ -16,11 +16,10 @@
  *   - Only runs when the invoked binary is a global install.
  *   - Only delegates when the local version differs from the global version
  *     (same version → run in-process, no extra spawn).
- *   - Delegates EVERYTHING with no command/flag exclusions: once we've decided
- *     the project-local CLI owns this project, it should own every command,
- *     including `--version` / `--help` / `--ai-help` (so introspection reflects
- *     the CLI actually handling the project) and `upgrade` (so it upgrades the
- *     CLI being used here).
+ *   - Delegates every command except `inspect`. Genesis inspects imported
+ *     repositories before the user authenticates, adds `agentuity.json`, or
+ *     links a cloud project. Inspection must use this CLI's detector without
+ *     installing or invoking a project-local CLI first.
  *   - A loop guard env var (`AGENTUITY_DELEGATED`) prevents the local CLI
  *     from delegating again.
  *
@@ -44,6 +43,36 @@ import { getVersion } from './version.ts';
 export const LOCAL_DELEGATION_GUARD_ENV = 'AGENTUITY_DELEGATED';
 const DELEGATED_ENV = LOCAL_DELEGATION_GUARD_ENV;
 const PACKAGE_NAME = '@agentuity/cli';
+
+const GLOBAL_OPTIONS_WITH_VALUES = new Set([
+	'--config',
+	'--env',
+	'--log-level',
+	'--org-id',
+	'--project-id',
+	'--color-scheme',
+	'--color',
+	'--error-format',
+	'--input',
+	'--fields',
+	'--profile',
+]);
+
+/** Return whether the first command operand is `inspect`. */
+export function isInspectInvocation(argv: string[]): boolean {
+	for (let i = 0; i < argv.length; i++) {
+		const arg = argv[i];
+		if (arg === undefined) continue;
+		if (arg === '--') return argv[i + 1] === 'inspect';
+		if (GLOBAL_OPTIONS_WITH_VALUES.has(arg)) {
+			i++;
+			continue;
+		}
+		if (arg.startsWith('-')) continue;
+		return arg === 'inspect';
+	}
+	return false;
+}
 
 export interface LocalCli {
 	/** Absolute path to the local CLI's executable (the `bin.agentuity` entry). */
@@ -212,6 +241,10 @@ async function ensureLocalCliForV2(projectDir: string): Promise<boolean> {
  *               `process.argv.slice(2)`.
  */
 export async function maybeDelegateToLocal(argv: string[]): Promise<void> {
+	// `inspect` must use this CLI's current detector without installing or
+	// invoking a project-local CLI first.
+	if (isInspectInvocation(argv)) return;
+
 	// Loop guard: a delegated child must never delegate again.
 	if (process.env[DELEGATED_ENV]) return;
 

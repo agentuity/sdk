@@ -138,7 +138,7 @@ describe('Buildpack Contract — End-to-End', () => {
 		});
 
 		// Package
-		packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		await packageBuildOutput(framework!, buildResult, buildResult.outputDir);
 
 		// Validate contract
 		const violations = validateBuildpackContract(buildResult.outputDir);
@@ -178,7 +178,7 @@ describe('Buildpack Contract — End-to-End', () => {
 		expect(buildResult.startCommand).toBeDefined();
 
 		// Package
-		packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		await packageBuildOutput(framework!, buildResult, buildResult.outputDir);
 
 		// Validate contract — should still produce a valid buildpack output
 		const violations = validateBuildpackContract(buildResult.outputDir);
@@ -205,7 +205,7 @@ describe('Buildpack Contract — End-to-End', () => {
 			logger,
 		});
 
-		packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		await packageBuildOutput(framework!, buildResult, buildResult.outputDir);
 
 		expect(existsSync(join(buildResult.outputDir, 'index.html'))).toBe(true);
 		expect(existsSync(join(buildResult.outputDir, 'node_modules'))).toBe(false);
@@ -244,7 +244,7 @@ describe('Buildpack Contract — End-to-End', () => {
 			logger,
 		});
 
-		packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		await packageBuildOutput(framework!, buildResult, buildResult.outputDir);
 
 		// The build output should contain the dist/server.js file
 		// The generic adapter copies build output to outputDir and the project root is '.'
@@ -283,7 +283,7 @@ describe('Buildpack Contract — End-to-End', () => {
 			logger,
 		});
 
-		packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		await packageBuildOutput(framework!, buildResult, buildResult.outputDir);
 
 		// Verify build artifacts exist in the project (generic adapter with buildOutput '.')
 		expect(existsSync(join(testDir, 'dist', 'index.html'))).toBe(true);
@@ -314,7 +314,7 @@ describe('Buildpack Contract — End-to-End', () => {
 			logger,
 		});
 
-		packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		await packageBuildOutput(framework!, buildResult, buildResult.outputDir);
 
 		const launch: LaunchMetadata = JSON.parse(
 			readFileSync(join(buildResult.outputDir, 'launch.json'), 'utf-8')
@@ -366,7 +366,7 @@ describe('Buildpack Contract — End-to-End', () => {
 			logger,
 		});
 
-		packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+		await packageBuildOutput(framework!, buildResult, buildResult.outputDir);
 
 		const launch: LaunchMetadata = JSON.parse(
 			readFileSync(join(buildResult.outputDir, 'launch.json'), 'utf-8')
