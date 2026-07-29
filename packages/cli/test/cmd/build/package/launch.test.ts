@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
 	generateLaunchMetadata,
+	LaunchConfigError,
 	readUserLaunchOverride,
 	writeLaunchMetadata,
 } from '../../../../src/cmd/build/package/launch';
@@ -366,6 +367,59 @@ describe('Launch Metadata', () => {
 		test('throws on invalid JSON', () => {
 			writeFileSync(join(testDir, 'launch.json'), '{ not json');
 			expect(() => readUserLaunchOverride(testDir)).toThrow(/Invalid launch\.json/);
+		});
+
+		test('treats JSON null on optional top-level fields as absent, matching pre-Zod `?.` semantics', () => {
+			writeFileSync(
+				join(testDir, 'launch.json'),
+				JSON.stringify({ processes: null, runtime: null })
+			);
+			const result = readUserLaunchOverride(testDir);
+			expect(result?.processes).toBeUndefined();
+			expect(result?.runtime).toBeUndefined();
+		});
+
+		test('treats JSON null on a nested optional field (runtime.port) as absent', () => {
+			writeFileSync(
+				join(testDir, 'launch.json'),
+				JSON.stringify({ runtime: { name: 'bun', port: null } })
+			);
+			const result = readUserLaunchOverride(testDir);
+			expect(result?.runtime?.name).toBe('bun');
+			expect(result?.runtime?.port).toBeUndefined();
+		});
+
+		test('rejects a string runtime.port, reporting the path runtime.port', () => {
+			writeFileSync(join(testDir, 'launch.json'), JSON.stringify({ runtime: { port: '3000' } }));
+			let thrown: unknown;
+			try {
+				readUserLaunchOverride(testDir);
+			} catch (ex) {
+				thrown = ex;
+			}
+			expect(thrown).toBeInstanceOf(LaunchConfigError);
+			expect((thrown as LaunchConfigError).issues.some((i) => i.path === 'runtime.port')).toBe(
+				true
+			);
+		});
+
+		test('rejects a string processes[].default, reporting a path that mentions default', () => {
+			writeFileSync(
+				join(testDir, 'launch.json'),
+				JSON.stringify({
+					processes: [{ type: 'web', command: 'node server.js', default: 'true' }],
+				})
+			);
+			let thrown: unknown;
+			try {
+				readUserLaunchOverride(testDir);
+			} catch (ex) {
+				thrown = ex;
+			}
+			expect(thrown).toBeInstanceOf(LaunchConfigError);
+			expect((thrown as LaunchConfigError).issues.some((i) => i.path.includes('default'))).toBe(
+				true
+			);
 		});
 	});
 });

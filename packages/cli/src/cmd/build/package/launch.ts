@@ -7,6 +7,7 @@
 
 import { join } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { z } from 'zod';
 import type { BuildResult } from '../adapters/types.ts';
 import type { DetectedFramework } from '../detect/types.ts';
 import type { MonorepoContext } from '../detect/monorepo.ts';
@@ -19,33 +20,146 @@ import type { MonorepoContext } from '../detect/monorepo.ts';
 export const USER_LAUNCH_FILENAME = 'launch.json';
 
 /**
+ * Structural shape of a user-supplied `launch.json`. `.passthrough()`
+ * everywhere so unknown extra keys — including the machine-generated
+ * `build` field users copy from an emitted launch.json — pass through
+ * unrejected. Wrong *types* on known fields still fail validation.
+ *
+ * `processes[].default` is optional here even though the internal
+ * `ProcessDefinition` requires it: files written before this field
+ * existed must keep working. Callers coerce with `default ?? false`.
+ *
+ * Every optional field is `.nullish()` + a `?? undefined` transform, not
+ * plain `.optional()`: the pre-Zod code read these fields with `?.`,
+ * which tolerated an explicit JSON `null` as well as absence. Collapsing
+ * `null` to `undefined` here (rather than leaving it in the parsed
+ * shape) keeps `UserLaunchOverride` — derived via `z.infer` — free of
+ * `| null`, so downstream consumers only ever handle "absent".
+ */
+const UserLaunchProcessSchema = z
+	.object({
+		type: z.string(),
+		command: z.string(),
+		default: z
+			.boolean()
+			.nullish()
+			.transform((v) => v ?? undefined),
+		workingDirectory: z
+			.string()
+			.nullish()
+			.transform((v) => v ?? undefined),
+	})
+	.passthrough();
+
+const UserLaunchOverrideSchema = z
+	.object({
+		processes: z
+			.array(UserLaunchProcessSchema)
+			.nullish()
+			.transform((v) => v ?? undefined),
+		framework: z
+			.object({
+				name: z
+					.string()
+					.nullish()
+					.transform((v) => v ?? undefined),
+				version: z
+					.string()
+					.nullish()
+					.transform((v) => v ?? undefined),
+			})
+			.passthrough()
+			.nullish()
+			.transform((v) => v ?? undefined),
+		runtime: z
+			.object({
+				name: z
+					.string()
+					.nullish()
+					.transform((v) => v ?? undefined),
+				port: z
+					.number()
+					.nullish()
+					.transform((v) => v ?? undefined),
+			})
+			.passthrough()
+			.nullish()
+			.transform((v) => v ?? undefined),
+	})
+	.passthrough();
+
+/**
  * Partial launch metadata a user can ship at the project root to
  * override what the CLI infers. Every field is optional; provided
  * fields win over the generated ones. `build.{date,duration}` is
  * always machine-generated and ignored here.
  */
-export interface UserLaunchOverride {
-	processes?: ProcessDefinition[];
-	framework?: { name?: string; version?: string };
-	runtime?: { name?: string; port?: number };
+export type UserLaunchOverride = z.infer<typeof UserLaunchOverrideSchema>;
+
+/** One field-level validation failure, normalized for error messages. */
+export interface LaunchConfigIssue {
+	path: string;
+	message: string;
+}
+
+/**
+ * Thrown by `readUserLaunchOverride` for both invalid JSON and
+ * schema-invalid `launch.json` files. Callers that own a `CommandContext`
+ * (inspect, build) catch this and translate it into a `CONFIG_INVALID`
+ * structured error instead of letting a raw crash reach the user.
+ */
+export class LaunchConfigError extends Error {
+	readonly filePath: string;
+	readonly issues: LaunchConfigIssue[];
+
+	constructor(filePath: string, issues: LaunchConfigIssue[], message: string) {
+		super(message);
+		this.name = 'LaunchConfigError';
+		this.filePath = filePath;
+		this.issues = issues;
+	}
 }
 
 /**
  * Read a user-supplied `launch.json` from the project root, if any.
  *
- * Returns `null` when the file is missing. Throws on invalid JSON —
- * a malformed override is a user error worth surfacing rather than
- * silently falling back to inference.
+ * Returns `null` when the file is missing. Throws `LaunchConfigError` on
+ * invalid JSON or a structurally invalid shape — a malformed override is
+ * a user error worth surfacing rather than silently falling back to
+ * inference (or, worse, crashing deep inside a consumer that assumed the
+ * shape was already validated).
  */
 export function readUserLaunchOverride(projectDir: string): UserLaunchOverride | null {
 	const path = join(projectDir, USER_LAUNCH_FILENAME);
 	if (!existsSync(path)) return null;
+
+	let parsed: unknown;
 	try {
-		return JSON.parse(readFileSync(path, 'utf-8')) as UserLaunchOverride;
+		parsed = JSON.parse(readFileSync(path, 'utf-8'));
 	} catch (ex) {
-		const _ex = ex as Error;
-		throw new Error(`Invalid ${USER_LAUNCH_FILENAME} at ${path}: ${_ex.message}`);
+		const message = (ex as Error).message;
+		throw new LaunchConfigError(
+			path,
+			[{ path: 'root', message }],
+			`Invalid ${USER_LAUNCH_FILENAME} at ${path}: ${message}`
+		);
 	}
+
+	const result = UserLaunchOverrideSchema.safeParse(parsed);
+	if (!result.success) {
+		const issues = result.error.issues.map((issue) => ({
+			path: issue.path.join('.') || 'root',
+			message: issue.message,
+		}));
+		const summary = issues.map((issue) => `${issue.path}: ${issue.message}`).join('; ');
+		throw new LaunchConfigError(
+			path,
+			issues,
+			`Invalid ${USER_LAUNCH_FILENAME} at ${path}: ${summary}`
+		);
+	}
+
+	return result.data;
 }
 
 /**
@@ -132,8 +246,13 @@ export function generateLaunchMetadata(
 		return framework.runtime;
 	})();
 
-	const finalProcesses =
-		override?.processes && override.processes.length > 0 ? override.processes : processes;
+	// The user schema keeps `default` optional for backward compat with
+	// files written before this field existed; the emitted metadata's
+	// `ProcessDefinition` requires it, so coerce here at the boundary.
+	const finalProcesses: ProcessDefinition[] =
+		override?.processes && override.processes.length > 0
+			? override.processes.map((p) => ({ ...p, default: p.default ?? false }))
+			: processes;
 
 	return {
 		processes: finalProcesses,

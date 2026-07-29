@@ -2,7 +2,7 @@ import { copyFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { z } from 'zod';
 import { getCommand } from '../../command-prefix.ts';
-import { ErrorCode } from '../../errors.ts';
+import { createError, ErrorCode, exitWithError } from '../../errors.ts';
 import { pathExists } from '../../node-compat/fs.ts';
 import * as tui from '../../tui.ts';
 import { createCommand, DeployOptionsSchema } from '../../types.ts';
@@ -11,6 +11,7 @@ import {
 	setGlobalCollector,
 	clearGlobalCollector,
 } from '../../build-report.ts';
+import { LaunchConfigError } from './package/launch.ts';
 import { FrameworkDetectionError, TypecheckError, runBuildPipeline } from './run.ts';
 
 const BuildResponseSchema = z.object({
@@ -185,6 +186,15 @@ export const command = createCommand({
 				if (opts.reportFile) await collector.forceWrite();
 				clearGlobalCollector();
 				tui.fatal('Fix type errors before building', ErrorCode.BUILD_FAILED);
+			}
+			if (error instanceof LaunchConfigError) {
+				if (opts.reportFile) await collector.forceWrite();
+				clearGlobalCollector();
+				exitWithError(
+					createError(ErrorCode.CONFIG_INVALID, error.message, { issues: error.issues }),
+					ctx.logger,
+					ctx.options.errorFormat
+				);
 			}
 			// Fall through to the original generic error handler below.
 			// Add error to collector
