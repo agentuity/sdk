@@ -5,6 +5,7 @@ import { projectDelete, projectList, projectGet } from '@agentuity/server';
 import enquirer from 'enquirer';
 import { getCommand } from '../../command-prefix.ts';
 import { isDryRunMode, outputDryRun } from '../../explain.ts';
+import { isJSONMode } from '../../output.ts';
 
 interface ProjectDisplayInfo {
 	id: string;
@@ -141,7 +142,7 @@ export const deleteSubcommand = createSubcommand({
 			const projectLabel = projectsToDelete.length === 1 ? 'project' : 'projects';
 			const projectDisplay = projectsToDelete.map(formatProjectDisplay).join(', ');
 			outputDryRun(`Would delete ${projectLabel}: ${projectDisplay}`, options);
-			if (!options.json) {
+			if (!isJSONMode(options)) {
 				tui.newline();
 				tui.info('[DRY RUN] Project deletion skipped');
 			}
