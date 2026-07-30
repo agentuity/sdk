@@ -109,8 +109,10 @@ describe('project delete command', () => {
 
 		expect(result).toEqual(expect.objectContaining({ exitCode: 0 }));
 		expect(requests).toEqual([{ method: 'GET', pathname: `/cli/project/${PROJECT_ID}` }]);
-		expect(result.stdout).toContain('[DRY RUN]');
-		expect(result.stdout).toContain(`Dry Run Test (${PROJECT_ID})`);
+		expect(result.stdout).toContain(
+			`[DRY RUN] Would delete project: Dry Run Test (${PROJECT_ID})`
+		);
+		expect(result.stderr).toContain('[DRY RUN] Project deletion skipped');
 	});
 
 	test('dry run does not require deletion confirmation', async () => {

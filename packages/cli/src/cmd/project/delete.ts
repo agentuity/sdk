@@ -36,7 +36,7 @@ export const deleteSubcommand = createSubcommand({
 		},
 		{
 			command: getCommand('--dry-run project delete proj_abc123def456'),
-			description: 'Delete item',
+			description: 'Preview project deletion without making changes',
 		},
 	],
 	schema: {
@@ -138,8 +138,9 @@ export const deleteSubcommand = createSubcommand({
 		}
 
 		if (isDryRunMode(options)) {
+			const projectLabel = projectsToDelete.length === 1 ? 'project' : 'projects';
 			const projectDisplay = projectsToDelete.map(formatProjectDisplay).join(', ');
-			outputDryRun(`Would delete project(s): ${projectDisplay}`, options);
+			outputDryRun(`Would delete ${projectLabel}: ${projectDisplay}`, options);
 			if (!options.json) {
 				tui.newline();
 				tui.info('[DRY RUN] Project deletion skipped');
