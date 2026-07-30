@@ -4,6 +4,7 @@ import * as tui from '../../tui.ts';
 import { projectDelete, projectList, projectGet } from '@agentuity/server';
 import enquirer from 'enquirer';
 import { getCommand } from '../../command-prefix.ts';
+import { isDryRunMode, outputDryRun } from '../../explain.ts';
 
 interface ProjectDisplayInfo {
 	id: string;
@@ -53,7 +54,7 @@ export const deleteSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, apiClient } = ctx;
+		const { args, opts, apiClient, options } = ctx;
 
 		let projectsToDelete: ProjectDisplayInfo[] = [];
 
@@ -133,6 +134,16 @@ export const deleteSubcommand = createSubcommand({
 
 		if (projectsToDelete.length === 0) {
 			tui.info('No projects selected for deletion');
+			return { success: false, projectIds: [], count: 0 };
+		}
+
+		if (isDryRunMode(options)) {
+			const projectDisplay = projectsToDelete.map(formatProjectDisplay).join(', ');
+			outputDryRun(`Would delete project(s): ${projectDisplay}`, options);
+			if (!options.json) {
+				tui.newline();
+				tui.info('[DRY RUN] Project deletion skipped');
+			}
 			return { success: false, projectIds: [], count: 0 };
 		}
 
