@@ -1,9 +1,16 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, mock, test } from 'bun:test';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DEPLOY_PACK_ZIP_BASENAME } from '../../../../src/cmd/cloud/deploy/package';
 import {
+	OFFLINE_DEPLOY_ORG_ID,
+	OFFLINE_DEPLOY_PROJECT_ID,
+	OFFLINE_DEPLOY_REGION,
+	resolveOfflineDeployIdentity,
 	resolvePackOutputPath,
 	resolveSafePackOutput,
+	uploadDeploymentZip,
 } from '../../../../src/cmd/cloud/deploy/pack';
 
 const noopLogger = { debug: () => {}, trace: () => {}, warn: () => {} } as any;
@@ -44,5 +51,138 @@ describe('resolveSafePackOutput', () => {
 		// Must not remain under the staging tree (would be picked up by a rescan).
 		expect(out.startsWith(staging + '/')).toBe(false);
 		expect(out).toBe(join('/repo', DEPLOY_PACK_ZIP_BASENAME));
+	});
+});
+
+describe('offline deploy constants', () => {
+	test('uses stable stub ids for offline project metadata', () => {
+		expect(OFFLINE_DEPLOY_PROJECT_ID).toBe('offline');
+		expect(OFFLINE_DEPLOY_ORG_ID).toBe('offline');
+		expect(OFFLINE_DEPLOY_REGION).toBe('local');
+	});
+});
+
+describe('resolveOfflineDeployIdentity', () => {
+	test('falls back to offline stubs when nothing is provided', () => {
+		expect(resolveOfflineDeployIdentity({})).toEqual({
+			projectId: OFFLINE_DEPLOY_PROJECT_ID,
+			orgId: OFFLINE_DEPLOY_ORG_ID,
+			region: OFFLINE_DEPLOY_REGION,
+		});
+	});
+
+	test('prefers explicit flags over project object and stubs', () => {
+		expect(
+			resolveOfflineDeployIdentity({
+				projectId: 'proj_flag',
+				orgId: 'org_flag',
+				region: 'eu-west-1',
+				project: {
+					projectId: 'proj_cfg',
+					orgId: 'org_cfg',
+					region: 'us-east-1',
+				},
+			})
+		).toEqual({
+			projectId: 'proj_flag',
+			orgId: 'org_flag',
+			region: 'eu-west-1',
+		});
+	});
+
+	test('uses project object when flags are absent', () => {
+		expect(
+			resolveOfflineDeployIdentity({
+				project: {
+					projectId: 'proj_cfg',
+					orgId: 'org_cfg',
+					region: 'ap-south-1',
+				},
+			})
+		).toEqual({
+			projectId: 'proj_cfg',
+			orgId: 'org_cfg',
+			region: 'ap-south-1',
+		});
+	});
+
+	test('ignores blank/whitespace flags and falls through', () => {
+		expect(
+			resolveOfflineDeployIdentity({
+				projectId: '  ',
+				orgId: '',
+				region: undefined,
+				project: {
+					projectId: 'proj_cfg',
+					orgId: 'org_cfg',
+					region: 'us-west-2',
+				},
+			})
+		).toEqual({
+			projectId: 'proj_cfg',
+			orgId: 'org_cfg',
+			region: 'us-west-2',
+		});
+	});
+
+	test('allows partial overrides mixed with stubs', () => {
+		expect(
+			resolveOfflineDeployIdentity({
+				projectId: 'proj_only',
+			})
+		).toEqual({
+			projectId: 'proj_only',
+			orgId: OFFLINE_DEPLOY_ORG_ID,
+			region: OFFLINE_DEPLOY_REGION,
+		});
+	});
+});
+
+describe('uploadDeploymentZip', () => {
+	const originalFetch = globalThis.fetch;
+
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	test('PUTs the zip with content-type and content-length', async () => {
+		const dir = mkdtempSync(join(tmpdir(), 'agentuity-upload-test-'));
+		const zipPath = join(dir, 'deploy.zip');
+		const payload = Buffer.from('zip-bytes');
+		writeFileSync(zipPath, payload);
+
+		const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+			expect(String(input)).toBe('https://example.com/presigned-put');
+			expect(init?.method).toBe('PUT');
+			const headers = init?.headers as Record<string, string>;
+			expect(headers['Content-Type']).toBe('application/zip');
+			expect(headers['Content-Length']).toBe(String(payload.length));
+			return new Response(null, { status: 200 });
+		});
+		globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+		await uploadDeploymentZip({
+			zipPath,
+			uploadUrl: 'https://example.com/presigned-put',
+			logger: noopLogger,
+		});
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	test('throws a clear error when the upload URL returns non-2xx', async () => {
+		const dir = mkdtempSync(join(tmpdir(), 'agentuity-upload-fail-'));
+		const zipPath = join(dir, 'deploy.zip');
+		writeFileSync(zipPath, 'data');
+
+		globalThis.fetch = mock(async () => new Response('AccessDenied', { status: 403 })) as any;
+
+		await expect(
+			uploadDeploymentZip({
+				zipPath,
+				uploadUrl: 'https://example.com/bad',
+				logger: noopLogger,
+			})
+		).rejects.toThrow(/Upload to --upload-url failed: HTTP 403/);
 	});
 });

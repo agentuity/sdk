@@ -648,13 +648,19 @@ export const DeployOptionsSchema = zod
 			.optional()
 			.default(false)
 			.describe(
-				'Build and package the deployment zip without uploading (inspect staging with --log-level=trace)'
+				'Build and package the deployment zip without cloud upload (offline: skips login, project registration, and agentuity.json). Inspect staging with --log-level=trace'
 			),
 		packOutput: zod
 			.string()
 			.optional()
 			.describe(
-				'Destination path for --pack-only zip (default: <project>/agentuity-deploy.zip)'
+				'Destination path for the deployment zip when using --pack-only or --upload-url (default: <project>/agentuity-deploy.zip for --pack-only; temp file for --upload-url alone)'
+			),
+		uploadUrl: zod
+			.url()
+			.optional()
+			.describe(
+				'Presigned/one-time S3 (or HTTP) URL to PUT the deployment zip to. Offline mode: skips login, project registration, agentuity.json validation, DNS checks, and cloud APIs'
 			),
 	})
 	.merge(GitOptionsSchema);

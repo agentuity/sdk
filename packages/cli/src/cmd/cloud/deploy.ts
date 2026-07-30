@@ -162,24 +162,29 @@ async function maybeHandoffLegacyDeploy(
 
 const DeployResponseSchema = z.object({
 	success: z.boolean().describe('Whether deployment succeeded'),
-	/** Omitted for `--pack-only` (no cloud deployment is created). */
+	/** Omitted for offline modes (`--pack-only` / `--upload-url`; no cloud deployment). */
 	deploymentId: z.string().optional().describe('Deployment ID'),
 	projectId: z.string().describe('Project ID'),
 	rolloutId: z
 		.string()
 		.optional()
 		.describe('Genesis managed rollout id when fan-out was triggered'),
-	/** Present when `--pack-only` wrote a local zip instead of uploading. */
-	packPath: z.string().optional().describe('Absolute path to the pack-only deployment zip'),
-	fileCount: z.number().optional().describe('Number of files in the pack-only zip'),
-	sizeBytes: z.number().optional().describe('Pack-only zip size in bytes'),
+	/** Present when a local deployment zip was retained (offline / pack-only). */
+	packPath: z.string().optional().describe('Absolute path to the offline deployment zip'),
+	fileCount: z.number().optional().describe('Number of files in the offline deployment zip'),
+	sizeBytes: z.number().optional().describe('Offline deployment zip size in bytes'),
 	/** Staging paths not packed at the zip step (filter / symlink / directory). */
-	skippedCount: z.number().optional().describe('Paths skipped when building the pack-only zip'),
+	skippedCount: z
+		.number()
+		.optional()
+		.describe('Paths skipped when building the offline deployment zip'),
 	/** True when monorepo staging applied user `.agentuityignore` patterns. */
 	usedIgnorePatterns: z
 		.boolean()
 		.optional()
 		.describe('Whether .agentuityignore patterns were applied during monorepo staging'),
+	/** True when the zip was uploaded via `--upload-url`. */
+	uploaded: z.boolean().optional().describe('Whether the zip was uploaded to --upload-url'),
 	logs: z.array(z.string()).optional().describe('The deployment startup logs'),
 	urls: z
 		.object({
@@ -226,11 +231,32 @@ export const deploySubcommand = createSubcommand({
 		},
 		{
 			command: getCommand('cloud deploy --pack-only --log-level=trace'),
-			description: 'Build and package the deploy zip without uploading (inspect contents)',
+			description:
+				'Offline: build and package the deploy zip (no login, agentuity.json, or cloud upload)',
 		},
 		{
 			command: getCommand('cloud deploy --pack-only --pack-output ./out/deploy.zip'),
-			description: 'Write the pack-only zip to a custom path',
+			description: 'Offline: write the deployment zip to a custom path',
+		},
+		{
+			command: getCommand(
+				'cloud deploy --upload-url "https://bucket.s3.amazonaws.com/key?X-Amz-Signature=..."'
+			),
+			description:
+				'Offline: build, package, and PUT the zip to a presigned S3 URL (your own bucket)',
+		},
+		{
+			command: getCommand(
+				'cloud deploy --upload-url "https://example.com/upload" --pack-output ./out/deploy.zip'
+			),
+			description: 'Offline: upload to a custom URL and keep a local copy of the zip',
+		},
+		{
+			command: getCommand(
+				'cloud deploy --upload-url "https://example.com/upload" --project-id proj_123 --org-id org_456 --region us-west-2'
+			),
+			description:
+				'Offline: embed real project/org/region in build metadata instead of offline/local stubs',
 		},
 	],
 	toplevel: true,
@@ -240,6 +266,8 @@ export const deploySubcommand = createSubcommand({
 	// deploy) without first running `agentuity project import`. The handler
 	// below guarantees a registered project before any deploy work happens
 	// via the Register phase (`reconcileProject`).
+	// Offline modes (`--pack-only` / `--upload-url`) skip auth in cli.ts
+	// before this gate runs; cloud deploy still requires auth + API client.
 	requires: { auth: true, apiClient: true },
 	optional: { project: true },
 	prerequisites: ['auth login'],
@@ -286,6 +314,23 @@ export const deploySubcommand = createSubcommand({
 					.optional()
 					.default(false)
 					.describe('Confirm region change without prompting (for non-TTY environments)'),
+				// Offline metadata (also usable as selectors for cloud deploy).
+				// When --pack-only / --upload-url is set these are embedded in
+				// build metadata instead of the offline/local stubs.
+				projectId: z
+					.string()
+					.optional()
+					.describe('Project ID (offline: embed in build metadata; cloud: select project)'),
+				orgId: z
+					.string()
+					.optional()
+					.describe(
+						'Organization ID (offline: embed in build metadata; also AGENTUITY_CLOUD_ORG_ID)'
+					),
+				region: z
+					.string()
+					.optional()
+					.describe('Cloud region (offline: embed in build metadata; also AGENTUITY_REGION)'),
 			})
 		),
 		response: DeployResponseSchema,
@@ -305,6 +350,60 @@ export const deploySubcommand = createSubcommand({
 			projectConfigPath,
 		} = ctx;
 		const projectConfigOpts = projectConfigPath ? { configPath: projectConfigPath } : undefined;
+
+		// Offline deploy (`--pack-only` and/or `--upload-url`):
+		// build + zip (+ optional PUT to a caller-provided URL) without login,
+		// project registration, agentuity.json validation, DNS, or cloud APIs.
+		// The CLI gate also skips auth/project load when these flags are set.
+		const isOfflineDeploy = Boolean(opts.packOnly) || Boolean(opts.uploadUrl);
+		if (isOfflineDeploy) {
+			const collector = new BuildReportCollector();
+			if (opts.reportFile) {
+				collector.setOutputPath(opts.reportFile);
+				collector.enableAutoWrite();
+				setGlobalCollector(collector);
+			}
+
+			// Identity for build metadata. Flags/env win over any soft project
+			// context; stubs (`offline` / `local`) are last resort only.
+			const offlineProjectId =
+				opts.projectId ??
+				(options as { projectId?: string }).projectId ??
+				process.env.AGENTUITY_CLOUD_PROJECT_ID;
+			const offlineOrgId =
+				opts.orgId ?? options.orgId ?? orgId ?? process.env.AGENTUITY_CLOUD_ORG_ID;
+			const offlineRegion =
+				opts.region ??
+				(options as { region?: string }).region ??
+				region ??
+				process.env.AGENTUITY_REGION;
+
+			const packResult = await runPackOnly({
+				project: ctx.project,
+				projectId: offlineProjectId,
+				orgId: offlineOrgId,
+				region: offlineRegion,
+				projectDir,
+				logger,
+				collector,
+				deployOptions: opts,
+				hasReportFile: Boolean(opts.reportFile),
+				packOutput: opts.packOutput,
+				uploadUrl: opts.uploadUrl,
+				json: isJSONMode(options),
+			});
+			return {
+				success: true,
+				projectId: packResult.projectId,
+				packPath: packResult.packPath,
+				fileCount: packResult.fileCount,
+				sizeBytes: packResult.sizeBytes,
+				skippedCount: packResult.skippedCount,
+				usedIgnorePatterns: packResult.usedIgnorePatterns,
+				uploaded: packResult.uploaded,
+				logs: packResult.logs,
+			};
+		}
 
 		// Legacy handoff: a legacy (v1/v2) Agentuity app cannot be deployed by
 		// the v3 buildpack pipeline (its `agentuity build` bakes route/agent ids
@@ -375,31 +474,6 @@ export const deploySubcommand = createSubcommand({
 			collector.setOutputPath(opts.reportFile);
 			collector.enableAutoWrite();
 			setGlobalCollector(collector);
-		}
-
-		// Pack-only: build + zip locally (no cloud deployment / upload).
-		// Report flush lives inside runPackOnly when --report-file is set.
-		if (opts.packOnly) {
-			const packResult = await runPackOnly({
-				project,
-				projectDir,
-				logger,
-				collector,
-				deployOptions: opts,
-				hasReportFile: Boolean(opts.reportFile),
-				packOutput: opts.packOutput,
-				json: isJSONMode(options),
-			});
-			return {
-				success: true,
-				projectId: packResult.projectId,
-				packPath: packResult.packPath,
-				fileCount: packResult.fileCount,
-				sizeBytes: packResult.sizeBytes,
-				skippedCount: packResult.skippedCount,
-				usedIgnorePatterns: packResult.usedIgnorePatterns,
-				logs: packResult.logs,
-			};
 		}
 
 		// Mutable state that survives between phases. The build/upload
