@@ -4,6 +4,8 @@ import * as tui from '../../tui.ts';
 import { projectDelete, projectList, projectGet } from '@agentuity/server';
 import enquirer from 'enquirer';
 import { getCommand } from '../../command-prefix.ts';
+import { isDryRunMode, outputDryRun } from '../../explain.ts';
+import { isJSONMode } from '../../output.ts';
 
 interface ProjectDisplayInfo {
 	id: string;
@@ -35,7 +37,7 @@ export const deleteSubcommand = createSubcommand({
 		},
 		{
 			command: getCommand('--dry-run project delete proj_abc123def456'),
-			description: 'Delete item',
+			description: 'Preview project deletion without making changes',
 		},
 	],
 	schema: {
@@ -53,7 +55,7 @@ export const deleteSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, apiClient } = ctx;
+		const { args, opts, apiClient, options } = ctx;
 
 		let projectsToDelete: ProjectDisplayInfo[] = [];
 
@@ -133,6 +135,17 @@ export const deleteSubcommand = createSubcommand({
 
 		if (projectsToDelete.length === 0) {
 			tui.info('No projects selected for deletion');
+			return { success: false, projectIds: [], count: 0 };
+		}
+
+		if (isDryRunMode(options)) {
+			const projectLabel = projectsToDelete.length === 1 ? 'project' : 'projects';
+			const projectDisplay = projectsToDelete.map(formatProjectDisplay).join(', ');
+			outputDryRun(`Would delete ${projectLabel}: ${projectDisplay}`, options);
+			if (!isJSONMode(options)) {
+				tui.newline();
+				tui.info('[DRY RUN] Project deletion skipped');
+			}
 			return { success: false, projectIds: [], count: 0 };
 		}
 
