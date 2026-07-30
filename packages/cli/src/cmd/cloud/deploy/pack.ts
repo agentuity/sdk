@@ -27,14 +27,55 @@ import { PACK_ONLY_DEPLOYMENT_ID } from '../../build/adapters/cdn-origin.ts';
 import { runBuildPipeline } from '../../build/run.ts';
 import { DEPLOY_PACK_ZIP_BASENAME, packageDeploymentZip } from './package.ts';
 
-/** Stub project fields used when offline deploy has no agentuity.json. */
+/** Stub project fields used when offline deploy has no explicit identity. */
 export const OFFLINE_DEPLOY_PROJECT_ID = 'offline';
 export const OFFLINE_DEPLOY_ORG_ID = 'offline';
 export const OFFLINE_DEPLOY_REGION = 'local';
 
+export interface OfflineDeployIdentity {
+	projectId: string;
+	orgId: string;
+	region: string;
+}
+
+/**
+ * Resolve project/org/region for offline pack metadata.
+ *
+ * Precedence (first non-empty wins per field):
+ * 1. Explicit CLI flags / params (`--project-id`, `--org-id`, `--region`)
+ * 2. Soft-loaded / optional project object (if present)
+ * 3. Offline stubs (`offline` / `local`)
+ */
+export function resolveOfflineDeployIdentity(params: {
+	projectId?: string | null;
+	orgId?: string | null;
+	region?: string | null;
+	project?: Pick<Project, 'projectId' | 'orgId' | 'region'> | null;
+}): OfflineDeployIdentity {
+	const pick = (value: string | null | undefined): string | undefined => {
+		if (typeof value !== 'string') return undefined;
+		const trimmed = value.trim();
+		return trimmed.length > 0 ? trimmed : undefined;
+	};
+
+	return {
+		projectId:
+			pick(params.projectId) ?? pick(params.project?.projectId) ?? OFFLINE_DEPLOY_PROJECT_ID,
+		orgId: pick(params.orgId) ?? pick(params.project?.orgId) ?? OFFLINE_DEPLOY_ORG_ID,
+		region: pick(params.region) ?? pick(params.project?.region) ?? OFFLINE_DEPLOY_REGION,
+	};
+}
+
 export interface PackOnlyParams {
 	/** Optional — offline mode does not require a registered project. */
 	project?: Project | null;
+	/**
+	 * Explicit identity overrides (CLI flags / env). Win over `project` and
+	 * the offline stubs when non-empty.
+	 */
+	projectId?: string;
+	orgId?: string;
+	region?: string;
 	projectDir: string;
 	logger: Logger;
 	collector: BuildReportCollector;
@@ -173,9 +214,18 @@ export async function runPackOnly(params: PackOnlyParams): Promise<PackOnlyResul
 	} = params;
 
 	const rootDir = resolve(projectDir);
-	const projectId = project?.projectId ?? OFFLINE_DEPLOY_PROJECT_ID;
-	const orgId = project?.orgId ?? OFFLINE_DEPLOY_ORG_ID;
-	const region = project?.region ?? OFFLINE_DEPLOY_REGION;
+	const { projectId, orgId, region } = resolveOfflineDeployIdentity({
+		projectId: params.projectId,
+		orgId: params.orgId,
+		region: params.region,
+		project,
+	});
+	logger.debug(
+		'Offline deploy identity: projectId=%s orgId=%s region=%s',
+		projectId,
+		orgId,
+		region
+	);
 
 	// Retain a local zip when the user asked for --pack-only, or passed an
 	// explicit --pack-output. With only --upload-url, use a temp file and

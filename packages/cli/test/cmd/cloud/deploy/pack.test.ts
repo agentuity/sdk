@@ -4,7 +4,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DEPLOY_PACK_ZIP_BASENAME } from '../../../../src/cmd/cloud/deploy/package';
 import {
+	OFFLINE_DEPLOY_ORG_ID,
 	OFFLINE_DEPLOY_PROJECT_ID,
+	OFFLINE_DEPLOY_REGION,
+	resolveOfflineDeployIdentity,
 	resolvePackOutputPath,
 	resolveSafePackOutput,
 	uploadDeploymentZip,
@@ -54,6 +57,84 @@ describe('resolveSafePackOutput', () => {
 describe('offline deploy constants', () => {
 	test('uses stable stub ids for offline project metadata', () => {
 		expect(OFFLINE_DEPLOY_PROJECT_ID).toBe('offline');
+		expect(OFFLINE_DEPLOY_ORG_ID).toBe('offline');
+		expect(OFFLINE_DEPLOY_REGION).toBe('local');
+	});
+});
+
+describe('resolveOfflineDeployIdentity', () => {
+	test('falls back to offline stubs when nothing is provided', () => {
+		expect(resolveOfflineDeployIdentity({})).toEqual({
+			projectId: OFFLINE_DEPLOY_PROJECT_ID,
+			orgId: OFFLINE_DEPLOY_ORG_ID,
+			region: OFFLINE_DEPLOY_REGION,
+		});
+	});
+
+	test('prefers explicit flags over project object and stubs', () => {
+		expect(
+			resolveOfflineDeployIdentity({
+				projectId: 'proj_flag',
+				orgId: 'org_flag',
+				region: 'eu-west-1',
+				project: {
+					projectId: 'proj_cfg',
+					orgId: 'org_cfg',
+					region: 'us-east-1',
+				},
+			})
+		).toEqual({
+			projectId: 'proj_flag',
+			orgId: 'org_flag',
+			region: 'eu-west-1',
+		});
+	});
+
+	test('uses project object when flags are absent', () => {
+		expect(
+			resolveOfflineDeployIdentity({
+				project: {
+					projectId: 'proj_cfg',
+					orgId: 'org_cfg',
+					region: 'ap-south-1',
+				},
+			})
+		).toEqual({
+			projectId: 'proj_cfg',
+			orgId: 'org_cfg',
+			region: 'ap-south-1',
+		});
+	});
+
+	test('ignores blank/whitespace flags and falls through', () => {
+		expect(
+			resolveOfflineDeployIdentity({
+				projectId: '  ',
+				orgId: '',
+				region: undefined,
+				project: {
+					projectId: 'proj_cfg',
+					orgId: 'org_cfg',
+					region: 'us-west-2',
+				},
+			})
+		).toEqual({
+			projectId: 'proj_cfg',
+			orgId: 'org_cfg',
+			region: 'us-west-2',
+		});
+	});
+
+	test('allows partial overrides mixed with stubs', () => {
+		expect(
+			resolveOfflineDeployIdentity({
+				projectId: 'proj_only',
+			})
+		).toEqual({
+			projectId: 'proj_only',
+			orgId: OFFLINE_DEPLOY_ORG_ID,
+			region: OFFLINE_DEPLOY_REGION,
+		});
 	});
 });
 

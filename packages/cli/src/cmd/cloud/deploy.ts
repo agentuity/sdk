@@ -251,6 +251,13 @@ export const deploySubcommand = createSubcommand({
 			),
 			description: 'Offline: upload to a custom URL and keep a local copy of the zip',
 		},
+		{
+			command: getCommand(
+				'cloud deploy --upload-url "https://example.com/upload" --project-id proj_123 --org-id org_456 --region us-west-2'
+			),
+			description:
+				'Offline: embed real project/org/region in build metadata instead of offline/local stubs',
+		},
 	],
 	toplevel: true,
 	idempotent: false,
@@ -307,6 +314,23 @@ export const deploySubcommand = createSubcommand({
 					.optional()
 					.default(false)
 					.describe('Confirm region change without prompting (for non-TTY environments)'),
+				// Offline metadata (also usable as selectors for cloud deploy).
+				// When --pack-only / --upload-url is set these are embedded in
+				// build metadata instead of the offline/local stubs.
+				projectId: z
+					.string()
+					.optional()
+					.describe('Project ID (offline: embed in build metadata; cloud: select project)'),
+				orgId: z
+					.string()
+					.optional()
+					.describe(
+						'Organization ID (offline: embed in build metadata; also AGENTUITY_CLOUD_ORG_ID)'
+					),
+				region: z
+					.string()
+					.optional()
+					.describe('Cloud region (offline: embed in build metadata; also AGENTUITY_REGION)'),
 			})
 		),
 		response: DeployResponseSchema,
@@ -340,8 +364,25 @@ export const deploySubcommand = createSubcommand({
 				setGlobalCollector(collector);
 			}
 
+			// Identity for build metadata. Flags/env win over any soft project
+			// context; stubs (`offline` / `local`) are last resort only.
+			const offlineProjectId =
+				opts.projectId ??
+				(options as { projectId?: string }).projectId ??
+				process.env.AGENTUITY_CLOUD_PROJECT_ID;
+			const offlineOrgId =
+				opts.orgId ?? options.orgId ?? orgId ?? process.env.AGENTUITY_CLOUD_ORG_ID;
+			const offlineRegion =
+				opts.region ??
+				(options as { region?: string }).region ??
+				region ??
+				process.env.AGENTUITY_REGION;
+
 			const packResult = await runPackOnly({
 				project: ctx.project,
+				projectId: offlineProjectId,
+				orgId: offlineOrgId,
+				region: offlineRegion,
 				projectDir,
 				logger,
 				collector,

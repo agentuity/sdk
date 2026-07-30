@@ -42,6 +42,9 @@ describe('cloud deploy', () => {
 				uploadUrl: 'https://bucket.s3.amazonaws.com/key?X-Amz-Signature=abc',
 				packOnly: true,
 				packOutput: './out/deploy.zip',
+				projectId: 'proj_123',
+				orgId: 'org_456',
+				region: 'us-west-2',
 			});
 
 			expect(result.success).toBe(true);
@@ -49,6 +52,9 @@ describe('cloud deploy', () => {
 				expect(result.data.uploadUrl).toContain('s3.amazonaws.com');
 				expect(result.data.packOnly).toBe(true);
 				expect(result.data.packOutput).toBe('./out/deploy.zip');
+				expect(result.data.projectId).toBe('proj_123');
+				expect(result.data.orgId).toBe('org_456');
+				expect(result.data.region).toBe('us-west-2');
 			}
 		});
 
