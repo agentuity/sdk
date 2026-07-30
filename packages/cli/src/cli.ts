@@ -1444,180 +1444,207 @@ async function registerSubcommand(
 		const dirNeeded = normalized.requiresProject || normalized.optionalProject;
 		const projectConfigOption = options.projectConfig as string | undefined;
 
+		// Offline deploy (`--pack-only` / `--upload-url` on the deploy command):
+		// build + optional external upload without login, project registration,
+		// or agentuity.json validation. Detected here so the auth/project gates
+		// below can be skipped before requireAuth / loadProjectConfig run.
+		const isOfflineDeploy =
+			subcommand.name === 'deploy' &&
+			(options.packOnly === true ||
+				(typeof options.uploadUrl === 'string' && options.uploadUrl.length > 0));
+
 		if (dirNeeded) {
-			const optionsProjectId = options.projectId as string | undefined;
+			// Always resolve the working directory when a project context is
+			// expected (including offline deploy, which only needs the path).
+			const dir = (options.dir as string | undefined) ?? process.cwd();
+			projectDir = dir.startsWith('~/') ? dir.replace('~/', homedir()) : dir;
+			projectDir = resolve(projectDir);
 
-			// Helper to fetch project from API by ID
-			const fetchProjectFromAPI = async (
-				projectId: string
-			): Promise<ProjectConfig | undefined> => {
-				const auth = await requireAuth(baseCtx);
-				if (auth) {
-					// Create config with auth credentials for API client
-					const configWithAuth = {
-						...baseCtx.config,
-						auth: {
-							api_key: auth.apiKey,
-							user_id: auth.userId,
-							expires: auth.expires.getTime(),
-						},
-					};
-					const apiClient = createAPIClient(baseCtx, configWithAuth as Config);
-					// Check cache first to avoid duplicate API calls
-					const profile = baseCtx.config?.name ?? 'default';
-					let projectDetails = getCachedProject(profile, projectId);
-					if (!projectDetails) {
-						const { projectGet } = await import('@agentuity/server');
-						// Use keys: false to match other callers and ensure cache consistency
-						projectDetails = await projectGet(apiClient, { id: projectId, keys: false });
-						setCachedProject(profile, projectId, projectDetails);
+			// Offline mode: do not load or validate agentuity.json (and do not
+			// call the API for --project-id). The offline pack path uses stub
+			// project metadata when none is present.
+			if (!isOfflineDeploy) {
+				const optionsProjectId = options.projectId as string | undefined;
+
+				// Helper to fetch project from API by ID
+				const fetchProjectFromAPI = async (
+					projectId: string
+				): Promise<ProjectConfig | undefined> => {
+					const auth = await requireAuth(baseCtx);
+					if (auth) {
+						// Create config with auth credentials for API client
+						const configWithAuth = {
+							...baseCtx.config,
+							auth: {
+								api_key: auth.apiKey,
+								user_id: auth.userId,
+								expires: auth.expires.getTime(),
+							},
+						};
+						const apiClient = createAPIClient(baseCtx, configWithAuth as Config);
+						// Check cache first to avoid duplicate API calls
+						const profile = baseCtx.config?.name ?? 'default';
+						let projectDetails = getCachedProject(profile, projectId);
+						if (!projectDetails) {
+							const { projectGet } = await import('@agentuity/server');
+							// Use keys: false to match other callers and ensure cache consistency
+							projectDetails = await projectGet(apiClient, { id: projectId, keys: false });
+							setCachedProject(profile, projectId, projectDetails);
+						}
+						return {
+							projectId: projectDetails.id,
+							orgId: projectDetails.orgId,
+							region: projectDetails.cloudRegion || '',
+						};
 					}
-					return {
-						projectId: projectDetails.id,
-						orgId: projectDetails.orgId,
-						region: projectDetails.cloudRegion || '',
-					};
-				}
-				return undefined;
-			};
+					return undefined;
+				};
 
-			// Resolution precedence:
-			// 1. --project-id flag (or AGENTUITY_CLOUD_PROJECT_ID env var)
-			// 2. --project-config / agentuity.json in project directory
-			// 3. config.preferences.projectId (global preference) - fallback only
-			// 4. Interactive selection (if TTY)
+				// Resolution precedence:
+				// 1. --project-id flag (or AGENTUITY_CLOUD_PROJECT_ID env var)
+				// 2. --project-config / agentuity.json in project directory
+				// 3. config.preferences.projectId (global preference) - fallback only
+				// 4. Interactive selection (if TTY)
 
-			if (optionsProjectId) {
-				// Priority 1: Explicit flag/env var provided
-				try {
-					project = await fetchProjectFromAPI(optionsProjectId);
-				} catch (_error) {
-					if (normalized.requiresProject) {
-						exitWithError(
-							createError(
-								ErrorCode.PROJECT_NOT_FOUND,
-								`Project not found: ${optionsProjectId}`,
-								undefined,
-								[
-									'Verify the project ID is correct',
-									`Run "${getCommand('project list')}" to see available projects`,
-								]
-							),
-							baseCtx.logger,
-							baseCtx.options.errorFormat
-						);
-					}
-				}
-			} else {
-				// Priority 2: Try to load from agentuity.json (or --project-config) in directory
-				const dir = (options.dir as string | undefined) ?? process.cwd();
-				projectDir = dir;
-				if (projectDir.startsWith('~/')) {
-					projectDir = projectDir.replace('~/', homedir());
-				}
-				projectDir = resolve(projectDir);
-				try {
-					const loadOpts = projectConfigOption
-						? { configPath: projectConfigOption }
-						: undefined;
-					const resolved = await resolveProjectConfigPath(
-						projectDir,
-						baseCtx.config,
-						loadOpts
-					);
-					projectConfigPath = resolved.path;
-					project = await loadProjectConfig(projectDir, baseCtx.config, loadOpts);
-				} catch (error) {
-					const isConfigNotFound =
-						error &&
-						typeof error === 'object' &&
-						'name' in error &&
-						error.name === 'ProjectConfigNotFoundException';
-
-					if (isConfigNotFound) {
-						if ('explicit' in error && error.explicit === true) {
-							const configPath =
-								'configPath' in error && typeof error.configPath === 'string'
-									? error.configPath
-									: dir;
+				if (optionsProjectId) {
+					// Priority 1: Explicit flag/env var provided
+					try {
+						project = await fetchProjectFromAPI(optionsProjectId);
+					} catch (_error) {
+						if (normalized.requiresProject) {
 							exitWithError(
 								createError(
 									ErrorCode.PROJECT_NOT_FOUND,
-									`Project config not found: ${configPath}`
+									`Project not found: ${optionsProjectId}`,
+									undefined,
+									[
+										'Verify the project ID is correct',
+										`Run "${getCommand('project list')}" to see available projects`,
+									]
 								),
 								baseCtx.logger,
 								baseCtx.options.errorFormat
 							);
 						}
+					}
+				} else {
+					// Priority 2: Try to load from agentuity.json (or --project-config) in directory
+					const dir = (options.dir as string | undefined) ?? process.cwd();
+					projectDir = dir;
+					if (projectDir.startsWith('~/')) {
+						projectDir = projectDir.replace('~/', homedir());
+					}
+					projectDir = resolve(projectDir);
+					try {
+						const loadOpts = projectConfigOption
+							? { configPath: projectConfigOption }
+							: undefined;
+						const resolved = await resolveProjectConfigPath(
+							projectDir,
+							baseCtx.config,
+							loadOpts
+						);
+						projectConfigPath = resolved.path;
+						project = await loadProjectConfig(projectDir, baseCtx.config, loadOpts);
+					} catch (error) {
+						const isConfigNotFound =
+							error &&
+							typeof error === 'object' &&
+							'name' in error &&
+							error.name === 'ProjectConfigNotFoundException';
 
-						// Priority 3: Try global preference (only when no agentuity.json found)
-						const projectIdFromPreference = baseCtx.config?.preferences?.projectId as
-							| string
-							| undefined;
-						if (projectIdFromPreference) {
-							try {
-								project = await fetchProjectFromAPI(projectIdFromPreference);
-								if (project) {
-									// Set the project ID in options so it can be used by the command
-									(options as Record<string, unknown>).projectId = projectIdFromPreference;
-								}
-							} catch (_preferenceError) {
-								// Preference project not found, fall through to interactive selection
-								baseCtx.logger.trace(
-									'Preference project not found: %s',
-									projectIdFromPreference
-								);
-							}
-						}
-
-						// Priority 4: Interactive selection (if TTY and still no project)
-						if (!project && normalized.requiresProject) {
-							const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
-
-							if (hasTTY) {
-								// Try to prompt for project selection
-								try {
-									const selectedProject = await promptProjectSelection(baseCtx);
-									if (selectedProject) {
-										// Set the project ID in options so it can be used by the command
-										(options as Record<string, unknown>).projectId =
-											selectedProject.projectId;
-										project = selectedProject;
-									}
-								} catch (promptError) {
-									// If prompting fails, fall through to the original error
-									baseCtx.logger.trace('Project selection prompt failed: %s', promptError);
-								}
-							}
-
-							if (!project) {
+						if (isConfigNotFound) {
+							if ('explicit' in error && error.explicit === true) {
+								const configPath =
+									'configPath' in error && typeof error.configPath === 'string'
+										? error.configPath
+										: dir;
 								exitWithError(
 									createError(
 										ErrorCode.PROJECT_NOT_FOUND,
-										'Invalid project folder',
-										undefined,
-										[
-											'Use --dir to specify a different directory',
-											'Use --project-id to specify a project by ID',
-											'Use --project-config to specify a project config file',
-											'Change to a directory containing agentuity.json',
-											`Run "${getCommand('project create')}" to create a new project`,
-										]
+										`Project config not found: ${configPath}`
 									),
 									baseCtx.logger,
 									baseCtx.options.errorFormat
 								);
 							}
+
+							// Priority 3: Try global preference (only when no agentuity.json found)
+							const projectIdFromPreference = baseCtx.config?.preferences?.projectId as
+								| string
+								| undefined;
+							if (projectIdFromPreference) {
+								try {
+									project = await fetchProjectFromAPI(projectIdFromPreference);
+									if (project) {
+										// Set the project ID in options so it can be used by the command
+										(options as Record<string, unknown>).projectId =
+											projectIdFromPreference;
+									}
+								} catch (_preferenceError) {
+									// Preference project not found, fall through to interactive selection
+									baseCtx.logger.trace(
+										'Preference project not found: %s',
+										projectIdFromPreference
+									);
+								}
+							}
+
+							// Priority 4: Interactive selection (if TTY and still no project)
+							if (!project && normalized.requiresProject) {
+								const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
+
+								if (hasTTY) {
+									// Try to prompt for project selection
+									try {
+										const selectedProject = await promptProjectSelection(baseCtx);
+										if (selectedProject) {
+											// Set the project ID in options so it can be used by the command
+											(options as Record<string, unknown>).projectId =
+												selectedProject.projectId;
+											project = selectedProject;
+										}
+									} catch (promptError) {
+										// If prompting fails, fall through to the original error
+										baseCtx.logger.trace(
+											'Project selection prompt failed: %s',
+											promptError
+										);
+									}
+								}
+
+								if (!project) {
+									exitWithError(
+										createError(
+											ErrorCode.PROJECT_NOT_FOUND,
+											'Invalid project folder',
+											undefined,
+											[
+												'Use --dir to specify a different directory',
+												'Use --project-id to specify a project by ID',
+												'Use --project-config to specify a project config file',
+												'Change to a directory containing agentuity.json',
+												`Run "${getCommand('project create')}" to create a new project`,
+											]
+										),
+										baseCtx.logger,
+										baseCtx.options.errorFormat
+									);
+								}
+							}
+						} else if (normalized.requiresProject) {
+							throw error;
 						}
-					} else if (normalized.requiresProject) {
-						throw error;
+						// For optional projects, silently continue without project config
 					}
-					// For optional projects, silently continue without project config
 				}
-			}
+			} // end !isOfflineDeploy
 		}
 
-		if (normalized.requiresAuth) {
+		// Offline deploy skips requireAuth (no Agentuity API / login).
+		// Fall through to the unauthenticated handler path so --pack-only
+		// and --upload-url work without credentials.
+		if (normalized.requiresAuth && !isOfflineDeploy) {
 			// Create apiClient before requireAuth since login command needs it
 			if (normalized.requiresAPIClient) {
 				(baseCtx as Record<string, unknown>).apiClient = createAPIClient(
