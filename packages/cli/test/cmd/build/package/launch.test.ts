@@ -174,6 +174,190 @@ describe('Launch Metadata', () => {
 			const metadata = generateLaunchMetadata(framework, buildResult);
 			expect(metadata.runtime.port).toBe(8080);
 		});
+
+		test('includes static directory and publicPath from build result', () => {
+			const framework: DetectedFramework = {
+				name: 'nextjs',
+				runtime: 'node',
+				packageManager: 'npm',
+				buildCommand: 'next build',
+				buildOutput: '.next',
+				startCommand: 'node server.js',
+				staticDir: '.next/static',
+				staticAssetPublicPath: '_next/static',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: '/tmp/output',
+				startCommand: 'node server.js',
+				staticDir: '/tmp/output/.next/static',
+				staticAssetPublicPath: '_next/static',
+				duration: 1000,
+				logs: [],
+			};
+
+			const metadata = generateLaunchMetadata(framework, buildResult);
+			expect(metadata.static).toEqual({
+				directory: '.next/static',
+				publicPath: '_next/static',
+			});
+		});
+
+		test('records cdn baseUrl on static when provided', () => {
+			const framework: DetectedFramework = {
+				name: 'nextjs',
+				runtime: 'node',
+				packageManager: 'npm',
+				buildCommand: 'next build',
+				buildOutput: '.next',
+				startCommand: 'node server.js',
+				staticDir: '.next/static',
+				staticAssetPublicPath: '_next/static',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: '/tmp/output',
+				startCommand: 'node server.js',
+				staticDir: '/tmp/output/.next/static',
+				staticAssetPublicPath: '_next/static',
+				duration: 1000,
+				logs: [],
+			};
+
+			const metadata = generateLaunchMetadata(
+				framework,
+				buildResult,
+				null,
+				undefined,
+				'https://cdn.agentuity.com/org_123/assets/'
+			);
+			expect(metadata.static).toEqual({
+				directory: '.next/static',
+				publicPath: '_next/static',
+				baseUrl: 'https://cdn.agentuity.com/org_123/assets/',
+			});
+		});
+
+		test('omits static when framework has no static dir', () => {
+			const framework: DetectedFramework = {
+				name: 'nestjs',
+				runtime: 'node',
+				packageManager: 'npm',
+				buildCommand: 'nest build',
+				buildOutput: 'dist',
+				startCommand: 'node dist/main.js',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: '/tmp/output',
+				startCommand: 'node dist/main.js',
+				duration: 500,
+				logs: [],
+			};
+
+			const metadata = generateLaunchMetadata(framework, buildResult);
+			expect(metadata.static).toBeUndefined();
+		});
+
+		test('static directory is relative to monorepo workingDirectory', () => {
+			const framework: DetectedFramework = {
+				name: 'nextjs',
+				runtime: 'node',
+				packageManager: 'pnpm',
+				buildCommand: 'next build',
+				buildOutput: '.next',
+				startCommand: 'node server.js',
+				staticDir: '.next/static',
+				staticAssetPublicPath: '_next/static',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: '/tmp/output',
+				startCommand: 'node server.js',
+				staticDir: '/tmp/output/apps/web/.next/static',
+				staticAssetPublicPath: '_next/static',
+				duration: 1000,
+				logs: [],
+			};
+
+			const metadata = generateLaunchMetadata(framework, buildResult, null, {
+				root: '/tmp/repo',
+				subpath: 'apps/web',
+				packageManager: 'pnpm',
+			});
+			expect(metadata.static?.directory).toBe('.next/static');
+			expect(metadata.processes[0].workingDirectory).toBe('apps/web');
+		});
+
+		test('runtime is node when start command is HOST=… node …', () => {
+			const framework: DetectedFramework = {
+				name: 'nuxt',
+				runtime: 'bun', // lockfile would have said bun
+				packageManager: 'bun',
+				buildCommand: 'nuxt build',
+				buildOutput: '.output',
+				startCommand: 'HOST=0.0.0.0 node .output/server/index.mjs',
+				staticDir: '.output/public',
+				staticAssetPublicPath: '',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: '/tmp/output',
+				startCommand: 'HOST=0.0.0.0 node .output/server/index.mjs',
+				staticDir: '/tmp/output/.output/public',
+				staticAssetPublicPath: '',
+				duration: 1000,
+				logs: [],
+			};
+
+			const metadata = generateLaunchMetadata(framework, buildResult);
+			expect(metadata.runtime.name).toBe('node');
+		});
+
+		test('user override can replace static block', () => {
+			const framework: DetectedFramework = {
+				name: 'vite',
+				runtime: 'node',
+				packageManager: 'npm',
+				buildCommand: 'vite build',
+				buildOutput: 'dist',
+				staticDir: 'dist',
+				staticAssetPublicPath: '',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: '/tmp/output',
+				staticDir: '/tmp/output/dist',
+				staticAssetPublicPath: '',
+				duration: 1000,
+				logs: [],
+			};
+
+			const metadata = generateLaunchMetadata(
+				framework,
+				buildResult,
+				{
+					static: {
+						directory: 'public',
+						publicPath: 'assets',
+						baseUrl: 'https://cdn.example.com/x/',
+					},
+				},
+				undefined,
+				'https://cdn.agentuity.com/' // should not clobber user baseUrl
+			);
+			expect(metadata.static).toEqual({
+				directory: 'public',
+				publicPath: 'assets',
+				baseUrl: 'https://cdn.example.com/x/',
+			});
+		});
 	});
 
 	// ── writeLaunchMetadata ──

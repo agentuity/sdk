@@ -22,6 +22,8 @@ export { injectViteBaseFlag } from '../vite-cli-base.ts';
 export { resolveAgentuityCdnBase as resolveViteCdnBase } from '../cdn-origin.ts';
 
 export interface PrepareViteCdnBuildOptions {
+	/** Explicit `--cdn-base-url` (highest priority for origin resolution). */
+	cdnBaseUrl?: string;
 	deploymentId?: string;
 	buildCommand: string;
 	buildEnv?: Record<string, string>;
@@ -37,6 +39,8 @@ export interface ViteCdnBuildOverrides {
 	logs: string[];
 	/** Absolute CDN base ending with `/`, or undefined when skipped. */
 	cdnBase?: string;
+	/** CDN origin without trailing slash, when set. */
+	cdnOrigin?: string;
 }
 
 /**
@@ -48,12 +52,15 @@ export function prepareViteCdnBuild(options: PrepareViteCdnBuildOptions): ViteCd
 	const logs: string[] = [];
 
 	const cdnBase = resolveAgentuityCdnBase({
+		cdnBaseUrl: options.cdnBaseUrl,
 		deploymentId: options.deploymentId,
 		env,
 	});
 
 	if (!cdnBase) {
-		options.logger.debug('Vite CDN base: skipped (no deployment id / AGENTUITY_CDN_ORIGIN)');
+		options.logger.debug(
+			'Vite CDN base: skipped (no --cdn-base-url / deployment id / AGENTUITY_CDN_* )'
+		);
 		return {
 			buildCommand: options.buildCommand,
 			buildEnv: options.buildEnv,
@@ -62,6 +69,7 @@ export function prepareViteCdnBuild(options: PrepareViteCdnBuildOptions): ViteCd
 	}
 
 	const cdnOrigin = resolveAgentuityCdnOrigin({
+		cdnBaseUrl: options.cdnBaseUrl,
 		deploymentId: options.deploymentId,
 		env,
 	});
@@ -70,7 +78,12 @@ export function prepareViteCdnBuild(options: PrepareViteCdnBuildOptions): ViteCd
 
 	const buildEnv: Record<string, string> = {
 		...options.buildEnv,
-		...(cdnOrigin ? { AGENTUITY_CDN_ORIGIN: cdnOrigin } : {}),
+		...(cdnOrigin
+			? {
+					AGENTUITY_CDN_ORIGIN: cdnOrigin,
+					AGENTUITY_CDN_BASE_URL: cdnBase,
+				}
+			: {}),
 		...(deploymentId && deploymentId !== PACK_ONLY_DEPLOYMENT_ID
 			? { AGENTUITY_CLOUD_DEPLOYMENT_ID: deploymentId }
 			: {}),
@@ -92,6 +105,7 @@ export function prepareViteCdnBuild(options: PrepareViteCdnBuildOptions): ViteCd
 
 	return {
 		cdnBase,
+		cdnOrigin,
 		buildCommand,
 		buildEnv,
 		logs,

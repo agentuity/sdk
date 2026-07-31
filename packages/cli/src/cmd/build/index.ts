@@ -5,7 +5,7 @@ import { getCommand } from '../../command-prefix.ts';
 import { createError, ErrorCode, exitWithError } from '../../errors.ts';
 import { pathExists } from '../../node-compat/fs.ts';
 import * as tui from '../../tui.ts';
-import { createCommand, DeployOptionsSchema } from '../../types.ts';
+import { CdnBaseUrlSchema, createCommand, DeployOptionsSchema } from '../../types.ts';
 import {
 	BuildReportCollector,
 	setGlobalCollector,
@@ -36,6 +36,9 @@ const BuildOptionsSchema = z.intersection(
 		ci: z.boolean().optional().describe('Enable CI build mode'),
 		url: z.string().optional().describe('Source code download URL for CI builds'),
 		directory: z.string().optional().describe('Subdirectory within extracted source'),
+		// Also on DeployOptionsSchema via CdnBaseUrlSchema; re-listed so
+		// `agentuity build --help` surfaces the flag without deploy-only context.
+		cdnBaseUrl: CdnBaseUrlSchema,
 	})
 );
 
@@ -116,6 +119,7 @@ export const command = createCommand({
 				projectId: project?.projectId,
 				orgId: project?.orgId,
 				region: project?.region ?? 'local',
+				cdnBaseUrl: opts.cdnBaseUrl,
 			});
 
 			const { framework, monorepo, buildResult, packageResult, outputDir } = pipelineResult;

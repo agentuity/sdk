@@ -1,38 +1,33 @@
 /**
- * Vite SPA build adapter.
- *
- * Runs the generic monorepo/single-package pipeline after applying CDN
- * asset base wiring so hashed client URLs point at Agentuity CDN on deploy.
+ * Vite SPA build adapter — inject CDN `--base`, then generic build.
  */
 
-import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
-import { genericAdapter } from './generic.ts';
+import { withCdnPrep } from './with-cdn-prep.ts';
 import { prepareViteCdnBuild } from './vite/cdn-build.ts';
+import type { CdnPrepResult } from './config-cdn-wrap.ts';
+import type { BuildAdapterOptions } from './types.ts';
 
-export const viteAdapter: BuildAdapter = {
+function prepareVite(options: BuildAdapterOptions): CdnPrepResult {
+	const overrides = prepareViteCdnBuild({
+		cdnBaseUrl: options.cdnBaseUrl,
+		deploymentId: options.deploymentId,
+		buildCommand: options.framework.buildCommand,
+		buildEnv: options.framework.buildEnv,
+		logger: options.logger,
+	});
+	return {
+		buildEnv: overrides.buildEnv ?? {},
+		logs: overrides.logs,
+		cdnBase: overrides.cdnBase,
+		cdnOrigin: overrides.cdnOrigin,
+		cleanup: () => {},
+		frameworkPatch: {
+			buildCommand: overrides.buildCommand,
+		},
+	};
+}
+
+export const viteAdapter = withCdnPrep({
 	name: 'vite',
-
-	async build(options: BuildAdapterOptions): Promise<BuildResult> {
-		const overrides = prepareViteCdnBuild({
-			deploymentId: options.deploymentId,
-			buildCommand: options.framework.buildCommand,
-			buildEnv: options.framework.buildEnv,
-			logger: options.logger,
-		});
-
-		// Apply overrides on a shallow framework copy — never mutate detection results.
-		const result = await genericAdapter.build({
-			...options,
-			framework: {
-				...options.framework,
-				buildCommand: overrides.buildCommand,
-				buildEnv: overrides.buildEnv,
-			},
-		});
-
-		return {
-			...result,
-			logs: [...overrides.logs, ...result.logs],
-		};
-	},
-};
+	prepare: prepareVite,
+});

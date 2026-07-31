@@ -33,6 +33,11 @@ export interface PackageResult {
 	staticDir?: string;
 }
 
+export interface PackageBuildOutputOptions {
+	/** Explicit CDN base URL from `--cdn-base-url` (written to launch.static.baseUrl). */
+	cdnBaseUrl?: string;
+}
+
 /**
  * Package a build result into a deployment-ready directory.
  *
@@ -45,14 +50,21 @@ export async function packageBuildOutput(
 	buildResult: BuildResult,
 	outputDir: string,
 	projectDir?: string,
-	monorepo?: MonorepoContext
+	monorepo?: MonorepoContext,
+	options?: PackageBuildOutputOptions
 ): Promise<PackageResult> {
 	const override = projectDir ? await readUserLaunchOverride(projectDir) : null;
 
 	// Generate launch metadata (with optional user override applied).
 	// In monorepo mode, every process inherits the subpackage as its
 	// `workingDirectory` so pilot launches inside the right subdir.
-	const launch = generateLaunchMetadata(framework, buildResult, override, monorepo);
+	const launch = generateLaunchMetadata(
+		framework,
+		buildResult,
+		override,
+		monorepo,
+		options?.cdnBaseUrl
+	);
 
 	// Write launch metadata to the output directory
 	writeLaunchMetadata(outputDir, launch);
@@ -60,10 +72,10 @@ export async function packageBuildOutput(
 	return {
 		outputDir,
 		launch,
-		hasStaticAssets: !!buildResult.staticDir,
+		hasStaticAssets: !!buildResult.staticDir || !!launch.static,
 		staticDir: buildResult.staticDir,
 	};
 }
 
 // Re-export
-export type { LaunchMetadata, ProcessDefinition } from './launch.ts';
+export type { LaunchMetadata, LaunchStaticAssets, ProcessDefinition } from './launch.ts';

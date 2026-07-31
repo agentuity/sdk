@@ -67,6 +67,17 @@ export interface BuildPipelineInput {
 	/** Development-mode build (looser, sourcemaps, etc.). */
 	dev?: boolean;
 
+	/**
+	 * Explicit CDN base URL (`--cdn-base-url`). Used at build time so
+	 * frameworks bake absolute asset URLs, and recorded on
+	 * `launch.json` as `static.baseUrl`.
+	 *
+	 * Examples:
+	 *   `https://cdn.agentuity.com/`
+	 *   `https://cdn.agentuity.com/{ORGID}/assets/`
+	 */
+	cdnBaseUrl?: string;
+
 	// — Adapter passthrough fields. Only the deploy pipeline supplies these.
 
 	projectId?: string;
@@ -188,6 +199,9 @@ export async function runBuildPipeline(input: BuildPipelineInput): Promise<Build
 	//    copies the build output and runtime manifests directly.
 	const endBuild = collector.startDiagnostic('build');
 	const buildStarted = Date.now();
+	// Explicit pipeline field, or the same flag on deploy options (deploy CLI).
+	const cdnBaseUrl = input.cdnBaseUrl ?? input.deploymentOptions?.cdnBaseUrl;
+
 	const adapter = getAdapter(framework.name);
 	const buildResult: BuildResult = await adapter.build({
 		projectDir: absoluteProjectDir,
@@ -204,19 +218,22 @@ export async function runBuildPipeline(input: BuildPipelineInput): Promise<Build
 		deploymentOptions: input.deploymentOptions,
 		deploymentConfig: input.deploymentConfig,
 		monorepo: monorepo ?? undefined,
+		cdnBaseUrl,
 	});
 	endBuild();
 	const buildMs = Date.now() - buildStarted;
 	logs.push(...buildResult.logs);
 
 	// 5. Package the output — writes launch.json with `workingDirectory`
-	//    set from monorepo.subpath when in monorepo mode.
+	//    set from monorepo.subpath when in monorepo mode, and
+	//    `static.{directory,publicPath,baseUrl}` for CDN consumers.
 	const packageResult = await packageBuildOutput(
 		framework,
 		buildResult,
 		buildResult.outputDir,
 		absoluteProjectDir,
-		monorepo ?? undefined
+		monorepo ?? undefined,
+		{ cdnBaseUrl }
 	);
 
 	return {

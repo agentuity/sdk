@@ -12,6 +12,8 @@ import {
 	getExecCommand,
 	readPackageJson,
 	isAgentuityCliInvocation,
+	resolveRuntimeFromStartCommand,
+	stripCommandEnvPrefixes,
 } from '../../../../src/cmd/build/detect/util';
 import type { PackageJsonData } from '../../../../src/cmd/build/detect/types';
 
@@ -301,6 +303,41 @@ describe('Detection Utilities', () => {
 			expect(isAgentuityCliInvocation(null)).toBe(false);
 			expect(isAgentuityCliInvocation('')).toBe(false);
 			expect(isAgentuityCliInvocation('   ')).toBe(false);
+		});
+	});
+
+	describe('resolveRuntimeFromStartCommand', () => {
+		test('strips HOST= and other env prefixes before matching node', () => {
+			expect(stripCommandEnvPrefixes('HOST=0.0.0.0 node .output/server/index.mjs')).toBe(
+				'node .output/server/index.mjs'
+			);
+			expect(
+				resolveRuntimeFromStartCommand('HOST=0.0.0.0 node .output/server/index.mjs', 'bun')
+			).toBe('node');
+		});
+
+		test('strips quoted env values that contain spaces', () => {
+			expect(stripCommandEnvPrefixes('cross-env NAME="value with spaces" node server.js')).toBe(
+				'node server.js'
+			);
+			expect(
+				resolveRuntimeFromStartCommand(
+					'cross-env NAME="value with spaces" node server.js',
+					'bun'
+				)
+			).toBe('node');
+			expect(stripCommandEnvPrefixes("FOO='bar baz' BAR=qux node dist/main.js")).toBe(
+				'node dist/main.js'
+			);
+		});
+
+		test('detects bun after env prefixes', () => {
+			expect(resolveRuntimeFromStartCommand('PORT=3000 bun run start', 'node')).toBe('bun');
+		});
+
+		test('falls back when command is ambiguous', () => {
+			expect(resolveRuntimeFromStartCommand('npm start', 'node')).toBe('node');
+			expect(resolveRuntimeFromStartCommand(undefined, 'bun')).toBe('bun');
 		});
 	});
 });

@@ -84,6 +84,25 @@ export const LaunchProcessSchema = z.object({
 	workingDirectory: z.string().optional().describe('working directory relative to app root'),
 });
 
+export const LaunchStaticAssetsSchema = z.object({
+	directory: z
+		.string()
+		.describe(
+			'static asset directory relative to process workingDirectory / deploy root (posix)'
+		),
+	publicPath: z
+		.string()
+		.describe(
+			'URL path prefix for files inside directory (e.g. _next/static); empty string for SPA root'
+		),
+	baseUrl: z
+		.string()
+		.optional()
+		.describe(
+			'absolute CDN base URL with trailing slash when known at build time (e.g. https://cdn.agentuity.com/org/assets/)'
+		),
+});
+
 export const LaunchMetadataSchema = z.object({
 	processes: z.array(LaunchProcessSchema).describe('application processes'),
 	framework: z.object({
@@ -98,6 +117,9 @@ export const LaunchMetadataSchema = z.object({
 		date: z.string().describe('build timestamp'),
 		duration: z.number().describe('build duration in ms'),
 	}),
+	static: LaunchStaticAssetsSchema.optional().describe(
+		'static/CDN assets: compose public URLs as {baseUrl}{publicPath}/{pathWithinDirectory}'
+	),
 });
 
 export type LaunchMetadata = z.infer<typeof LaunchMetadataSchema>;

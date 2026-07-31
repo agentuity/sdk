@@ -607,6 +607,30 @@ export const GitOptionsSchema = zod.object({
 
 export type GitOptions = z.infer<typeof GitOptionsSchema>;
 
+/**
+ * Shared CDN base URL option for build + deploy.
+ * HTTP(S) absolute URL; literal path segments like `{ORGID}` are allowed
+ * (Node/WHATWG URL accepts them unencoded in the path).
+ */
+export const CdnBaseUrlSchema = zod
+	.string()
+	.url()
+	.refine(
+		(value) => {
+			try {
+				const protocol = new URL(value).protocol;
+				return protocol === 'http:' || protocol === 'https:';
+			} catch {
+				return false;
+			}
+		},
+		{ message: 'CDN base URL must use http or https' }
+	)
+	.optional()
+	.describe(
+		'CDN base URL for baked asset references and launch.json static.baseUrl (e.g. https://cdn.agentuity.com/ or https://cdn.agentuity.com/{ORGID}/assets/). Framework publicPath is appended (e.g. _next/static/…)'
+	);
+
 export const DeployOptionsSchema = zod
 	.object({
 		logsUrl: zod.url().optional().describe('The url to the CI build logs'),
@@ -662,6 +686,7 @@ export const DeployOptionsSchema = zod
 			.describe(
 				'Presigned/one-time S3 (or HTTP) URL to PUT the deployment zip to. Offline mode: skips login, project registration, agentuity.json validation, DNS checks, and cloud APIs'
 			),
+		cdnBaseUrl: CdnBaseUrlSchema,
 	})
 	.merge(GitOptionsSchema);
 

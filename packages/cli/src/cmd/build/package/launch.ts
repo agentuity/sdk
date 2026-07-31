@@ -5,14 +5,16 @@
  * This is analogous to CNB's launch.toml / Docker CMD.
  */
 
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { pathExists } from '../../../node-compat/fs.ts';
+import { resolveAgentuityCdnBase } from '../adapters/cdn-origin.ts';
 import type { BuildResult } from '../adapters/types.ts';
 import type { DetectedFramework } from '../detect/types.ts';
 import type { MonorepoContext } from '../detect/monorepo.ts';
+import { resolveRuntimeFromStartCommand } from '../detect/util.ts';
 
 /**
  * Filename the CLI looks for at the project root when a user wants to
@@ -53,6 +55,17 @@ const UserLaunchProcessSchema = z
 	})
 	.passthrough();
 
+const UserLaunchStaticSchema = z
+	.object({
+		directory: z.string(),
+		publicPath: z.string(),
+		baseUrl: z
+			.string()
+			.nullish()
+			.transform((v) => v ?? undefined),
+	})
+	.passthrough();
+
 const UserLaunchOverrideSchema = z
 	.object({
 		processes: z
@@ -87,6 +100,7 @@ const UserLaunchOverrideSchema = z
 			.passthrough()
 			.nullish()
 			.transform((v) => v ?? undefined),
+		static: UserLaunchStaticSchema.nullish().transform((v) => v ?? undefined),
 	})
 	.passthrough();
 
@@ -181,6 +195,36 @@ export interface ProcessDefinition {
 }
 
 /**
+ * Static/CDN asset locations recorded in launch.json.
+ *
+ * Consumers (CDN upload, pilot) compose public URLs as:
+ *   `{baseUrl}{publicPath}/{pathWithinDirectory}`
+ *
+ * `baseUrl` is optional: when set (from `--cdn-base-url` or the platform
+ * default), frameworks that bake asset URLs at build time should have
+ * used the same prefix. When omitted, the platform may still upload
+ * files under `publicPath` using its own CDN root.
+ */
+export interface LaunchStaticAssets {
+	/**
+	 * Directory of static assets relative to the process working
+	 * directory (or deploy root when no workingDirectory is set).
+	 * Posix separators. Example: `.next/static`, `dist`, `.output/public`.
+	 */
+	directory: string;
+	/**
+	 * URL path prefix for files inside `directory` (no leading slash).
+	 * Framework-defined; e.g. `_next/static` for Next.js, `''` for Vite SPA.
+	 */
+	publicPath: string;
+	/**
+	 * Absolute CDN base URL with trailing slash when known at package time.
+	 * Example: `https://cdn.agentuity.com/org_123/assets/`.
+	 */
+	baseUrl?: string;
+}
+
+/**
  * Complete launch metadata written to the output directory.
  */
 export interface LaunchMetadata {
@@ -201,6 +245,77 @@ export interface LaunchMetadata {
 		date: string;
 		duration: number;
 	};
+	/**
+	 * Static assets eligible for CDN upload. Omitted when the framework
+	 * has no known static output (e.g. Nest API with no client assets).
+	 */
+	static?: LaunchStaticAssets;
+}
+
+/** Options that influence launch metadata generation beyond detect/build. */
+export interface GenerateLaunchMetadataOptions {
+	override?: UserLaunchOverride | null;
+	monorepo?: MonorepoContext;
+	/**
+	 * Explicit CDN base URL (`--cdn-base-url`). Written into
+	 * `static.baseUrl` when static assets are present.
+	 */
+	cdnBaseUrl?: string;
+}
+
+function toPosixPath(p: string): string {
+	return p.split('\\').join('/');
+}
+
+/**
+ * Resolve the static asset block for launch.json from the staged build
+ * result (preferred) or framework detection fallback.
+ */
+export function resolveLaunchStatic(
+	framework: DetectedFramework,
+	buildResult: BuildResult,
+	monorepo?: MonorepoContext,
+	cdnBaseUrl?: string
+): LaunchStaticAssets | undefined {
+	const publicPath = buildResult.staticAssetPublicPath ?? framework.staticAssetPublicPath ?? '';
+
+	let directory: string | undefined;
+
+	if (buildResult.staticDir) {
+		// Paths are relative to the process working directory when monorepo
+		// sets one; otherwise relative to the deploy/output root.
+		const processRoot = monorepo?.subpath
+			? join(buildResult.outputDir, monorepo.subpath)
+			: buildResult.outputDir;
+		let rel = toPosixPath(relative(processRoot, buildResult.staticDir));
+		if (!rel || rel === '') {
+			directory = '.';
+		} else if (!rel.startsWith('..')) {
+			directory = rel;
+		} else {
+			// Fallback: relative to output root (e.g. static staged outside subpath).
+			rel = toPosixPath(relative(buildResult.outputDir, buildResult.staticDir));
+			if (!rel.startsWith('..')) {
+				directory = rel || '.';
+			}
+		}
+	} else if (framework.staticDir) {
+		// Build did not resolve an absolute staged path, but detection knew
+		// where assets should live relative to the project/working dir.
+		directory = toPosixPath(framework.staticDir);
+	}
+
+	if (!directory) return undefined;
+
+	// Same resolution chain as config-cdn-wrap / adapters: explicit flag,
+	// then AGENTUITY_CDN_BASE_URL / AGENTUITY_CDN_ORIGIN / deployment id.
+	const baseUrl = resolveAgentuityCdnBase({ cdnBaseUrl });
+
+	return {
+		directory,
+		publicPath,
+		...(baseUrl ? { baseUrl } : {}),
+	};
 }
 
 /**
@@ -208,14 +323,16 @@ export interface LaunchMetadata {
  *
  * If a user-supplied override is provided, its fields take precedence:
  * `processes` (whole array replaces ours), `framework.{name,version}`,
- * and `runtime.{name,port}`. `build.{date,duration}` is always emitted
- * from the actual build and cannot be overridden.
+ * `runtime.{name,port}`, and `static` (whole object replaces ours).
+ * `build.{date,duration}` is always emitted from the actual build and
+ * cannot be overridden.
  */
 export function generateLaunchMetadata(
 	framework: DetectedFramework,
 	buildResult: BuildResult,
 	override?: UserLaunchOverride | null,
-	monorepo?: MonorepoContext
+	monorepo?: MonorepoContext,
+	cdnBaseUrl?: string
 ): LaunchMetadata {
 	const processes: ProcessDefinition[] = [];
 
@@ -244,11 +361,10 @@ export function generateLaunchMetadata(
 	// project uses Bun for everything else. The runtime in launch.json
 	// must match what gets executed; pilot's memory tuning depends on
 	// it.
-	const runtimeName = (() => {
-		if (startCommand && /^\s*bun(\s+run)?\s+/.test(startCommand)) return 'bun';
-		if (startCommand && /^\s*node(\s|$)/.test(startCommand)) return 'node';
-		return framework.runtime;
-	})();
+	//
+	// Strip leading `HOST=…` / env assignments so defaults like
+	// `HOST=0.0.0.0 node .output/server/index.mjs` resolve to node.
+	const runtimeName = resolveRuntimeFromStartCommand(startCommand, framework.runtime);
 
 	// The user schema keeps `default` optional for backward compat with
 	// files written before this field existed; the emitted metadata's
@@ -257,6 +373,18 @@ export function generateLaunchMetadata(
 		override?.processes && override.processes.length > 0
 			? override.processes.map((p) => ({ ...p, default: p.default ?? false }))
 			: processes;
+
+	const resolvedStatic =
+		override?.static ?? resolveLaunchStatic(framework, buildResult, monorepo, cdnBaseUrl);
+
+	// When the user supplies static without baseUrl, fill from the same
+	// CDN resolution chain adapters use (flag / env / deployment id).
+	const staticBlock = (() => {
+		if (!resolvedStatic) return undefined;
+		if (resolvedStatic.baseUrl) return resolvedStatic;
+		const baseUrl = resolveAgentuityCdnBase({ cdnBaseUrl });
+		return baseUrl ? { ...resolvedStatic, baseUrl } : resolvedStatic;
+	})();
 
 	return {
 		processes: finalProcesses,
@@ -272,6 +400,7 @@ export function generateLaunchMetadata(
 			date: new Date().toISOString(),
 			duration: buildResult.duration,
 		},
+		...(staticBlock ? { static: staticBlock } : {}),
 	};
 }
 

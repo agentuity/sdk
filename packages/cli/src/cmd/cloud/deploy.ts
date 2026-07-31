@@ -548,6 +548,7 @@ export const deploySubcommand = createSubcommand({
 			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
 			if (opts.skipDnsValidation) childArgs.push('--skip-dns-validation');
 			if (opts.skipTypeCheck) childArgs.push('--skip-type-check');
+			if (opts.cdnBaseUrl) childArgs.push(`--cdn-base-url=${opts.cdnBaseUrl}`);
 			if (opts.metadata) childArgs.push(`--metadata=${opts.metadata}`);
 			// Preserve multi-env flags so the child reloads the same project
 			// config and env files (parent already applied env to process.env,

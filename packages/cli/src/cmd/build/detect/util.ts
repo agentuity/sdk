@@ -92,6 +92,43 @@ export function isAgentuityCliInvocation(cmd: string | undefined | null): boolea
 }
 
 /**
+ * Strip leading `cross-env` and `KEY=value` env assignments from a shell
+ * command so the binary name can be inspected. Used for runtime inference
+ * when frameworks default to starts like `HOST=0.0.0.0 node .output/server/index.mjs`.
+ *
+ * Handles unquoted values and single-/double-quoted values that may contain
+ * spaces (e.g. `NAME="value with spaces" node server.js`).
+ */
+export function stripCommandEnvPrefixes(cmd: string): string {
+	let rest = cmd.trim();
+	rest = rest.replace(/^cross-env\s+/i, '');
+	// Quoted first so values with spaces are consumed as one assignment.
+	while (/^[A-Z_][A-Z0-9_]*=(?:"[^"]*"|'[^']*')\s+/i.test(rest)) {
+		rest = rest.replace(/^[A-Z_][A-Z0-9_]*=(?:"[^"]*"|'[^']*')\s+/i, '');
+	}
+	while (/^[A-Z_][A-Z0-9_]*=\S+\s+/i.test(rest)) {
+		rest = rest.replace(/^[A-Z_][A-Z0-9_]*=\S+\s+/i, '');
+	}
+	return rest;
+}
+
+/**
+ * Infer `bun` vs `node` from a production start command, ignoring leading
+ * env assignments (`HOST=0.0.0.0 node …`). Falls back when the command
+ * doesn't clearly invoke either runtime.
+ */
+export function resolveRuntimeFromStartCommand(
+	startCommand: string | undefined | null,
+	fallback: 'bun' | 'node'
+): 'bun' | 'node' {
+	if (!startCommand) return fallback;
+	const rest = stripCommandEnvPrefixes(startCommand);
+	if (/^bun(\s+run)?(\s|$)/.test(rest)) return 'bun';
+	if (/^node(\s|$)/.test(rest)) return 'node';
+	return fallback;
+}
+
+/**
  * Detect which package manager the project uses by checking lockfiles.
  */
 export async function detectPackageManager(projectDir: string): Promise<PackageManager> {

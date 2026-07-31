@@ -82,6 +82,13 @@ export interface BuildAdapterOptions {
 	/** Deployment ID (for Agentuity metadata) */
 	deploymentId?: string;
 
+	/**
+	 * Explicit CDN base URL (`--cdn-base-url`). When set, adapters wire
+	 * framework asset URL generation (Vite `--base`, Next `assetPrefix`,
+	 * TanStack `transformAssets`) against this origin + optional path.
+	 */
+	cdnBaseUrl?: string;
+
 	/** Deployment options from CLI (git info, trigger, etc.) */
 	deploymentOptions?: DeployOptions;
 

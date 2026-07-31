@@ -22,14 +22,14 @@ describe('Adapter Registry', () => {
 		expect(adapter.name).toBe('vite');
 	});
 
-	test('returns generic adapter for sveltekit (no specific adapter yet)', () => {
+	test('returns sveltekit adapter for sveltekit framework', () => {
 		const adapter = getAdapter('sveltekit');
-		expect(adapter.name).toBe('generic');
+		expect(adapter.name).toBe('sveltekit');
 	});
 
-	test('returns generic adapter for nuxt', () => {
+	test('returns nuxt adapter for nuxt framework', () => {
 		const adapter = getAdapter('nuxt');
-		expect(adapter.name).toBe('generic');
+		expect(adapter.name).toBe('nuxt');
 	});
 
 	test('returns generic adapter for remix', () => {
@@ -37,9 +37,9 @@ describe('Adapter Registry', () => {
 		expect(adapter.name).toBe('generic');
 	});
 
-	test('returns generic adapter for astro', () => {
+	test('returns astro adapter for astro framework', () => {
 		const adapter = getAdapter('astro');
-		expect(adapter.name).toBe('generic');
+		expect(adapter.name).toBe('astro');
 	});
 
 	test('returns generic adapter for generic', () => {

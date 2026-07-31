@@ -17,6 +17,7 @@ import {
 	readPackageJson,
 	detectPackageManager,
 	isAgentuityCliInvocation,
+	resolveRuntimeFromStartCommand,
 	NO_BUILD_SENTINEL,
 } from './util.ts';
 import { detectAgentuityLegacy } from './agentuity-legacy.ts';
@@ -53,14 +54,13 @@ async function detectCustomLauncher(
 	const hasBunLockfile =
 		(await pathExists(join(projectDir, 'bun.lockb'))) ||
 		(await pathExists(join(projectDir, 'bun.lock')));
-	const runtime: 'bun' | 'node' = (() => {
-		if (declaredRuntime === 'bun' || declaredRuntime === 'node') return declaredRuntime;
-		if (startCommand && /^\s*bun(\s+run)?\s+/.test(startCommand)) return 'bun';
-		if (startCommand && /^\s*node(\s|$)/.test(startCommand)) return 'node';
-		if (pkg?.engines?.bun) return 'bun';
-		if (hasBunLockfile) return 'bun';
-		return 'node';
-	})();
+	const runtime: 'bun' | 'node' =
+		declaredRuntime === 'bun' || declaredRuntime === 'node'
+			? declaredRuntime
+			: resolveRuntimeFromStartCommand(
+					startCommand,
+					pkg?.engines?.bun || hasBunLockfile ? 'bun' : 'node'
+				);
 
 	return {
 		name: 'custom',
@@ -224,14 +224,13 @@ async function frameworkDefToDetected(
 	const hasBunLockfile =
 		(await pathExists(join(projectDir, 'bun.lockb'))) ||
 		(await pathExists(join(projectDir, 'bun.lock')));
-	const runtime: 'bun' | 'node' = (() => {
-		if (resolvedStartCommand && /^\s*bun(\s+run)?\s+/.test(resolvedStartCommand)) {
-			return 'bun';
-		}
-		if (pkg.engines?.bun) return 'bun';
-		if (hasBunLockfile) return 'bun';
-		return 'node';
-	})();
+	// Prefer the start command binary (after stripping HOST=… prefixes)
+	// over lockfile heuristics — Nuxt/TanStack default to `HOST=0.0.0.0 node …`
+	// even when the project has a bun.lock.
+	const runtime: 'bun' | 'node' = resolveRuntimeFromStartCommand(
+		resolvedStartCommand,
+		pkg.engines?.bun || hasBunLockfile ? 'bun' : 'node'
+	);
 
 	// Flag frameworks that need a server adapter the project hasn't
 	// installed (e.g. TanStack Start without `nitro`). Skipped when the
