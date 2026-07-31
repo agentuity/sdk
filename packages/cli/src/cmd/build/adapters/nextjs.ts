@@ -10,34 +10,17 @@
  *    nests `server.js` under the project's relative path).
  */
 
-import {
-	cpSync,
-	existsSync,
-	mkdirSync,
-	readdirSync,
-	readFileSync,
-	rmSync,
-	statSync,
-} from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join, relative } from 'node:path';
 import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
 import { copyRuntimeManifests, installDependencies, runBuildCommand } from './generic.ts';
 import { prepareNextCdnBuild } from './cdn-recipes.ts';
+import { resetOutputDir } from './reset-output-dir.ts';
+
+export { resetOutputDir } from './reset-output-dir.ts';
 
 function toPosixPath(p: string): string {
 	return p.split('\\').join('/');
-}
-
-/**
- * Wipe and recreate the package output directory so prior builds cannot
- * leave a stale root `server.js` (or other files) that outrank the new
- * standalone tree.
- */
-export function resetOutputDir(outputDir: string): void {
-	if (existsSync(outputDir)) {
-		rmSync(outputDir, { recursive: true, force: true });
-	}
-	mkdirSync(outputDir, { recursive: true });
 }
 
 /**

@@ -4,9 +4,9 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
 	listStandaloneServers,
-	resetOutputDir,
 	selectStandaloneServer,
 } from '../../../../src/cmd/build/adapters/nextjs.ts';
+import { resetOutputDir } from '../../../../src/cmd/build/adapters/reset-output-dir.ts';
 
 function makeDir(): string {
 	const dir = join(
