@@ -59,13 +59,14 @@ describe('applyDevOrgEnv', () => {
 		expect(env.AGENTUITY_CLOUD_ORG_ID).toBe('org_project');
 	});
 
-	test('preserves each alias the developer already set', () => {
+	test('overwrites stale shell aliases with the resolved org', () => {
 		const env: Record<string, string | undefined> = {
-			AGENTUITY_ORG_ID: 'org_shell',
+			AGENTUITY_ORG_ID: 'org_stale',
+			AGENTUITY_CLOUD_ORG_ID: 'org_other',
 		};
 		applyDevOrgEnv(env, 'org_project');
 		expect(env.AGENTUITY_ORGID).toBe('org_project');
-		expect(env.AGENTUITY_ORG_ID).toBe('org_shell');
+		expect(env.AGENTUITY_ORG_ID).toBe('org_project');
 		expect(env.AGENTUITY_CLOUD_ORG_ID).toBe('org_project');
 	});
 
@@ -76,12 +77,49 @@ describe('applyDevOrgEnv', () => {
 		};
 		applyDevOrgEnv(env, 'org_project');
 		expect(env.AGENTUITY_ORGID).toBe('org_project');
+		expect(env.AGENTUITY_ORG_ID).toBe('org_project');
 		expect(env.AGENTUITY_CLOUD_ORG_ID).toBe('org_project');
 	});
 
 	test('does nothing without a resolved org', () => {
-		const env: Record<string, string | undefined> = {};
+		const env: Record<string, string | undefined> = {
+			AGENTUITY_ORG_ID: 'org_shell',
+		};
 		applyDevOrgEnv(env, undefined);
-		expect(env).toEqual({});
+		expect(env).toEqual({ AGENTUITY_ORG_ID: 'org_shell' });
+	});
+});
+
+describe('resolveDevOrgId + applyDevOrgEnv', () => {
+	test('project org wins and is written to every alias over stale shell env', () => {
+		const env: Record<string, string | undefined> = {
+			AGENTUITY_ORG_ID: 'org_stale',
+		};
+		const orgId = resolveDevOrgId({
+			env,
+			projectConfig: { orgId: 'org_project' },
+			config: null,
+		});
+		applyDevOrgEnv(env, orgId);
+		expect(orgId).toBe('org_project');
+		expect(env.AGENTUITY_ORGID).toBe('org_project');
+		expect(env.AGENTUITY_ORG_ID).toBe('org_project');
+		expect(env.AGENTUITY_CLOUD_ORG_ID).toBe('org_project');
+	});
+
+	test('env-only resolution rewrites every alias to the resolved value', () => {
+		const env: Record<string, string | undefined> = {
+			AGENTUITY_ORG_ID: 'org_shell',
+		};
+		const orgId = resolveDevOrgId({
+			env,
+			projectConfig: null,
+			config: null,
+		});
+		applyDevOrgEnv(env, orgId);
+		expect(orgId).toBe('org_shell');
+		expect(env.AGENTUITY_ORGID).toBe('org_shell');
+		expect(env.AGENTUITY_ORG_ID).toBe('org_shell');
+		expect(env.AGENTUITY_CLOUD_ORG_ID).toBe('org_shell');
 	});
 });
