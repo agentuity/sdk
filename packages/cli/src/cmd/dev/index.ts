@@ -58,14 +58,37 @@ function normalizeOrgId(orgId: string | undefined): string | undefined {
 	return trimmed ? trimmed : undefined;
 }
 
+const DEV_ORG_ENV_ALIASES = [
+	'AGENTUITY_ORGID',
+	'AGENTUITY_ORG_ID',
+	'AGENTUITY_CLOUD_ORG_ID',
+] as const;
+
+function envOrgId(env: Readonly<Record<string, string | undefined>>): string | undefined {
+	for (const name of DEV_ORG_ENV_ALIASES) {
+		const value = normalizeOrgId(env[name]);
+		if (value) return value;
+	}
+	return undefined;
+}
+
 export function resolveDevOrgId(options: ResolveDevOrgIdOptions): string | undefined {
 	return (
 		normalizeOrgId(options.projectConfig?.orgId) ??
-		normalizeOrgId(options.env.AGENTUITY_ORGID) ??
-		normalizeOrgId(options.env.AGENTUITY_ORG_ID) ??
-		normalizeOrgId(options.env.AGENTUITY_CLOUD_ORG_ID) ??
+		envOrgId(options.env) ??
 		normalizeOrgId(options.config?.preferences?.orgId)
 	);
+}
+
+/** Materialize the resolved org under every known alias so readers agree. */
+export function applyDevOrgEnv(
+	env: Record<string, string | undefined>,
+	orgId: string | undefined
+): void {
+	if (!orgId) return;
+	for (const name of DEV_ORG_ENV_ALIASES) {
+		env[name] = orgId;
+	}
 }
 
 export const command = createCommand({
@@ -172,17 +195,11 @@ export const command = createCommand({
 			env.AGENTUITY_CATALYST_URL = config.overrides.catalyst_url;
 		}
 
-		// Load agentuity.json (if present) so we can surface the project's
-		// orgId to the dev process. The aigateway client and other service
-		// clients accept orgId as a constructor option but otherwise have no
-		// way to pick it up under `agentuity dev`. Other parts of the platform
-		// (pi, coder-tui) already read AGENTUITY_ORGID from env, so we match
-		// that name here.
+		// Materialize the resolved org under every known alias so downstream
+		// readers agree regardless of which name they check.
 		const projectConfig = await tryLoadProjectConfig(rootDir, config);
 		const orgId = resolveDevOrgId({ env, projectConfig, config });
-		if (orgId && !normalizeOrgId(env.AGENTUITY_ORGID)) {
-			env.AGENTUITY_ORGID = orgId;
-		}
+		applyDevOrgEnv(env, orgId);
 
 		// Inject AI Gateway env vars so LLM SDKs route through Agentuity
 		const gatewayInjected = injectGatewayEnv(env, logger);
