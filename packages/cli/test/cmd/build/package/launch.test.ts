@@ -293,6 +293,37 @@ describe('Launch Metadata', () => {
 			expect(metadata.processes[0].workingDirectory).toBe('apps/web');
 		});
 
+		test('uses buildResult.workingDirectory for nested Next standalone', () => {
+			const framework: DetectedFramework = {
+				name: 'nextjs',
+				runtime: 'node',
+				packageManager: 'npm',
+				buildCommand: 'next build',
+				buildOutput: '.next',
+				startCommand: 'node server.js',
+				staticDir: '.next/static',
+				staticAssetPublicPath: '_next/static',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: '/tmp/output',
+				startCommand: 'node server.js',
+				serverEntry: 'server.js',
+				workingDirectory: 'test-nextjs',
+				staticDir: '/tmp/output/test-nextjs/.next/static',
+				staticAssetPublicPath: '_next/static',
+				duration: 1000,
+				logs: [],
+			};
+
+			const metadata = generateLaunchMetadata(framework, buildResult);
+			expect(metadata.processes[0].command).toBe('node server.js');
+			expect(metadata.processes[0].workingDirectory).toBe('test-nextjs');
+			expect(metadata.static?.directory).toBe('.next/static');
+			expect(metadata.static?.publicPath).toBe('_next/static');
+		});
+
 		test('runtime is node when start command is HOST=… node …', () => {
 			const framework: DetectedFramework = {
 				name: 'nuxt',

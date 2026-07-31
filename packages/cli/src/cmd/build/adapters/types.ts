@@ -20,8 +20,20 @@ export interface BuildResult {
 	/** The start command to run the application */
 	startCommand?: string;
 
-	/** Server entrypoint file (relative to outputDir) */
+	/**
+	 * Server entrypoint file relative to the process working directory
+	 * (or to outputDir when {@link workingDirectory} is unset).
+	 */
 	serverEntry?: string;
+
+	/**
+	 * Process cwd relative to the deploy/output root.
+	 * Set when the app is nested under the package root — monorepo
+	 * subpackages, or Next standalone when `outputFileTracingRoot`
+	 * nests `server.js` under the project name.
+	 * Written to `launch.json` as `processes[].workingDirectory`.
+	 */
+	workingDirectory?: string;
 
 	/** Static/CDN assets directory (absolute path), for CDN upload enumeration */
 	staticDir?: string;
