@@ -99,10 +99,13 @@ export const nextjsAdapter: BuildAdapter = {
 				content.includes("'standalone'") || content.includes('"standalone"');
 		}
 
-		const cdnPrep = prepareNextCdnBuild(options);
-		logs.push(...cdnPrep.logs);
-
+		// prepareNextCdnBuild rolls back on throw; once it returns we always
+		// cleanup in finally (even if the build body fails).
+		let cdnPrep: ReturnType<typeof prepareNextCdnBuild> | undefined;
 		try {
+			cdnPrep = prepareNextCdnBuild(options);
+			logs.push(...cdnPrep.logs);
+
 			// Step 1: Install dependencies. In monorepo mode, install runs at
 			// the workspace root so `workspace:*` refs resolve before the
 			// Next.js build kicks in.
@@ -238,7 +241,7 @@ export const nextjsAdapter: BuildAdapter = {
 				logs,
 			};
 		} finally {
-			cdnPrep.cleanup();
+			cdnPrep?.cleanup();
 		}
 	},
 };

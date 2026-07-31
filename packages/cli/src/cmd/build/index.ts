@@ -5,7 +5,7 @@ import { getCommand } from '../../command-prefix.ts';
 import { createError, ErrorCode, exitWithError } from '../../errors.ts';
 import { pathExists } from '../../node-compat/fs.ts';
 import * as tui from '../../tui.ts';
-import { createCommand, DeployOptionsSchema } from '../../types.ts';
+import { CdnBaseUrlSchema, createCommand, DeployOptionsSchema } from '../../types.ts';
 import {
 	BuildReportCollector,
 	setGlobalCollector,
@@ -36,14 +36,9 @@ const BuildOptionsSchema = z.intersection(
 		ci: z.boolean().optional().describe('Enable CI build mode'),
 		url: z.string().optional().describe('Source code download URL for CI builds'),
 		directory: z.string().optional().describe('Subdirectory within extracted source'),
-		// Also declared on DeployOptionsSchema; re-listed so `agentuity build --help`
-		// surfaces the flag without requiring deploy-only context.
-		cdnBaseUrl: z
-			.string()
-			.optional()
-			.describe(
-				'CDN base URL for baked asset references and launch.json static.baseUrl (e.g. https://cdn.agentuity.com/ or https://cdn.agentuity.com/{ORGID}/assets/)'
-			),
+		// Also on DeployOptionsSchema via CdnBaseUrlSchema; re-listed so
+		// `agentuity build --help` surfaces the flag without deploy-only context.
+		cdnBaseUrl: CdnBaseUrlSchema,
 	})
 );
 

@@ -10,7 +10,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { pathExists } from '../../../node-compat/fs.ts';
-import { normalizeCdnBase } from '../adapters/cdn-origin.ts';
+import { resolveAgentuityCdnBase } from '../adapters/cdn-origin.ts';
 import type { BuildResult } from '../adapters/types.ts';
 import type { DetectedFramework } from '../detect/types.ts';
 import type { MonorepoContext } from '../detect/monorepo.ts';
@@ -307,7 +307,9 @@ export function resolveLaunchStatic(
 
 	if (!directory) return undefined;
 
-	const baseUrl = normalizeCdnBase(cdnBaseUrl);
+	// Same resolution chain as config-cdn-wrap / adapters: explicit flag,
+	// then AGENTUITY_CDN_BASE_URL / AGENTUITY_CDN_ORIGIN / deployment id.
+	const baseUrl = resolveAgentuityCdnBase({ cdnBaseUrl });
 
 	return {
 		directory,
@@ -375,12 +377,12 @@ export function generateLaunchMetadata(
 	const resolvedStatic =
 		override?.static ?? resolveLaunchStatic(framework, buildResult, monorepo, cdnBaseUrl);
 
-	// When the user supplies static without baseUrl but the CLI has one,
-	// fill baseUrl so CDN consumers still see the absolute prefix.
+	// When the user supplies static without baseUrl, fill from the same
+	// CDN resolution chain adapters use (flag / env / deployment id).
 	const staticBlock = (() => {
 		if (!resolvedStatic) return undefined;
-		if (resolvedStatic.baseUrl || !cdnBaseUrl) return resolvedStatic;
-		const baseUrl = normalizeCdnBase(cdnBaseUrl);
+		if (resolvedStatic.baseUrl) return resolvedStatic;
+		const baseUrl = resolveAgentuityCdnBase({ cdnBaseUrl });
 		return baseUrl ? { ...resolvedStatic, baseUrl } : resolvedStatic;
 	})();
 

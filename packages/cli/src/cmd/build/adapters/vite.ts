@@ -19,7 +19,7 @@ function prepareVite(options: BuildAdapterOptions): CdnPrepResult {
 		buildEnv: overrides.buildEnv ?? {},
 		logs: overrides.logs,
 		cdnBase: overrides.cdnBase,
-		cdnOrigin: overrides.cdnBase?.replace(/\/+$/, ''),
+		cdnOrigin: overrides.cdnOrigin,
 		cleanup: () => {},
 		frameworkPatch: {
 			buildCommand: overrides.buildCommand,

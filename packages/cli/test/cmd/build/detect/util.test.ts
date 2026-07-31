@@ -316,6 +316,21 @@ describe('Detection Utilities', () => {
 			).toBe('node');
 		});
 
+		test('strips quoted env values that contain spaces', () => {
+			expect(stripCommandEnvPrefixes('cross-env NAME="value with spaces" node server.js')).toBe(
+				'node server.js'
+			);
+			expect(
+				resolveRuntimeFromStartCommand(
+					'cross-env NAME="value with spaces" node server.js',
+					'bun'
+				)
+			).toBe('node');
+			expect(stripCommandEnvPrefixes("FOO='bar baz' BAR=qux node dist/main.js")).toBe(
+				'node dist/main.js'
+			);
+		});
+
 		test('detects bun after env prefixes', () => {
 			expect(resolveRuntimeFromStartCommand('PORT=3000 bun run start', 'node')).toBe('bun');
 		});

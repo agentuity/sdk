@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { createMockLogger } from '@agentuity/test-utils';
 import {
 	PACK_ONLY_DEPLOYMENT_ID,
 	prepareViteCdnBuild,
@@ -104,7 +105,7 @@ describe('prepareViteCdnBuild', () => {
 			deploymentId: 'deploy_test99',
 			buildCommand,
 			buildEnv,
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 
@@ -124,7 +125,7 @@ describe('prepareViteCdnBuild', () => {
 		const prep = prepareViteCdnBuild({
 			deploymentId: 'deploy_cfg',
 			buildCommand: 'bun run build:client',
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 
@@ -137,7 +138,7 @@ describe('prepareViteCdnBuild', () => {
 		const prep = prepareViteCdnBuild({
 			deploymentId: PACK_ONLY_DEPLOYMENT_ID,
 			buildCommand: 'vite build',
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 		expect(prep.cdnBase).toBeUndefined();
@@ -150,7 +151,7 @@ describe('prepareViteCdnBuild', () => {
 			cdnBaseUrl: 'https://cdn.agentuity.com/org_9/assets/',
 			deploymentId: PACK_ONLY_DEPLOYMENT_ID, // would skip without cdnBaseUrl
 			buildCommand: 'vite build',
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 		expect(prep.cdnBase).toBe('https://cdn.agentuity.com/org_9/assets/');

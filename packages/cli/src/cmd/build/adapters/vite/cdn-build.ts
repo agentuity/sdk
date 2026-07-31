@@ -39,6 +39,8 @@ export interface ViteCdnBuildOverrides {
 	logs: string[];
 	/** Absolute CDN base ending with `/`, or undefined when skipped. */
 	cdnBase?: string;
+	/** CDN origin without trailing slash, when set. */
+	cdnOrigin?: string;
 }
 
 /**
@@ -103,6 +105,7 @@ export function prepareViteCdnBuild(options: PrepareViteCdnBuildOptions): ViteCd
 
 	return {
 		cdnBase,
+		cdnOrigin,
 		buildCommand,
 		buildEnv,
 		logs,

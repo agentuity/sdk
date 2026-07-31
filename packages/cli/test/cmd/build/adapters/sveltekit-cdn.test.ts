@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { createMockLogger } from '@agentuity/test-utils';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -8,6 +9,8 @@ import { getAdapter } from '../../../../src/cmd/build/adapters';
 function makeDir(): string {
 	const dir = join(tmpdir(), `sk-cdn-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 	mkdirSync(dir, { recursive: true });
+	// Real SvelteKit apps are ESM; bare .js configs load as CJS without this.
+	writeFileSync(join(dir, 'package.json'), JSON.stringify({ type: 'module' }), 'utf-8');
 	return dir;
 }
 
@@ -30,7 +33,7 @@ describe('prepareSvelteKitCdnBuild', () => {
 		const prep = prepareSvelteKitCdnBuild({
 			projectDir: dir,
 			cdnBaseUrl: 'https://cdn.agentuity.com/org_x/assets/',
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 
@@ -61,7 +64,7 @@ describe('prepareSvelteKitCdnBuild', () => {
 
 		const prep = prepareSvelteKitCdnBuild({
 			projectDir: dir,
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 
@@ -83,7 +86,7 @@ describe('prepareSvelteKitCdnBuild', () => {
 		const prep = prepareSvelteKitCdnBuild({
 			projectDir: dir,
 			cdnBaseUrl: 'https://cdn.agentuity.com/',
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 

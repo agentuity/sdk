@@ -30,11 +30,17 @@ export interface WithCdnPrepOptions {
 
 /**
  * Create a BuildAdapter that runs CDN prep, builds, then cleanup.
+ *
+ * `prepare` is expected to roll back its own mutations if it throws
+ * (see `prepareConfigCdn`). Once prepare returns, we always call
+ * `prep.cleanup()` in `finally` after the build.
  */
 export function withCdnPrep(opts: WithCdnPrepOptions): BuildAdapter {
 	return {
 		name: opts.name,
 		async build(options: BuildAdapterOptions): Promise<BuildResult> {
+			// prepareConfigCdn is transactional on throw; other prepare fns
+			// (Vite pure, TanStack) either mutate nothing or clean themselves.
 			const prep = opts.prepare(options);
 			try {
 				const fromFactory = opts.frameworkOverrides?.(prep, options.framework) ?? {};

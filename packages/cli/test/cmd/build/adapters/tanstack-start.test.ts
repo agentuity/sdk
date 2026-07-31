@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { createMockLogger } from '@agentuity/test-utils';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -47,7 +48,7 @@ describe('TanStack Start CDN build prep', () => {
 			'utf-8'
 		);
 
-		const prep = prepareTanStackCdnBuild(testDir, { debug: () => {} });
+		const prep = prepareTanStackCdnBuild(testDir, createMockLogger());
 		expect(prep.logs.some((line) => line.includes('Generated src/server.ts'))).toBe(true);
 		expect(prep.logs.some((line) => line.includes("Vite base: ''"))).toBe(true);
 
@@ -74,7 +75,7 @@ describe('TanStack Start CDN build prep', () => {
 
 		const prep = prepareTanStackCdnBuild({
 			projectDir: testDir,
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			cdnBaseUrl: 'https://cdn.agentuity.com/org_x/assets/',
 			env: {},
 		});
@@ -100,7 +101,7 @@ describe('TanStack Start CDN build prep', () => {
 			'utf-8'
 		);
 
-		const prep = prepareTanStackCdnBuild(testDir, { debug: () => {} });
+		const prep = prepareTanStackCdnBuild(testDir, createMockLogger());
 		expect(prep.logs.some((line) => line.includes('Generated'))).toBe(false);
 		prep.cleanup();
 	});

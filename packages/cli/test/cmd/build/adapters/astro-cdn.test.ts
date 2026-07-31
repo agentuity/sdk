@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { createMockLogger } from '@agentuity/test-utils';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -24,7 +25,7 @@ describe('prepareAstroCdnBuild', () => {
 		dirs.push(dir);
 		const prep = prepareAstroCdnBuild({
 			projectDir: dir,
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 		expect(prep.cdnOrigin).toBeUndefined();
@@ -44,7 +45,7 @@ describe('prepareAstroCdnBuild', () => {
 		const prep = prepareAstroCdnBuild({
 			projectDir: dir,
 			cdnBaseUrl: 'https://cdn.agentuity.com/org_1/assets/',
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 
@@ -69,7 +70,7 @@ describe('prepareAstroCdnBuild', () => {
 		const prep = prepareAstroCdnBuild({
 			projectDir: dir,
 			cdnBaseUrl: 'https://cdn.agentuity.com/',
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 
@@ -83,7 +84,7 @@ describe('prepareAstroCdnBuild', () => {
 		const prep = prepareAstroCdnBuild({
 			projectDir: dir,
 			deploymentId: PACK_ONLY_DEPLOYMENT_ID,
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 		expect(prep.cdnOrigin).toBeUndefined();

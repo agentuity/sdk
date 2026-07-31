@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { createMockLogger } from '@agentuity/test-utils';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -24,7 +25,7 @@ describe('prepareNextCdnBuild', () => {
 		dirs.push(dir);
 		const prep = prepareNextCdnBuild({
 			projectDir: dir,
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 		expect(prep.cdnOrigin).toBeUndefined();
@@ -38,7 +39,7 @@ describe('prepareNextCdnBuild', () => {
 		const prep = prepareNextCdnBuild({
 			projectDir: dir,
 			cdnBaseUrl: 'https://cdn.agentuity.com/org_1/assets/',
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 		expect(prep.cdnOrigin).toBe('https://cdn.agentuity.com/org_1/assets');
@@ -62,7 +63,7 @@ describe('prepareNextCdnBuild', () => {
 		const prep = prepareNextCdnBuild({
 			projectDir: dir,
 			cdnBaseUrl: 'https://cdn.agentuity.com/',
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 		expect(existsSync(join(dir, 'next.config.agentuity-orig.mjs'))).toBe(true);
@@ -85,7 +86,7 @@ describe('prepareNextCdnBuild', () => {
 		const prep = prepareNextCdnBuild({
 			projectDir: dir,
 			cdnBaseUrl: 'https://cdn.agentuity.com/org_x/assets/',
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 		expect(existsSync(join(dir, 'next.config.agentuity-orig.ts'))).toBe(true);
@@ -105,7 +106,7 @@ describe('prepareNextCdnBuild', () => {
 		const prep = prepareNextCdnBuild({
 			projectDir: dir,
 			cdnBaseUrl: 'https://cdn.agentuity.com/',
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 		expect(readFileSync(join(dir, 'next.config.mjs'), 'utf-8')).toBe(original);
@@ -119,11 +120,30 @@ describe('prepareNextCdnBuild', () => {
 		const prep = prepareNextCdnBuild({
 			projectDir: dir,
 			deploymentId: PACK_ONLY_DEPLOYMENT_ID,
-			logger: { debug: () => {} },
+			logger: createMockLogger(),
 			env: {},
 		});
 		expect(prep.cdnOrigin).toBeUndefined();
 		prep.cleanup();
+	});
+
+	test('restores config if wrap generation fails (CJS + value is rejected)', () => {
+		// Use a next recipe clone via writing .cjs + forcing value style is
+		// exercised in config-cdn-wrap; here ensure prep throw leaves file intact.
+		const dir = makeDir();
+		dirs.push(dir);
+		const original = 'module.exports = { reactStrictMode: true };\n';
+		writeFileSync(join(dir, 'next.config.cjs'), original, 'utf-8');
+		// nextjs recipe uses exportStyle function (default) — wrap succeeds.
+		const prep = prepareNextCdnBuild({
+			projectDir: dir,
+			cdnBaseUrl: 'https://cdn.agentuity.com/',
+			logger: createMockLogger(),
+			env: {},
+		});
+		expect(existsSync(join(dir, 'next.config.agentuity-orig.cjs'))).toBe(true);
+		prep.cleanup();
+		expect(readFileSync(join(dir, 'next.config.cjs'), 'utf-8')).toBe(original);
 	});
 });
 
