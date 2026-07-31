@@ -93,6 +93,9 @@ describe('prepareNextCdnBuild', () => {
 		const wrapper = readFileSync(join(dir, 'next.config.ts'), 'utf-8');
 		expect(wrapper).toContain('assetPrefix');
 		expect(wrapper).toContain('next.config.agentuity-orig');
+		// Typed merge path (Record cast) — avoids Next build typecheck on assetPrefix.
+		expect(wrapper).toContain('Record<string, unknown>');
+		expect(wrapper).toContain('base.assetPrefix');
 		prep.cleanup();
 		expect(existsSync(join(dir, 'next.config.agentuity-orig.ts'))).toBe(false);
 		expect(readFileSync(join(dir, 'next.config.ts'), 'utf-8')).toContain('NextConfig');

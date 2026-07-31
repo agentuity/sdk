@@ -15,6 +15,7 @@ import { basename, join, relative, resolve } from 'node:path';
 import { run } from '../../../node-compat/proc.ts';
 import { getRunCommand, isAgentuityCliInvocation, NO_BUILD_SENTINEL } from '../detect/util.ts';
 import { copyMonorepoTree, formatMonorepoStageLogs } from './monorepo-stage.ts';
+import { resetOutputDir } from './reset-output-dir.ts';
 import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
 
 // Re-export staging API for callers/tests that imported from this module.
@@ -491,14 +492,22 @@ export const genericAdapter: BuildAdapter = {
 			framework.buildOutput !== '.' &&
 			framework.buildOutput !== resolvedOutputDir;
 
+		// Wipe staging first (same hygiene as Next standalone + monorepo stage).
+		// Without this, cpSync merges into a prior package and deleted dist
+		// assets / old _serve.js can ship on rebuild.
+		// Skip only when buildOutput *is* the output dir (no separate staging).
+		const shouldCopy = existsSync(buildOutputPath) && buildOutputPath !== resolvedOutputDir;
+		if (buildOutputPath !== resolvedOutputDir) {
+			logger.debug(`Cleaning package output dir: ${resolvedOutputDir}`);
+			resetOutputDir(resolvedOutputDir);
+		} else {
+			mkdirSync(resolvedOutputDir, { recursive: true });
+		}
+
 		// Copy build output to the output directory when they differ.
 		// When buildOutput is '.' (project root), the output dir is a subdirectory
 		// of the source, so we iterate entries to avoid cpSync's self-copy check.
-		const shouldCopy = existsSync(buildOutputPath) && buildOutputPath !== resolvedOutputDir;
-
 		if (shouldCopy) {
-			mkdirSync(resolvedOutputDir, { recursive: true });
-
 			if (preserveBuildOutputDir) {
 				// Mirror the framework's output directory name inside the
 				// deployed tree, so user-supplied paths in the start command
@@ -527,9 +536,6 @@ export const genericAdapter: BuildAdapter = {
 					cpSync(srcPath, dstPath, { recursive: true });
 				}
 			}
-		} else {
-			// Ensure output dir exists even when we skip the copy
-			mkdirSync(resolvedOutputDir, { recursive: true });
 		}
 
 		// Step 4: Determine start command — inject static file server if none exists

@@ -3,34 +3,26 @@
  *
  * Handles Next.js-specific build concerns:
  * 1. Ensures standalone output mode is configured
- * 2. Copies the standalone directory + static assets to output
+ * 2. Wipes the staging output dir, then copies standalone + static assets
  * 3. Sets up the correct start command, accounting for the
  *    monorepo layout Next.js uses when `outputFileTracingRoot`
  *    points at a parent of the project (the standalone bundle
  *    nests `server.js` under the project's relative path).
  */
 
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { basename, dirname, join, relative } from 'node:path';
 import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
 import { copyRuntimeManifests, installDependencies, runBuildCommand } from './generic.ts';
 import { prepareNextCdnBuild } from './cdn-recipes.ts';
+import { toPosixPath } from '../deploy-ignore.ts';
+import { resetOutputDir } from './reset-output-dir.ts';
 
 /**
- * Walk the standalone output looking for the project's `server.js`.
- *
- * In a non-monorepo project the server lives at the root of
- * `.next/standalone/server.js`. In a monorepo (or when the user has
- * set `outputFileTracingRoot`), Next.js preserves the project's
- * relative path under the standalone root, so the server may be
- * several levels deep — e.g.
- * `.next/standalone/apps/web/server.js`.
- *
- * Returns the absolute path to `server.js` if found, or `null`.
- * Skips `node_modules/` and any `tests/` test fixtures so we don't
- * pick up a vendored Next.js stub.
+ * Walk the standalone tree for the first `server.js`, skipping
+ * `node_modules` and `.git`.
  */
-function findStandaloneServer(standaloneRoot: string): string | null {
+function walkFirstServerJs(standaloneRoot: string): string | null {
 	const skipDirs = new Set(['node_modules', '.git']);
 	const stack: string[] = [standaloneRoot];
 	while (stack.length > 0) {
@@ -59,10 +51,50 @@ function findStandaloneServer(standaloneRoot: string): string | null {
 	return null;
 }
 
+function isFile(path: string): boolean {
+	try {
+		return existsSync(path) && !statSync(path).isDirectory();
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Pick the project's standalone `server.js`.
+ *
+ * Preference order (early exit):
+ *  1. Preferred relative dirs (monorepo subpath, project basename)
+ *  2. Root `server.js` (single-package standalone)
+ *  3. First nested hit from a walk (skips node_modules / .git)
+ *
+ * Preferring explicit project paths avoids picking a **stale** root
+ * `server.js` left from an earlier package when Next nests the real
+ * entry under `<projectName>/` because `outputFileTracingRoot` pointed
+ * at a parent directory (e.g. a parent-folder lockfile). Wipe + prefer
+ * is defense in depth.
+ */
+export function selectStandaloneServer(
+	standaloneRoot: string,
+	preferredRelDirs: string[] = []
+): string | null {
+	for (const dir of preferredRelDirs) {
+		const rel = toPosixPath(dir).replace(/^\/+|\/+$/g, '');
+		if (!rel || rel === '.' || rel === '..') continue;
+		const candidate = join(standaloneRoot, ...rel.split('/'));
+		const server = join(candidate, 'server.js');
+		if (isFile(server)) return server;
+	}
+
+	const atRoot = join(standaloneRoot, 'server.js');
+	if (isFile(atRoot)) return atRoot;
+
+	return walkFirstServerJs(standaloneRoot);
+}
+
 /**
  * Ensure next.config has output: 'standalone'.
  *
- * Rather than modifying the user's config file, we set the NEXT_OUTPUT env var
+ * Rather than modifying the user's config file, we set the NEXT_PRIVATE_STANDALONE env var
  * which can be read in next.config.js, or we check if standalone is already configured.
  * As a fallback, we also set the experimental config via env.
  */
@@ -142,8 +174,10 @@ export const nextjsAdapter: BuildAdapter = {
 			);
 			logs.push(`✓ Next.js build completed in ${Date.now() - buildStart}ms`);
 
-			// Step 4: Package the standalone output
-			mkdirSync(outputDir, { recursive: true });
+			// Step 4: Package the standalone output into a clean staging dir.
+			// Always wipe first — cpSync merges and would leave a stale root
+			// server.js from a previous build that outranks a nested entry.
+			resetOutputDir(outputDir);
 
 			const standalonePath = join(projectDir, '.next', 'standalone');
 			const staticPath = join(projectDir, '.next', 'static');
@@ -159,11 +193,13 @@ export const nextjsAdapter: BuildAdapter = {
 				logger.debug('Copying standalone server...');
 				cpSync(standalonePath, outputDir, { recursive: true });
 
-				// Find the actual `server.js` inside the standalone tree
-				// (root for single-package projects, nested under the
-				// project's relative path for monorepos). Everything else
-				// hangs off this location.
-				const serverJs = findStandaloneServer(outputDir);
+				// Prefer monorepo subpath, then project directory name (common
+				// when outputFileTracingRoot is a parent folder).
+				const preferredDirs = [monorepo?.subpath, basename(projectDir)].filter(
+					(d): d is string => !!d && d !== '.' && d !== '..'
+				);
+
+				const serverJs = selectStandaloneServer(outputDir, preferredDirs);
 				if (!serverJs) {
 					throw new Error(
 						'Next.js standalone build did not produce a server.js. ' +
@@ -171,15 +207,22 @@ export const nextjsAdapter: BuildAdapter = {
 							'completed successfully.'
 					);
 				}
+
+				// Launch layout is always: cwd = directory containing server.js
+				// (relative to output root), command = `node server.js`.
 				const serverDir = dirname(serverJs);
-				// In monorepo mode, `processes[].workingDirectory = monorepo.subpath`
-				// will cd pilot into the subpackage before exec; the start
-				// command needs to be relative to *that* dir, not to the
-				// output root. server.js lives at `<outputDir>/<subpath>/server.js`
-				// so the relative-to-subpath path is just `server.js`.
-				const serverEntryRel = monorepo
-					? relative(join(outputDir, monorepo.subpath), serverJs)
-					: relative(outputDir, serverJs);
+				const serverDirRel = toPosixPath(relative(outputDir, serverDir));
+				const nested =
+					serverDirRel !== '' && serverDirRel !== '.' && !serverDirRel.startsWith('..');
+				const workingDirectory = nested ? serverDirRel : undefined;
+				const serverEntryRel = 'server.js';
+
+				if (nested) {
+					logs.push(
+						`✓ Nested standalone entry at ${serverDirRel}/server.js ` +
+							`(outputFileTracingRoot / monorepo layout) — launch.workingDirectory=${serverDirRel}`
+					);
+				}
 
 				// Copy static assets into <serverDir>/.next/static so Next.js
 				// finds them at the path it bakes into the bundle. Standalone
@@ -202,13 +245,16 @@ export const nextjsAdapter: BuildAdapter = {
 				}
 
 				logs.push(
-					`✓ Standalone output packaged (server entry: ${serverEntryRel || 'server.js'})`
+					`✓ Standalone output packaged (server entry: ${
+						workingDirectory ? `${workingDirectory}/${serverEntryRel}` : serverEntryRel
+					})`
 				);
 
 				return {
 					outputDir,
 					startCommand: `node ${serverEntryRel}`,
 					serverEntry: serverEntryRel,
+					workingDirectory,
 					staticDir: packagedStaticDir,
 					staticAssetPublicPath: framework.staticAssetPublicPath,
 					port: framework.port ?? 3000,
@@ -247,7 +293,13 @@ export const nextjsAdapter: BuildAdapter = {
 };
 
 async function findNextConfig(projectDir: string): Promise<string | null> {
-	const candidates = ['next.config.js', 'next.config.mjs', 'next.config.ts', 'next.config.cjs'];
+	const candidates = [
+		'next.config.js',
+		'next.config.mjs',
+		'next.config.ts',
+		'next.config.mts',
+		'next.config.cjs',
+	];
 
 	for (const name of candidates) {
 		const path = join(projectDir, name);

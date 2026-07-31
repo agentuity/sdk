@@ -282,11 +282,12 @@ export function resolveLaunchStatic(
 	let directory: string | undefined;
 
 	if (buildResult.staticDir) {
-		// Paths are relative to the process working directory when monorepo
-		// sets one; otherwise relative to the deploy/output root.
-		const processRoot = monorepo?.subpath
-			? join(buildResult.outputDir, monorepo.subpath)
-			: buildResult.outputDir;
+		// Paths are relative to the process working directory when set
+		// (adapter packaging layout wins; monorepo.subpath is the fallback
+		// for adapters that do not set workingDirectory); otherwise to the
+		// deploy/output root.
+		const workRel = buildResult.workingDirectory ?? monorepo?.subpath;
+		const processRoot = workRel ? join(buildResult.outputDir, workRel) : buildResult.outputDir;
 		let rel = toPosixPath(relative(processRoot, buildResult.staticDir));
 		if (!rel || rel === '') {
 			directory = '.';
@@ -338,17 +339,20 @@ export function generateLaunchMetadata(
 
 	// Primary web process
 	const startCommand = buildResult.startCommand ?? framework.startCommand;
+	// Packaging layout is source of truth when the adapter set it (e.g. Next
+	// nested standalone). Otherwise monorepo.subpath places the process in
+	// the workspace subpackage for adapters that leave workingDirectory unset.
+	const workingDirectory = buildResult.workingDirectory ?? monorepo?.subpath;
 	if (startCommand) {
 		processes.push({
 			type: 'web',
 			command: startCommand,
 			default: true,
 			// Pilot interprets a relative `workingDirectory` against the
-			// container's deploy root (`/home/agentuity/app`). The
-			// monorepo subpath places the process inside the workspace
-			// subpackage so paths in the start command (`dist/index.js`,
-			// `.next/standalone/server.js`, ...) resolve unchanged.
-			...(monorepo?.subpath ? { workingDirectory: monorepo.subpath } : {}),
+			// container's deploy root (`/home/agentuity/app`). Nested layout
+			// places the process so paths in the start command (`server.js`,
+			// `dist/index.js`, ...) resolve unchanged.
+			...(workingDirectory ? { workingDirectory } : {}),
 		});
 	}
 

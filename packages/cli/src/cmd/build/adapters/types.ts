@@ -20,8 +20,21 @@ export interface BuildResult {
 	/** The start command to run the application */
 	startCommand?: string;
 
-	/** Server entrypoint file (relative to outputDir) */
+	/**
+	 * Server entrypoint file relative to the process working directory
+	 * (or to outputDir when {@link workingDirectory} is unset).
+	 */
 	serverEntry?: string;
+
+	/**
+	 * Process cwd relative to the deploy/output root.
+	 * Set by adapters when packaging discovers a nested layout (e.g. Next
+	 * standalone under monorepo subpath or `outputFileTracingRoot` nest).
+	 * Takes precedence over `monorepo.subpath` in launch metadata so the
+	 * adapter remains source of truth for packaging layout.
+	 * Written to `launch.json` as `processes[].workingDirectory`.
+	 */
+	workingDirectory?: string;
 
 	/** Static/CDN assets directory (absolute path), for CDN upload enumeration */
 	staticDir?: string;

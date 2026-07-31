@@ -3,7 +3,7 @@
  * directory, applying `.agentuityignore` and built-in safety exclusions.
  */
 
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { cpSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import type { Logger } from '@agentuity/core';
 import {
@@ -17,6 +17,7 @@ import {
 	toPosixPath,
 } from '../deploy-ignore.ts';
 import type { MonorepoContext } from '../detect/monorepo.ts';
+import { resetOutputDir } from './reset-output-dir.ts';
 
 /** Logger subset used while staging; `trace`/`warn` optional for test fixtures. */
 export type MonorepoStageLogger = Pick<Logger, 'debug'> & Partial<Pick<Logger, 'trace' | 'warn'>>;
@@ -65,11 +66,8 @@ export function copyMonorepoTree(
 	const outRelToRoot = relative(monorepo.root, absOut);
 	const outRelPosix = toPosixPath(outRelToRoot);
 
-	if (existsSync(absOut)) {
-		logger.debug(`Cleaning monorepo staging dir before copy: ${absOut}`);
-		rmSync(absOut, { recursive: true, force: true });
-	}
-	mkdirSync(absOut, { recursive: true });
+	logger.debug(`Cleaning monorepo staging dir before copy: ${absOut}`);
+	resetOutputDir(absOut);
 
 	const matcher = options.ignore ?? loadDeployIgnoreMatcher(monorepo.root, options.projectDir);
 

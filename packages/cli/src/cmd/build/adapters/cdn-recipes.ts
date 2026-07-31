@@ -22,11 +22,17 @@ export const nextjsCdnRecipe: ConfigCdnRecipe = {
 		'next.config.mts',
 	],
 	alreadyConfigured: (src) => /\bassetPrefix\b/.test(src),
+	// Cast through Record so next.config.ts wrappers typecheck under
+	// Next's build-time typecheck (resolved is unknown after async resolve).
 	mergeBody: `
-	if (resolved && typeof resolved === 'object' && resolved.assetPrefix) {
+	const base =
+		resolved && typeof resolved === 'object' && resolved !== null
+			? /** @type {Record<string, unknown>} */ (resolved)
+			: null;
+	if (base && base.assetPrefix) {
 		out = resolved;
 	} else {
-		out = { ...(resolved && typeof resolved === 'object' ? resolved : {}), assetPrefix: origin };
+		out = { ...(base ?? {}), assetPrefix: origin };
 	}
 `,
 	writeMissingConfig: (projectDir, logs) => {
