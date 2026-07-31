@@ -240,6 +240,45 @@ describe('Launch Metadata', () => {
 			});
 		});
 
+		test('includes public/ root when publicStaticDir set (Next split CDN)', () => {
+			const framework: DetectedFramework = {
+				name: 'nextjs',
+				runtime: 'node',
+				packageManager: 'npm',
+				buildCommand: 'next build',
+				buildOutput: '.next',
+				startCommand: 'node server.js',
+				staticDir: '.next/static',
+				staticAssetPublicPath: '_next/static',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: '/tmp/output',
+				startCommand: 'node server.js',
+				workingDirectory: 'test-nextjs',
+				staticDir: '/tmp/output/test-nextjs/.next/static',
+				staticAssetPublicPath: '_next/static',
+				publicStaticDir: '/tmp/output/test-nextjs/public',
+				duration: 1000,
+				logs: [],
+			};
+
+			const metadata = generateLaunchMetadata(
+				framework,
+				buildResult,
+				null,
+				undefined,
+				'https://cdn.agentcompany.com/genesis/'
+			);
+			expect(metadata.static).toEqual({
+				directory: '.next/static',
+				publicPath: '_next/static',
+				baseUrl: 'https://cdn.agentcompany.com/genesis/',
+				include: [{ directory: 'public', publicPath: '' }],
+			});
+		});
+
 		test('omits static when framework has no static dir', () => {
 			const framework: DetectedFramework = {
 				name: 'nestjs',

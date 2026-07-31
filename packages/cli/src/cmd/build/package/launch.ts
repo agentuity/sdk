@@ -55,12 +55,23 @@ const UserLaunchProcessSchema = z
 	})
 	.passthrough();
 
+const UserLaunchStaticRootSchema = z
+	.object({
+		directory: z.string(),
+		publicPath: z.string(),
+	})
+	.passthrough();
+
 const UserLaunchStaticSchema = z
 	.object({
 		directory: z.string(),
 		publicPath: z.string(),
 		baseUrl: z
 			.string()
+			.nullish()
+			.transform((v) => v ?? undefined),
+		include: z
+			.array(UserLaunchStaticRootSchema)
 			.nullish()
 			.transform((v) => v ?? undefined),
 	})
@@ -205,23 +216,50 @@ export interface ProcessDefinition {
  * used the same prefix. When omitted, the platform may still upload
  * files under `publicPath` using its own CDN root.
  */
-export interface LaunchStaticAssets {
+/**
+ * One CDN upload root. Consumers compose:
+ *   `{baseUrl}{publicPath}/{pathWithinDirectory}`
+ * with empty publicPath meaning files live at the CDN base root.
+ */
+export interface LaunchStaticRoot {
 	/**
-	 * Directory of static assets relative to the process working
-	 * directory (or deploy root when no workingDirectory is set).
-	 * Posix separators. Example: `.next/static`, `dist`, `.output/public`.
+	 * Directory relative to the process working directory (or deploy root).
+	 * Posix separators. Example: `.next/static`, `public`, `dist`.
 	 */
 	directory: string;
 	/**
 	 * URL path prefix for files inside `directory` (no leading slash).
-	 * Framework-defined; e.g. `_next/static` for Next.js, `''` for Vite SPA.
+	 * e.g. `_next/static` for Next built assets, `''` for Next `public/`.
 	 */
 	publicPath: string;
+}
+
+/**
+ * Static/CDN asset locations recorded in launch.json.
+ *
+ * Consumers (CDN upload, pilot) compose public URLs as:
+ *   `{baseUrl}{publicPath}/{pathWithinDirectory}`
+ *
+ * The primary `directory`/`publicPath` is the framework build tree.
+ * Optional `include` lists extra roots (Next `public/`) that must also
+ * be uploaded when CDN base is set — `assetPrefix` alone does not cover them.
+ *
+ * `baseUrl` is optional: when set (from `--cdn-base-url` or the platform
+ * default), frameworks that bake asset URLs at build time should have
+ * used the same prefix. When omitted, the platform may still upload
+ * files under `publicPath` using its own CDN root.
+ */
+export interface LaunchStaticAssets extends LaunchStaticRoot {
 	/**
 	 * Absolute CDN base URL with trailing slash when known at package time.
 	 * Example: `https://cdn.agentuity.com/org_123/assets/`.
 	 */
 	baseUrl?: string;
+	/**
+	 * Extra CDN roots (e.g. Next `public/` with publicPath `""`).
+	 * Deploy clients should upload each root the same way as the primary.
+	 */
+	include?: LaunchStaticRoot[];
 }
 
 /**
@@ -312,10 +350,26 @@ export function resolveLaunchStatic(
 	// then AGENTUITY_CDN_BASE_URL / AGENTUITY_CDN_ORIGIN / deployment id.
 	const baseUrl = resolveAgentuityCdnBase({ cdnBaseUrl });
 
+	// Extra roots (Next public/): only when packaging staged them and the
+	// primary publicPath is a non-empty build prefix (split CDN layout).
+	const include: LaunchStaticRoot[] = [];
+	if (buildResult.publicStaticDir && publicPath !== '') {
+		const workRel = buildResult.workingDirectory ?? monorepo?.subpath;
+		const processRoot = workRel ? join(buildResult.outputDir, workRel) : buildResult.outputDir;
+		let pubRel = toPosixPath(relative(processRoot, buildResult.publicStaticDir));
+		if (!pubRel || pubRel === '') {
+			pubRel = '.';
+		}
+		if (!pubRel.startsWith('..') && pubRel !== directory) {
+			include.push({ directory: pubRel, publicPath: '' });
+		}
+	}
+
 	return {
 		directory,
 		publicPath,
 		...(baseUrl ? { baseUrl } : {}),
+		...(include.length > 0 ? { include } : {}),
 	};
 }
 

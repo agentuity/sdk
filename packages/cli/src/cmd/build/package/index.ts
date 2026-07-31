@@ -78,4 +78,14 @@ export async function packageBuildOutput(
 }
 
 // Re-export
-export type { LaunchMetadata, LaunchStaticAssets, ProcessDefinition } from './launch.ts';
+export type {
+	LaunchMetadata,
+	LaunchStaticAssets,
+	LaunchStaticRoot,
+	ProcessDefinition,
+} from './launch.ts';
+export {
+	listPublicRelativeFiles,
+	rewritePublicAssetUrlsInText,
+	rewritePublicAssetUrlsInTree,
+} from './public-cdn.ts';
