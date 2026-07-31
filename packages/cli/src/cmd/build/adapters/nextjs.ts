@@ -15,21 +15,15 @@ import { basename, dirname, join, relative } from 'node:path';
 import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
 import { copyRuntimeManifests, installDependencies, runBuildCommand } from './generic.ts';
 import { prepareNextCdnBuild } from './cdn-recipes.ts';
+import { toPosixPath } from '../deploy-ignore.ts';
 import { resetOutputDir } from './reset-output-dir.ts';
 
-export { resetOutputDir } from './reset-output-dir.ts';
-
-function toPosixPath(p: string): string {
-	return p.split('\\').join('/');
-}
-
 /**
- * Collect every `server.js` under the standalone tree, skipping
+ * Walk the standalone tree for the first `server.js`, skipping
  * `node_modules` and `.git`.
  */
-export function listStandaloneServers(standaloneRoot: string): string[] {
+function walkFirstServerJs(standaloneRoot: string): string | null {
 	const skipDirs = new Set(['node_modules', '.git']);
-	const found: string[] = [];
 	const stack: string[] = [standaloneRoot];
 	while (stack.length > 0) {
 		const dir = stack.pop()!;
@@ -49,69 +43,52 @@ export function listStandaloneServers(standaloneRoot: string): string[] {
 				continue;
 			}
 			if (entry === 'server.js' && !isDir) {
-				found.push(full);
-				continue;
+				return full;
 			}
 			if (isDir) stack.push(full);
 		}
 	}
-	return found;
+	return null;
+}
+
+function isFile(path: string): boolean {
+	try {
+		return existsSync(path) && !statSync(path).isDirectory();
+	} catch {
+		return false;
+	}
 }
 
 /**
  * Pick the project's standalone `server.js`.
  *
- * Preference order:
- *  1. Preferred relative paths (monorepo subpath, project basename)
+ * Preference order (early exit):
+ *  1. Preferred relative dirs (monorepo subpath, project basename)
  *  2. Root `server.js` (single-package standalone)
- *  3. Shallowest remaining candidate (fewest path segments)
+ *  3. First nested hit from a walk (skips node_modules / .git)
  *
  * Preferring explicit project paths avoids picking a **stale** root
  * `server.js` left from an earlier package when Next nests the real
  * entry under `<projectName>/` because `outputFileTracingRoot` pointed
- * at a parent directory (e.g. a parent-folder lockfile).
+ * at a parent directory (e.g. a parent-folder lockfile). Wipe + prefer
+ * is defense in depth.
  */
 export function selectStandaloneServer(
 	standaloneRoot: string,
 	preferredRelDirs: string[] = []
 ): string | null {
-	const candidates = listStandaloneServers(standaloneRoot);
-	if (candidates.length === 0) return null;
-	if (candidates.length === 1) return candidates[0]!;
-
-	const byRel = new Map<string, string>();
-	for (const abs of candidates) {
-		byRel.set(toPosixPath(relative(standaloneRoot, abs)), abs);
-	}
-
 	for (const dir of preferredRelDirs) {
-		const rel = dir ? `${toPosixPath(dir).replace(/^\/+|\/+$/g, '')}/server.js` : 'server.js';
-		const hit = byRel.get(rel);
-		if (hit) return hit;
+		const rel = toPosixPath(dir).replace(/^\/+|\/+$/g, '');
+		if (!rel || rel === '.' || rel === '..') continue;
+		const candidate = join(standaloneRoot, ...rel.split('/'));
+		const server = join(candidate, 'server.js');
+		if (isFile(server)) return server;
 	}
 
-	// Root server.js when present
-	const root = byRel.get('server.js');
-	if (root) return root;
+	const atRoot = join(standaloneRoot, 'server.js');
+	if (isFile(atRoot)) return atRoot;
 
-	// Shallowest (then stable sort)
-	const sorted = [...candidates].sort((a, b) => {
-		const ra = toPosixPath(relative(standaloneRoot, a));
-		const rb = toPosixPath(relative(standaloneRoot, b));
-		const da = ra.split('/').length;
-		const db = rb.split('/').length;
-		if (da !== db) return da - db;
-		return ra.localeCompare(rb);
-	});
-	return sorted[0] ?? null;
-}
-
-/**
- * @deprecated Use {@link selectStandaloneServer}. Kept as a thin alias for
- * call sites / tests that expect the old name.
- */
-export function findStandaloneServer(standaloneRoot: string): string | null {
-	return selectStandaloneServer(standaloneRoot);
+	return walkFirstServerJs(standaloneRoot);
 }
 
 /**
@@ -230,34 +207,21 @@ export const nextjsAdapter: BuildAdapter = {
 							'completed successfully.'
 					);
 				}
+
+				// Launch layout is always: cwd = directory containing server.js
+				// (relative to output root), command = `node server.js`.
 				const serverDir = dirname(serverJs);
 				const serverDirRel = toPosixPath(relative(outputDir, serverDir));
 				const nested =
 					serverDirRel !== '' && serverDirRel !== '.' && !serverDirRel.startsWith('..');
+				const workingDirectory = nested ? serverDirRel : undefined;
+				const serverEntryRel = 'server.js';
 
-				// Launch process root: monorepo subpath, or accidental nest
-				// from outputFileTracingRoot, else deploy root.
-				let workingDirectory: string | undefined;
-				let serverEntryRel: string;
-				if (monorepo?.subpath) {
-					workingDirectory = monorepo.subpath;
-					serverEntryRel = toPosixPath(relative(join(outputDir, monorepo.subpath), serverJs));
-					if (serverEntryRel.startsWith('..')) {
-						// Server outside monorepo subpath — fall back to path from output root.
-						workingDirectory = nested ? serverDirRel : undefined;
-						serverEntryRel = nested
-							? 'server.js'
-							: toPosixPath(relative(outputDir, serverJs));
-					}
-				} else if (nested) {
-					workingDirectory = serverDirRel;
-					serverEntryRel = 'server.js';
+				if (nested) {
 					logs.push(
 						`✓ Nested standalone entry at ${serverDirRel}/server.js ` +
-							`(outputFileTracingRoot layout) — launch.workingDirectory=${serverDirRel}`
+							`(outputFileTracingRoot / monorepo layout) — launch.workingDirectory=${serverDirRel}`
 					);
-				} else {
-					serverEntryRel = toPosixPath(relative(outputDir, serverJs)) || 'server.js';
 				}
 
 				// Copy static assets into <serverDir>/.next/static so Next.js

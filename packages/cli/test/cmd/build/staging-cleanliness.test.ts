@@ -46,9 +46,20 @@ describe('resetOutputDir (single-package staging hygiene)', () => {
 		const dir = makeTmp('pkg-out');
 		write(join(dir, 'stale-chunk.js'), 'old');
 		write(join(dir, '_serve.js'), 'old-server');
+		write(join(dir, 'nested', 'server.js'), 'stale-nested');
 		resetOutputDir(dir);
 		expect(existsSync(join(dir, 'stale-chunk.js'))).toBe(false);
 		expect(existsSync(join(dir, '_serve.js'))).toBe(false);
+		expect(existsSync(join(dir, 'nested', 'server.js'))).toBe(false);
+		expect(existsSync(dir)).toBe(true);
+		rmSync(dir, { recursive: true, force: true });
+	});
+
+	test('creates missing output dir empty', () => {
+		const dir = makeTmp('pkg-out-missing');
+		rmSync(dir, { recursive: true, force: true });
+		expect(existsSync(dir)).toBe(false);
+		resetOutputDir(dir);
 		expect(existsSync(dir)).toBe(true);
 		rmSync(dir, { recursive: true, force: true });
 	});

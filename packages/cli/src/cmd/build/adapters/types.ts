@@ -28,9 +28,10 @@ export interface BuildResult {
 
 	/**
 	 * Process cwd relative to the deploy/output root.
-	 * Set when the app is nested under the package root — monorepo
-	 * subpackages, or Next standalone when `outputFileTracingRoot`
-	 * nests `server.js` under the project name.
+	 * Set by adapters when packaging discovers a nested layout (e.g. Next
+	 * standalone under monorepo subpath or `outputFileTracingRoot` nest).
+	 * Takes precedence over `monorepo.subpath` in launch metadata so the
+	 * adapter remains source of truth for packaging layout.
 	 * Written to `launch.json` as `processes[].workingDirectory`.
 	 */
 	workingDirectory?: string;

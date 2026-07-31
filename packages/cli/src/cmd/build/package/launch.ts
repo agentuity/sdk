@@ -283,9 +283,10 @@ export function resolveLaunchStatic(
 
 	if (buildResult.staticDir) {
 		// Paths are relative to the process working directory when set
-		// (monorepo.subpath or adapter-detected nest); otherwise to the
+		// (adapter packaging layout wins; monorepo.subpath is the fallback
+		// for adapters that do not set workingDirectory); otherwise to the
 		// deploy/output root.
-		const workRel = monorepo?.subpath ?? buildResult.workingDirectory;
+		const workRel = buildResult.workingDirectory ?? monorepo?.subpath;
 		const processRoot = workRel ? join(buildResult.outputDir, workRel) : buildResult.outputDir;
 		let rel = toPosixPath(relative(processRoot, buildResult.staticDir));
 		if (!rel || rel === '') {
@@ -338,17 +339,18 @@ export function generateLaunchMetadata(
 
 	// Primary web process
 	const startCommand = buildResult.startCommand ?? framework.startCommand;
-	// Monorepo wins; else adapter may set workingDirectory for nested standalone.
-	const workingDirectory = monorepo?.subpath ?? buildResult.workingDirectory;
+	// Packaging layout is source of truth when the adapter set it (e.g. Next
+	// nested standalone). Otherwise monorepo.subpath places the process in
+	// the workspace subpackage for adapters that leave workingDirectory unset.
+	const workingDirectory = buildResult.workingDirectory ?? monorepo?.subpath;
 	if (startCommand) {
 		processes.push({
 			type: 'web',
 			command: startCommand,
 			default: true,
 			// Pilot interprets a relative `workingDirectory` against the
-			// container's deploy root (`/home/agentuity/app`). The
-			// monorepo subpath (or Next nested standalone dir) places the
-			// process so paths in the start command (`server.js`,
+			// container's deploy root (`/home/agentuity/app`). Nested layout
+			// places the process so paths in the start command (`server.js`,
 			// `dist/index.js`, ...) resolve unchanged.
 			...(workingDirectory ? { workingDirectory } : {}),
 		});

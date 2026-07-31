@@ -497,7 +497,7 @@ export const genericAdapter: BuildAdapter = {
 		// assets / old _serve.js can ship on rebuild.
 		// Skip only when buildOutput *is* the output dir (no separate staging).
 		const shouldCopy = existsSync(buildOutputPath) && buildOutputPath !== resolvedOutputDir;
-		if (shouldCopy || buildOutputPath !== resolvedOutputDir) {
+		if (buildOutputPath !== resolvedOutputDir) {
 			logger.debug(`Cleaning package output dir: ${resolvedOutputDir}`);
 			resetOutputDir(resolvedOutputDir);
 		} else {

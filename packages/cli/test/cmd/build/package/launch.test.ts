@@ -324,6 +324,68 @@ describe('Launch Metadata', () => {
 			expect(metadata.static?.publicPath).toBe('_next/static');
 		});
 
+		test('adapter workingDirectory takes precedence over monorepo.subpath', () => {
+			const framework: DetectedFramework = {
+				name: 'nextjs',
+				runtime: 'node',
+				packageManager: 'pnpm',
+				buildCommand: 'next build',
+				buildOutput: '.next',
+				startCommand: 'node server.js',
+				staticDir: '.next/static',
+				staticAssetPublicPath: '_next/static',
+				confidence: 'high',
+			};
+
+			// Packaging discovered server.js under a nest that differs from
+			// monorepo.subpath (e.g. outputFileTracingRoot layout correction).
+			const buildResult: BuildResult = {
+				outputDir: '/tmp/output',
+				startCommand: 'node server.js',
+				serverEntry: 'server.js',
+				workingDirectory: 'apps/web',
+				staticDir: '/tmp/output/apps/web/.next/static',
+				staticAssetPublicPath: '_next/static',
+				duration: 1000,
+				logs: [],
+			};
+
+			const metadata = generateLaunchMetadata(framework, buildResult, null, {
+				root: '/tmp/repo',
+				// Intentionally different — must not override adapter layout.
+				subpath: 'packages/wrong',
+				packageManager: 'pnpm',
+			});
+			expect(metadata.processes[0].workingDirectory).toBe('apps/web');
+			expect(metadata.static?.directory).toBe('.next/static');
+		});
+
+		test('falls back to monorepo.subpath when adapter leaves workingDirectory unset', () => {
+			const framework: DetectedFramework = {
+				name: 'vite',
+				runtime: 'node',
+				packageManager: 'pnpm',
+				buildCommand: 'vite build',
+				buildOutput: 'dist',
+				startCommand: 'node dist/server.js',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: '/tmp/output',
+				startCommand: 'node dist/server.js',
+				duration: 500,
+				logs: [],
+			};
+
+			const metadata = generateLaunchMetadata(framework, buildResult, null, {
+				root: '/tmp/repo',
+				subpath: 'apps/web',
+				packageManager: 'pnpm',
+			});
+			expect(metadata.processes[0].workingDirectory).toBe('apps/web');
+		});
+
 		test('runtime is node when start command is HOST=… node …', () => {
 			const framework: DetectedFramework = {
 				name: 'nuxt',
