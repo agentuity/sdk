@@ -12,7 +12,11 @@
 import { join } from 'node:path';
 import { pathExists } from '../../../node-compat/fs.ts';
 import type { DetectedFramework, FrameworkDetector } from './types.ts';
-import { detectPackageManager, isAgentuityCliInvocation } from './util.ts';
+import {
+	detectPackageManager,
+	isAgentuityCliInvocation,
+	resolveRuntimeFromStartCommand,
+} from './util.ts';
 
 export const genericDetector: FrameworkDetector = {
 	name: 'generic',
@@ -68,20 +72,17 @@ export const genericDetector: FrameworkDetector = {
 
 		// Pick runtime in this order:
 		//   1. The actual `start` script (`bun ...` / `bun run ...` = bun;
-		//      `node ...` = node) — strongest signal.
+		//      `node ...` = node; env prefixes like HOST= are stripped).
 		//   2. `engines.bun` in package.json.
 		//   3. A `bun.lock` / `bun.lockb` file in the project root.
 		//   4. Default to node.
 		const hasBunLockfile =
 			(await pathExists(join(projectDir, 'bun.lockb'))) ||
 			(await pathExists(join(projectDir, 'bun.lock')));
-		const runtime: 'bun' | 'node' = (() => {
-			if (startCommand && /^\s*bun(\s+run)?\s+/.test(startCommand)) return 'bun';
-			if (startCommand && /^\s*node(\s|$)/.test(startCommand)) return 'node';
-			if (pkg.engines?.bun) return 'bun';
-			if (hasBunLockfile) return 'bun';
-			return 'node';
-		})();
+		const runtime: 'bun' | 'node' = resolveRuntimeFromStartCommand(
+			startCommand,
+			pkg.engines?.bun || hasBunLockfile ? 'bun' : 'node'
+		);
 
 		return {
 			name: 'generic',

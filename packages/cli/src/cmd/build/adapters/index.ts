@@ -7,8 +7,11 @@
  */
 
 import type { BuildAdapter } from './types.ts';
+import { astroAdapter } from './astro.ts';
 import { genericAdapter } from './generic.ts';
 import { nextjsAdapter } from './nextjs.ts';
+import { nuxtAdapter } from './nuxt.ts';
+import { sveltekitAdapter } from './sveltekit.ts';
 import { tanstackStartAdapter } from './tanstack-start.ts';
 import { viteAdapter } from './vite.ts';
 
@@ -17,7 +20,10 @@ import { viteAdapter } from './vite.ts';
  * Frameworks not in this map use the generic adapter.
  */
 const adapters: Record<string, BuildAdapter> = {
+	astro: astroAdapter,
 	nextjs: nextjsAdapter,
+	nuxt: nuxtAdapter,
+	sveltekit: sveltekitAdapter,
 	'tanstack-start': tanstackStartAdapter,
 	vite: viteAdapter,
 };

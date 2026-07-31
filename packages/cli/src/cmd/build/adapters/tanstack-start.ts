@@ -1,28 +1,28 @@
 /**
- * TanStack Start build adapter.
- *
- * Runs the generic build pipeline after applying CDN wiring (server entry +
- * Vite base) required for Agentuity static asset delivery.
+ * TanStack Start build adapter — server entry + Vite base CDN prep, then generic.
  */
 
-import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
-import { genericAdapter } from './generic.ts';
+import { withCdnPrep } from './with-cdn-prep.ts';
 import { prepareTanStackCdnBuild } from './tanstack-start/cdn-build.ts';
+import type { CdnPrepResult } from './config-cdn-wrap.ts';
+import type { BuildAdapterOptions } from './types.ts';
 
-export const tanstackStartAdapter: BuildAdapter = {
+function prepareTanStack(options: BuildAdapterOptions): CdnPrepResult {
+	const preparation = prepareTanStackCdnBuild({
+		projectDir: options.projectDir,
+		logger: options.logger,
+		cdnBaseUrl: options.cdnBaseUrl,
+		deploymentId: options.deploymentId,
+	});
+	return {
+		buildEnv: preparation.buildEnv,
+		logs: preparation.logs,
+		cdnOrigin: preparation.cdnOrigin,
+		cleanup: preparation.cleanup,
+	};
+}
+
+export const tanstackStartAdapter = withCdnPrep({
 	name: 'tanstack-start',
-
-	async build(options: BuildAdapterOptions): Promise<BuildResult> {
-		const preparation = prepareTanStackCdnBuild(options.projectDir, options.logger);
-
-		try {
-			const result = await genericAdapter.build(options);
-			return {
-				...result,
-				logs: [...preparation.logs, ...result.logs],
-			};
-		} finally {
-			preparation.cleanup();
-		}
-	},
-};
+	prepare: prepareTanStack,
+});

@@ -9,7 +9,29 @@ import { resolveAgentuityCdnOrigin } from '../../../../src/cmd/build/adapters/cd
 import { getAdapter } from '../../../../src/cmd/build/adapters';
 
 describe('CDN origin resolution', () => {
-	test('prefers AGENTUITY_CDN_ORIGIN', () => {
+	test('prefers --cdn-base-url over env and deployment id', () => {
+		expect(
+			resolveAgentuityCdnOrigin({
+				cdnBaseUrl: 'https://cdn.agentuity.com/org_1/assets/',
+				deploymentId: 'deploy_other',
+				env: { AGENTUITY_CDN_ORIGIN: 'https://cdn.example.com/deploy_abc/' },
+			})
+		).toBe('https://cdn.agentuity.com/org_1/assets');
+	});
+
+	test('prefers AGENTUITY_CDN_BASE_URL over AGENTUITY_CDN_ORIGIN', () => {
+		expect(
+			resolveAgentuityCdnOrigin({
+				deploymentId: 'deploy_other',
+				env: {
+					AGENTUITY_CDN_BASE_URL: 'https://cdn.agentuity.com/org/assets/',
+					AGENTUITY_CDN_ORIGIN: 'https://cdn.example.com/deploy_abc/',
+				},
+			})
+		).toBe('https://cdn.agentuity.com/org/assets');
+	});
+
+	test('prefers AGENTUITY_CDN_ORIGIN over deployment id', () => {
 		expect(
 			resolveAgentuityCdnOrigin({
 				deploymentId: 'deploy_other',
@@ -32,6 +54,15 @@ describe('CDN origin resolution', () => {
 
 	test('skips when no id and no origin', () => {
 		expect(resolveViteCdnBase({ env: {} })).toBeUndefined();
+	});
+
+	test('cdnBaseUrl with org path becomes trailing-slash base', () => {
+		expect(
+			resolveViteCdnBase({
+				cdnBaseUrl: 'https://cdn.agentuity.com/org_xyz/assets',
+				env: {},
+			})
+		).toBe('https://cdn.agentuity.com/org_xyz/assets/');
 	});
 });
 
@@ -112,6 +143,20 @@ describe('prepareViteCdnBuild', () => {
 		expect(prep.cdnBase).toBeUndefined();
 		expect(prep.buildCommand).toBe('vite build');
 		expect(prep.logs).toEqual([]);
+	});
+
+	test('honors explicit cdnBaseUrl for vite --base', () => {
+		const prep = prepareViteCdnBuild({
+			cdnBaseUrl: 'https://cdn.agentuity.com/org_9/assets/',
+			deploymentId: PACK_ONLY_DEPLOYMENT_ID, // would skip without cdnBaseUrl
+			buildCommand: 'vite build',
+			logger: { debug: () => {} },
+			env: {},
+		});
+		expect(prep.cdnBase).toBe('https://cdn.agentuity.com/org_9/assets/');
+		expect(prep.buildCommand).toBe('vite build --base=https://cdn.agentuity.com/org_9/assets/');
+		expect(prep.buildEnv?.AGENTUITY_CDN_ORIGIN).toBe('https://cdn.agentuity.com/org_9/assets');
+		expect(prep.buildEnv?.AGENTUITY_CDN_BASE_URL).toBe('https://cdn.agentuity.com/org_9/assets/');
 	});
 });
 

@@ -662,6 +662,12 @@ export const DeployOptionsSchema = zod
 			.describe(
 				'Presigned/one-time S3 (or HTTP) URL to PUT the deployment zip to. Offline mode: skips login, project registration, agentuity.json validation, DNS checks, and cloud APIs'
 			),
+		cdnBaseUrl: zod
+			.string()
+			.optional()
+			.describe(
+				'CDN base URL for baked asset references and launch.json static.baseUrl (e.g. https://cdn.agentuity.com/ or https://cdn.agentuity.com/{ORGID}/assets/). Framework publicPath is appended (e.g. _next/static/…)'
+			),
 	})
 	.merge(GitOptionsSchema);
 

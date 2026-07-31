@@ -36,6 +36,14 @@ const BuildOptionsSchema = z.intersection(
 		ci: z.boolean().optional().describe('Enable CI build mode'),
 		url: z.string().optional().describe('Source code download URL for CI builds'),
 		directory: z.string().optional().describe('Subdirectory within extracted source'),
+		// Also declared on DeployOptionsSchema; re-listed so `agentuity build --help`
+		// surfaces the flag without requiring deploy-only context.
+		cdnBaseUrl: z
+			.string()
+			.optional()
+			.describe(
+				'CDN base URL for baked asset references and launch.json static.baseUrl (e.g. https://cdn.agentuity.com/ or https://cdn.agentuity.com/{ORGID}/assets/)'
+			),
 	})
 );
 
@@ -116,6 +124,7 @@ export const command = createCommand({
 				projectId: project?.projectId,
 				orgId: project?.orgId,
 				region: project?.region ?? 'local',
+				cdnBaseUrl: opts.cdnBaseUrl,
 			});
 
 			const { framework, monorepo, buildResult, packageResult, outputDir } = pipelineResult;
