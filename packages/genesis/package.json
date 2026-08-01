@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/genesis",
-	"version": "3.1.17",
+	"version": "3.1.18",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"description": "Genesis SSO upstream identity verification for managed app middleware",

@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/skills",
-	"version": "3.1.17",
+	"version": "3.1.18",
 	"license": "Apache-2.0",
 	"author": "Agentuity",
 	"description": "Agent Skills for AI coding agents working with the Agentuity SDK",
