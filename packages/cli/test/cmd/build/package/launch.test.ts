@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
 	generateLaunchMetadata,
+	joinCdnAssetUrl,
 	LaunchConfigError,
 	readUserLaunchOverride,
 	writeLaunchMetadata,
@@ -238,6 +239,151 @@ describe('Launch Metadata', () => {
 				publicPath: '_next/static',
 				baseUrl: 'https://cdn.agentuity.com/org_123/assets/',
 			});
+		});
+
+		test('includes public/ root when publicStaticDir set with CDN base (Next split CDN)', () => {
+			const framework: DetectedFramework = {
+				name: 'nextjs',
+				runtime: 'node',
+				packageManager: 'npm',
+				buildCommand: 'next build',
+				buildOutput: '.next',
+				startCommand: 'node server.js',
+				staticDir: '.next/static',
+				staticAssetPublicPath: '_next/static',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: '/tmp/output',
+				startCommand: 'node server.js',
+				workingDirectory: 'test-nextjs',
+				staticDir: '/tmp/output/test-nextjs/.next/static',
+				staticAssetPublicPath: '_next/static',
+				publicStaticDir: '/tmp/output/test-nextjs/public',
+				duration: 1000,
+				logs: [],
+			};
+
+			const metadata = generateLaunchMetadata(
+				framework,
+				buildResult,
+				null,
+				undefined,
+				'https://cdn.agentcompany.com/genesis/'
+			);
+			expect(metadata.static).toEqual({
+				directory: '.next/static',
+				publicPath: '_next/static',
+				baseUrl: 'https://cdn.agentcompany.com/genesis/',
+				include: [{ directory: 'public', publicPath: '' }],
+			});
+		});
+
+		test('omits include when publicStaticDir set but no CDN baseUrl', () => {
+			const framework: DetectedFramework = {
+				name: 'nextjs',
+				runtime: 'node',
+				packageManager: 'npm',
+				buildCommand: 'next build',
+				buildOutput: '.next',
+				startCommand: 'node server.js',
+				staticDir: '.next/static',
+				staticAssetPublicPath: '_next/static',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: '/tmp/output',
+				startCommand: 'node server.js',
+				workingDirectory: 'test-nextjs',
+				staticDir: '/tmp/output/test-nextjs/.next/static',
+				staticAssetPublicPath: '_next/static',
+				publicStaticDir: '/tmp/output/test-nextjs/public',
+				duration: 1000,
+				logs: [],
+			};
+
+			const metadata = generateLaunchMetadata(framework, buildResult);
+			expect(metadata.static).toEqual({
+				directory: '.next/static',
+				publicPath: '_next/static',
+			});
+			expect(metadata.static?.include).toBeUndefined();
+		});
+
+		test('omits include when publicPath is empty (Vite-style single root)', () => {
+			const framework: DetectedFramework = {
+				name: 'vite',
+				runtime: 'node',
+				packageManager: 'npm',
+				buildCommand: 'vite build',
+				buildOutput: 'dist',
+				startCommand: 'node server.js',
+				staticDir: 'dist',
+				staticAssetPublicPath: '',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: '/tmp/output',
+				startCommand: 'node server.js',
+				staticDir: '/tmp/output/dist',
+				staticAssetPublicPath: '',
+				// Even if someone set this, empty publicPath is not split layout
+				publicStaticDir: '/tmp/output/public',
+				duration: 1000,
+				logs: [],
+			};
+
+			const metadata = generateLaunchMetadata(
+				framework,
+				buildResult,
+				null,
+				undefined,
+				'https://cdn.agentcompany.com/genesis/'
+			);
+			expect(metadata.static).toEqual({
+				directory: 'dist',
+				publicPath: '',
+				baseUrl: 'https://cdn.agentcompany.com/genesis/',
+			});
+			expect(metadata.static?.include).toBeUndefined();
+		});
+
+		test('omits include when publicStaticDir is outside process root', () => {
+			const framework: DetectedFramework = {
+				name: 'nextjs',
+				runtime: 'node',
+				packageManager: 'npm',
+				buildCommand: 'next build',
+				buildOutput: '.next',
+				startCommand: 'node server.js',
+				staticDir: '.next/static',
+				staticAssetPublicPath: '_next/static',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: '/tmp/output',
+				startCommand: 'node server.js',
+				workingDirectory: 'app',
+				staticDir: '/tmp/output/app/.next/static',
+				staticAssetPublicPath: '_next/static',
+				publicStaticDir: '/tmp/elsewhere/public',
+				duration: 1000,
+				logs: [],
+			};
+
+			const metadata = generateLaunchMetadata(
+				framework,
+				buildResult,
+				null,
+				undefined,
+				'https://cdn.agentcompany.com/genesis/'
+			);
+			expect(metadata.static?.include).toBeUndefined();
+			expect(metadata.static?.baseUrl).toBe('https://cdn.agentcompany.com/genesis/');
 		});
 
 		test('omits static when framework has no static dir', () => {
@@ -511,9 +657,126 @@ describe('Launch Metadata', () => {
 		});
 	});
 
+	// ── joinCdnAssetUrl ──
+
+	describe('joinCdnAssetUrl', () => {
+		test('joins non-empty publicPath without double slashes', () => {
+			expect(
+				joinCdnAssetUrl('https://cdn.agentcompany.com/genesis/', '_next/static', 'chunks/a.js')
+			).toBe('https://cdn.agentcompany.com/genesis/_next/static/chunks/a.js');
+		});
+
+		test('empty publicPath places file at CDN base root', () => {
+			expect(joinCdnAssetUrl('https://cdn.agentcompany.com/genesis/', '', 'next.svg')).toBe(
+				'https://cdn.agentcompany.com/genesis/next.svg'
+			);
+			// base without trailing slash still normalizes
+			expect(joinCdnAssetUrl('https://cdn.example.com/x', '', 'icons/a.png')).toBe(
+				'https://cdn.example.com/x/icons/a.png'
+			);
+		});
+	});
+
 	// ── packageBuildOutput ──
 
 	describe('packageBuildOutput', () => {
+		test('rewrites public asset URLs and emits include when CDN base set', async () => {
+			const staticDir = join(testDir, '.next', 'static');
+			const publicDir = join(testDir, 'public');
+			const serverApp = join(testDir, '.next', 'server', 'app');
+			mkdirSync(staticDir, { recursive: true });
+			mkdirSync(publicDir, { recursive: true });
+			mkdirSync(serverApp, { recursive: true });
+			writeFileSync(join(publicDir, 'next.svg'), '<svg/>');
+			writeFileSync(
+				join(serverApp, 'page.html'),
+				`<img src="/next.svg" alt="logo"/><script src="/_next/static/x.js"></script>`
+			);
+
+			const framework: DetectedFramework = {
+				name: 'nextjs',
+				runtime: 'node',
+				packageManager: 'npm',
+				buildCommand: 'next build',
+				buildOutput: '.next',
+				startCommand: 'node server.js',
+				staticDir: '.next/static',
+				staticAssetPublicPath: '_next/static',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: testDir,
+				startCommand: 'node server.js',
+				staticDir,
+				staticAssetPublicPath: '_next/static',
+				publicStaticDir: publicDir,
+				duration: 1000,
+				logs: [],
+			};
+
+			const cdn = 'https://cdn.agentcompany.com/genesis/';
+			const result = await packageBuildOutput(
+				framework,
+				buildResult,
+				testDir,
+				undefined,
+				undefined,
+				{ cdnBaseUrl: cdn }
+			);
+
+			expect(result.launch.static).toEqual({
+				directory: '.next/static',
+				publicPath: '_next/static',
+				baseUrl: cdn,
+				include: [{ directory: 'public', publicPath: '' }],
+			});
+			expect(result.logs.some((l) => l.includes('rewrote public/'))).toBe(true);
+
+			const html = readFileSync(join(serverApp, 'page.html'), 'utf-8');
+			expect(html).toContain(`${cdn}next.svg`);
+			// Root-absolute _next path is not a listed public file — left alone
+			expect(html).toContain('src="/_next/static/x.js"');
+		});
+
+		test('does not rewrite when CDN base is unset', async () => {
+			const publicDir = join(testDir, 'public');
+			const serverApp = join(testDir, '.next', 'server');
+			mkdirSync(publicDir, { recursive: true });
+			mkdirSync(serverApp, { recursive: true });
+			writeFileSync(join(publicDir, 'next.svg'), '<svg/>');
+			const htmlPath = join(serverApp, 'page.html');
+			const original = `<img src="/next.svg"/>`;
+			writeFileSync(htmlPath, original);
+
+			const framework: DetectedFramework = {
+				name: 'nextjs',
+				runtime: 'node',
+				packageManager: 'npm',
+				buildCommand: 'next build',
+				buildOutput: '.next',
+				startCommand: 'node server.js',
+				staticAssetPublicPath: '_next/static',
+				confidence: 'high',
+			};
+
+			const buildResult: BuildResult = {
+				outputDir: testDir,
+				startCommand: 'node server.js',
+				staticDir: join(testDir, '.next', 'static'),
+				staticAssetPublicPath: '_next/static',
+				publicStaticDir: publicDir,
+				duration: 1000,
+				logs: [],
+			};
+			mkdirSync(buildResult.staticDir!, { recursive: true });
+
+			const result = await packageBuildOutput(framework, buildResult, testDir);
+			expect(result.launch.static?.include).toBeUndefined();
+			expect(result.logs).toEqual([]);
+			expect(readFileSync(htmlPath, 'utf-8')).toBe(original);
+		});
+
 		test('returns hasStaticAssets when staticDir exists', async () => {
 			const staticDir = join(testDir, 'static');
 			mkdirSync(staticDir, { recursive: true });

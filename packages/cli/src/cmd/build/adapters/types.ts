@@ -42,6 +42,13 @@ export interface BuildResult {
 	/** Public URL path prefix for files inside staticDir */
 	staticAssetPublicPath?: string;
 
+	/**
+	 * Absolute path to packaged root-public assets (e.g. Next `public/`).
+	 * Used when {@link staticAssetPublicPath} is a non-empty built prefix
+	 * (`_next/static`) so CDN upload + HTML rewrite can also ship `/logo.svg`.
+	 */
+	publicStaticDir?: string;
+
 	/** Port the app listens on */
 	port?: number;
 

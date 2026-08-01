@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/client",
-	"version": "3.1.16",
+	"version": "3.1.17",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"description": "Shared client wiring for Agentuity service packages",

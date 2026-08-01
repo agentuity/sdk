@@ -238,10 +238,15 @@ export const nextjsAdapter: BuildAdapter = {
 				}
 
 				// Copy `public/` next to server.js for the same reason.
+				// Next assetPrefix only rewrites /_next/* — public/ files
+				// (e.g. /next.svg) stay origin-relative. Packaging owns CDN
+				// rewrite + launch.static.include when publicStaticDir is set.
+				let packagedPublicDir: string | undefined;
 				if (existsSync(publicPath)) {
 					const publicDst = join(serverDir, 'public');
 					mkdirSync(publicDst, { recursive: true });
 					cpSync(publicPath, publicDst, { recursive: true });
+					packagedPublicDir = publicDst;
 				}
 
 				logs.push(
@@ -257,6 +262,7 @@ export const nextjsAdapter: BuildAdapter = {
 					workingDirectory,
 					staticDir: packagedStaticDir,
 					staticAssetPublicPath: framework.staticAssetPublicPath,
+					publicStaticDir: packagedPublicDir,
 					port: framework.port ?? 3000,
 					duration: Date.now() - started,
 					logs,
@@ -267,6 +273,8 @@ export const nextjsAdapter: BuildAdapter = {
 			// and the package manifests Hadron needs to install production
 			// dependencies before launch. This path is brittle (`next start`
 			// needs the full Next.js install) so we warn the user.
+			// Public CDN rewrite / launch.static.include require standalone
+			// packaging (publicStaticDir is only set on that path).
 			logger.debug('No standalone output found — copying full .next directory');
 			const nextDst = join(outputDir, '.next');
 			cpSync(join(projectDir, '.next'), nextDst, { recursive: true });

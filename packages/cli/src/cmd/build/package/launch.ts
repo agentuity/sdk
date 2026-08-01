@@ -55,12 +55,23 @@ const UserLaunchProcessSchema = z
 	})
 	.passthrough();
 
+const UserLaunchStaticRootSchema = z
+	.object({
+		directory: z.string(),
+		publicPath: z.string(),
+	})
+	.passthrough();
+
 const UserLaunchStaticSchema = z
 	.object({
 		directory: z.string(),
 		publicPath: z.string(),
 		baseUrl: z
 			.string()
+			.nullish()
+			.transform((v) => v ?? undefined),
+		include: z
+			.array(UserLaunchStaticRootSchema)
 			.nullish()
 			.transform((v) => v ?? undefined),
 	})
@@ -195,33 +206,70 @@ export interface ProcessDefinition {
 }
 
 /**
+ * One CDN upload root.
+ *
+ * Compose the public object URL with {@link joinCdnAssetUrl}:
+ * - non-empty publicPath → `{baseUrl}{publicPath}/{pathWithinDirectory}`
+ * - empty publicPath → `{baseUrl}{pathWithinDirectory}` (CDN base root)
+ */
+export interface LaunchStaticRoot {
+	/**
+	 * Directory relative to the process working directory (or deploy root).
+	 * Posix separators. Example: `.next/static`, `public`, `dist`.
+	 */
+	directory: string;
+	/**
+	 * URL path prefix for files inside `directory` (no leading slash).
+	 * e.g. `_next/static` for Next built assets, `''` for Next `public/`.
+	 */
+	publicPath: string;
+}
+
+/**
  * Static/CDN asset locations recorded in launch.json.
  *
- * Consumers (CDN upload, pilot) compose public URLs as:
- *   `{baseUrl}{publicPath}/{pathWithinDirectory}`
+ * The primary `directory`/`publicPath` is the framework build tree.
+ * Optional `include` lists extra roots (Next `public/`) that must also
+ * be uploaded when `baseUrl` is set — `assetPrefix` alone does not cover them.
  *
  * `baseUrl` is optional: when set (from `--cdn-base-url` or the platform
  * default), frameworks that bake asset URLs at build time should have
  * used the same prefix. When omitted, the platform may still upload
  * files under `publicPath` using its own CDN root.
+ *
+ * `include` is only emitted when `baseUrl` is known and packaging staged a
+ * split-layout public root (`publicStaticDir` + non-empty primary publicPath).
  */
-export interface LaunchStaticAssets {
-	/**
-	 * Directory of static assets relative to the process working
-	 * directory (or deploy root when no workingDirectory is set).
-	 * Posix separators. Example: `.next/static`, `dist`, `.output/public`.
-	 */
-	directory: string;
-	/**
-	 * URL path prefix for files inside `directory` (no leading slash).
-	 * Framework-defined; e.g. `_next/static` for Next.js, `''` for Vite SPA.
-	 */
-	publicPath: string;
+export interface LaunchStaticAssets extends LaunchStaticRoot {
 	/**
 	 * Absolute CDN base URL with trailing slash when known at package time.
 	 * Example: `https://cdn.agentuity.com/org_123/assets/`.
 	 */
 	baseUrl?: string;
+	/**
+	 * Extra CDN roots (e.g. Next `public/` with publicPath `""`).
+	 * Deploy clients should upload each root the same way as the primary.
+	 * Present only when {@link baseUrl} is set.
+	 */
+	include?: LaunchStaticRoot[];
+}
+
+/**
+ * Join a CDN object URL without double-slashes when `publicPath` is empty.
+ *
+ * @param baseUrl - absolute CDN base (trailing slash optional)
+ * @param publicPath - URL path prefix, no leading slash (`''` → base root)
+ * @param pathWithinDirectory - path relative to that root
+ */
+export function joinCdnAssetUrl(
+	baseUrl: string,
+	publicPath: string,
+	pathWithinDirectory: string
+): string {
+	const base = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+	const prefix = publicPath.replace(/^\/+|\/+$/g, '');
+	const rel = pathWithinDirectory.replace(/^\/+/, '');
+	return prefix ? `${base}${prefix}/${rel}` : `${base}${rel}`;
 }
 
 /**
@@ -268,6 +316,47 @@ function toPosixPath(p: string): string {
 }
 
 /**
+ * Absolute process cwd used for launch-relative paths: workingDirectory
+ * when set, else monorepo subpath, else the deploy/output root.
+ */
+export function resolveProcessRoot(
+	buildResult: Pick<BuildResult, 'outputDir' | 'workingDirectory'>,
+	monorepo?: MonorepoContext
+): string {
+	const workRel = buildResult.workingDirectory ?? monorepo?.subpath;
+	return workRel ? join(buildResult.outputDir, workRel) : buildResult.outputDir;
+}
+
+/**
+ * Relativize an absolute staged path under `processRoot` (posix).
+ * Returns `undefined` if the path escapes the root (and optional
+ * output-root fallback when `allowOutputFallback` is set).
+ */
+export function relativeToProcessRoot(
+	absPath: string,
+	processRoot: string,
+	options?: { allowOutputFallback?: boolean; outputDir?: string }
+): string | undefined {
+	let rel = toPosixPath(relative(processRoot, absPath));
+	if (!rel || rel === '') return '.';
+	if (!rel.startsWith('..')) return rel;
+	if (options?.allowOutputFallback && options.outputDir) {
+		// Fallback: static staged outside subpath but still under output.
+		rel = toPosixPath(relative(options.outputDir, absPath));
+		if (!rel.startsWith('..')) return rel || '.';
+	}
+	return undefined;
+}
+
+/**
+ * True when the build uses a split CDN layout: built assets under a
+ * non-empty publicPath (e.g. `_next/static`) plus a separate public root.
+ */
+export function isSplitCdnLayout(publicPath: string): boolean {
+	return publicPath !== '';
+}
+
+/**
  * Resolve the static asset block for launch.json from the staged build
  * result (preferred) or framework detection fallback.
  */
@@ -286,20 +375,11 @@ export function resolveLaunchStatic(
 		// (adapter packaging layout wins; monorepo.subpath is the fallback
 		// for adapters that do not set workingDirectory); otherwise to the
 		// deploy/output root.
-		const workRel = buildResult.workingDirectory ?? monorepo?.subpath;
-		const processRoot = workRel ? join(buildResult.outputDir, workRel) : buildResult.outputDir;
-		let rel = toPosixPath(relative(processRoot, buildResult.staticDir));
-		if (!rel || rel === '') {
-			directory = '.';
-		} else if (!rel.startsWith('..')) {
-			directory = rel;
-		} else {
-			// Fallback: relative to output root (e.g. static staged outside subpath).
-			rel = toPosixPath(relative(buildResult.outputDir, buildResult.staticDir));
-			if (!rel.startsWith('..')) {
-				directory = rel || '.';
-			}
-		}
+		const processRoot = resolveProcessRoot(buildResult, monorepo);
+		directory = relativeToProcessRoot(buildResult.staticDir, processRoot, {
+			allowOutputFallback: true,
+			outputDir: buildResult.outputDir,
+		});
 	} else if (framework.staticDir) {
 		// Build did not resolve an absolute staged path, but detection knew
 		// where assets should live relative to the project/working dir.
@@ -312,10 +392,24 @@ export function resolveLaunchStatic(
 	// then AGENTUITY_CDN_BASE_URL / AGENTUITY_CDN_ORIGIN / deployment id.
 	const baseUrl = resolveAgentuityCdnBase({ cdnBaseUrl });
 
+	// Extra roots (Next public/): only when CDN base is known, packaging
+	// staged publicStaticDir, and primary publicPath is a non-empty build
+	// prefix (split CDN layout). Without baseUrl, deployers use the primary
+	// root only — include would be meaningless without a CDN target.
+	const include: LaunchStaticRoot[] = [];
+	if (baseUrl && buildResult.publicStaticDir && isSplitCdnLayout(publicPath)) {
+		const processRoot = resolveProcessRoot(buildResult, monorepo);
+		const pubRel = relativeToProcessRoot(buildResult.publicStaticDir, processRoot);
+		if (pubRel && pubRel !== directory) {
+			include.push({ directory: pubRel, publicPath: '' });
+		}
+	}
+
 	return {
 		directory,
 		publicPath,
 		...(baseUrl ? { baseUrl } : {}),
+		...(include.length > 0 ? { include } : {}),
 	};
 }
 
