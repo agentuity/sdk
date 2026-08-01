@@ -33,6 +33,15 @@ describe('listPublicRelativeFiles', () => {
 	test('empty when missing', () => {
 		expect(listPublicRelativeFiles(join(tmpdir(), 'no-such-public-dir-xyz'))).toEqual([]);
 	});
+
+	test('skips node_modules under public', () => {
+		const dir = makeDir();
+		dirs.push(dir);
+		writeFileSync(join(dir, 'ok.svg'), 'x');
+		mkdirSync(join(dir, 'node_modules', 'pkg'), { recursive: true });
+		writeFileSync(join(dir, 'node_modules', 'pkg', 'x.js'), 'x');
+		expect(listPublicRelativeFiles(dir)).toEqual(['ok.svg']);
+	});
 });
 
 describe('rewritePublicAssetUrlsInText', () => {
@@ -63,6 +72,35 @@ describe('rewritePublicAssetUrlsInText', () => {
 		const out = rewritePublicAssetUrlsInText(in_, files, base);
 		expect(out).toBe('url(https://cdn.agentcompany.com/genesis/icons/a.png)');
 	});
+
+	test('rewrites srcset and query/hash boundaries', () => {
+		const in_ = `srcset="/next.svg 1x, /vercel.svg 2x" href="/next.svg?v=1#top"`;
+		const out = rewritePublicAssetUrlsInText(in_, files, base);
+		expect(out).toContain(`${base}next.svg 1x`);
+		expect(out).toContain(`${base}vercel.svg 2x`);
+		expect(out).toContain(`${base}next.svg?v=1#top`);
+	});
+
+	test('longest path wins for nested names', () => {
+		const nested = ['a.png', 'icons/a.png'];
+		const in_ = `url(/icons/a.png) url(/a.png)`;
+		const out = rewritePublicAssetUrlsInText(in_, nested, base);
+		expect(out).toBe(`url(${base}icons/a.png) url(${base}a.png)`);
+	});
+
+	test('normalizes base without trailing slash', () => {
+		const out = rewritePublicAssetUrlsInText(
+			`src="/next.svg"`,
+			files,
+			'https://cdn.agentcompany.com/genesis'
+		);
+		expect(out).toBe(`src="https://cdn.agentcompany.com/genesis/next.svg"`);
+	});
+
+	test('no-op when public file list is empty', () => {
+		const in_ = `src="/next.svg"`;
+		expect(rewritePublicAssetUrlsInText(in_, [], base)).toBe(in_);
+	});
 });
 
 describe('rewritePublicAssetUrlsInTree', () => {
@@ -90,5 +128,27 @@ describe('rewritePublicAssetUrlsInTree', () => {
 		const html = readFileSync(join(server, 'index.html'), 'utf-8');
 		expect(html).toContain('https://cdn.agentcompany.com/genesis/next.svg');
 		expect(html).toContain('https://cdn.x/genesis/_next/static/x.js');
+	});
+
+	test('skips public dir itself and node_modules', () => {
+		const root = makeDir();
+		dirs.push(root);
+		const pub = join(root, 'public');
+		const nm = join(root, 'node_modules', 'pkg');
+		mkdirSync(pub, { recursive: true });
+		mkdirSync(nm, { recursive: true });
+		writeFileSync(join(pub, 'next.svg'), '<svg/>');
+		// If we rewrote under public/, this would change — ensure we skip it
+		writeFileSync(join(pub, 'readme.txt'), 'see /next.svg');
+		writeFileSync(join(nm, 'x.js'), `import "/next.svg"`);
+		writeFileSync(join(root, 'app.js'), `const u = "/next.svg"`);
+
+		const r = rewritePublicAssetUrlsInTree(root, pub, 'https://cdn.example.com/');
+		expect(r.filesChanged).toBe(1);
+		expect(readFileSync(join(pub, 'readme.txt'), 'utf-8')).toBe('see /next.svg');
+		expect(readFileSync(join(nm, 'x.js'), 'utf-8')).toBe(`import "/next.svg"`);
+		expect(readFileSync(join(root, 'app.js'), 'utf-8')).toBe(
+			`const u = "https://cdn.example.com/next.svg"`
+		);
 	});
 });

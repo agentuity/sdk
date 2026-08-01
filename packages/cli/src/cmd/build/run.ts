@@ -235,6 +235,7 @@ export async function runBuildPipeline(input: BuildPipelineInput): Promise<Build
 		monorepo ?? undefined,
 		{ cdnBaseUrl }
 	);
+	logs.push(...packageResult.logs);
 
 	return {
 		framework,

@@ -223,7 +223,8 @@ export interface GenerateDeployMetadataOptions {
  *
  * Creates the metadata the API expects, with:
  * - Empty routes and agents (non-Agentuity apps don't have them)
- * - Static assets enumerated from BuildResult.staticDir
+ * - Static assets enumerated from BuildResult.staticDir and, for split CDN
+ *   layouts (non-empty staticAssetPublicPath), BuildResult.publicStaticDir
  * - Launch metadata for the backend to know how to start the app
  * - Standard project/deployment info
  */
@@ -260,17 +261,30 @@ export async function generateDeployMetadata(
 		}
 	}
 
-	// Enumerate static assets if we have a static directory
+	// Enumerate static assets. Primary built tree uses staticAssetPublicPath
+	// (e.g. `_next/static/...`). Split-layout public roots (Next `public/`)
+	// are listed with an empty prefix so object keys sit at the CDN base —
+	// same contract as launch.static.include.
 	const assets: AssetInfo[] = [];
+	const outputDir = buildResult.outputDir;
 	if (buildResult.staticDir && existsSync(buildResult.staticDir)) {
-		const outputDir = buildResult.outputDir;
 		const staticAssets = enumerateAssets(
 			buildResult.staticDir,
 			outputDir,
 			buildResult.staticAssetPublicPath
 		);
 		assets.push(...staticAssets);
-		logger.debug(`Found ${assets.length} static assets in ${buildResult.staticDir}`);
+		logger.debug(`Found ${staticAssets.length} static assets in ${buildResult.staticDir}`);
+	}
+	const publicPath = buildResult.staticAssetPublicPath ?? '';
+	if (
+		buildResult.publicStaticDir &&
+		existsSync(buildResult.publicStaticDir) &&
+		publicPath !== ''
+	) {
+		const publicAssets = enumerateAssets(buildResult.publicStaticDir, outputDir, '');
+		assets.push(...publicAssets);
+		logger.debug(`Found ${publicAssets.length} public/ assets in ${buildResult.publicStaticDir}`);
 	}
 
 	// Build git info

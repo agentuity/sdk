@@ -17,8 +17,6 @@ import { copyRuntimeManifests, installDependencies, runBuildCommand } from './ge
 import { prepareNextCdnBuild } from './cdn-recipes.ts';
 import { toPosixPath } from '../deploy-ignore.ts';
 import { resetOutputDir } from './reset-output-dir.ts';
-import { rewritePublicAssetUrlsInTree } from '../package/public-cdn.ts';
-import { resolveAgentuityCdnBase } from './cdn-origin.ts';
 
 /**
  * Walk the standalone tree for the first `server.js`, skipping
@@ -241,32 +239,14 @@ export const nextjsAdapter: BuildAdapter = {
 
 				// Copy `public/` next to server.js for the same reason.
 				// Next assetPrefix only rewrites /_next/* — public/ files
-				// (e.g. /next.svg) stay origin-relative unless we CDN them
-				// and rewrite references when a CDN base is known.
+				// (e.g. /next.svg) stay origin-relative. Packaging owns CDN
+				// rewrite + launch.static.include when publicStaticDir is set.
 				let packagedPublicDir: string | undefined;
 				if (existsSync(publicPath)) {
 					const publicDst = join(serverDir, 'public');
 					mkdirSync(publicDst, { recursive: true });
 					cpSync(publicPath, publicDst, { recursive: true });
 					packagedPublicDir = publicDst;
-				}
-
-				// When CDN base is set, rewrite root-absolute public URLs in
-				// the packaged tree so logos/images hit the CDN, not origin.
-				const cdnBase =
-					cdnPrep.cdnBase ??
-					resolveAgentuityCdnBase({
-						cdnBaseUrl: options.cdnBaseUrl,
-						deploymentId: options.deploymentId,
-					});
-				if (cdnBase && packagedPublicDir) {
-					const rw = rewritePublicAssetUrlsInTree(serverDir, packagedPublicDir, cdnBase);
-					if (rw.publicFileCount > 0) {
-						logs.push(
-							`✓ Next.js CDN: rewrote public/ refs in ${rw.filesChanged}/${rw.filesScanned} files ` +
-								`(${rw.publicFileCount} public asset(s) → ${cdnBase})`
-						);
-					}
 				}
 
 				logs.push(
@@ -293,6 +273,8 @@ export const nextjsAdapter: BuildAdapter = {
 			// and the package manifests Hadron needs to install production
 			// dependencies before launch. This path is brittle (`next start`
 			// needs the full Next.js install) so we warn the user.
+			// Public CDN rewrite / launch.static.include require standalone
+			// packaging (publicStaticDir is only set on that path).
 			logger.debug('No standalone output found — copying full .next directory');
 			const nextDst = join(outputDir, '.next');
 			cpSync(join(projectDir, '.next'), nextDst, { recursive: true });

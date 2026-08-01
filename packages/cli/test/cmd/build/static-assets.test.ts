@@ -403,6 +403,73 @@ describe('Static Asset CDN Upload', () => {
 		expect(script?.sourcePath).toBe('.next/static/chunks/app-abcdef12.js');
 	}, 30_000);
 
+	test('split-layout publicStaticDir enumerates at CDN base root', async () => {
+		// Hand-built BuildResult (no full Next build): primary `_next/static`
+		// plus staged `public/` as publicStaticDir.
+		const staticDir = join(outputDir, '.next', 'static', 'chunks');
+		const publicDir = join(outputDir, 'public');
+		mkdirSync(staticDir, { recursive: true });
+		mkdirSync(publicDir, { recursive: true });
+		writeFileSync(join(staticDir, 'app.js'), 'app()');
+		writeFileSync(join(publicDir, 'next.svg'), '<svg/>');
+		mkdirSync(join(publicDir, 'icons'), { recursive: true });
+		writeFileSync(join(publicDir, 'icons', 'logo.png'), 'png');
+
+		const framework = {
+			name: 'nextjs',
+			runtime: 'node' as const,
+			packageManager: 'npm' as const,
+			buildCommand: 'next build',
+			buildOutput: '.next',
+			startCommand: 'node server.js',
+			staticDir: '.next/static',
+			staticAssetPublicPath: '_next/static',
+			confidence: 'high' as const,
+		};
+
+		const buildResult = {
+			outputDir,
+			startCommand: 'node server.js',
+			staticDir: join(outputDir, '.next', 'static'),
+			staticAssetPublicPath: '_next/static',
+			publicStaticDir: publicDir,
+			duration: 1,
+			logs: [] as string[],
+		};
+
+		const packageResult = await packageBuildOutput(
+			framework,
+			buildResult,
+			outputDir,
+			undefined,
+			undefined,
+			{
+				cdnBaseUrl: 'https://cdn.agentcompany.com/genesis/',
+			}
+		);
+		expect(packageResult.launch.static?.include).toEqual([
+			{ directory: 'public', publicPath: '' },
+		]);
+
+		const metadata = await generateDeployMetadata({
+			buildResult,
+			packageResult,
+			projectDir: testDir,
+			projectId: 'test-project',
+			orgId: 'test-org',
+			region: 'us-east-1',
+			deploymentId: 'test-deployment',
+			logger,
+		});
+
+		const filenames = metadata.assets.map((a) => a.filename);
+		expect(filenames).toContain('_next/static/chunks/app.js');
+		expect(filenames).toContain('next.svg');
+		expect(filenames).toContain('icons/logo.png');
+		const logo = metadata.assets.find((a) => a.filename === 'icons/logo.png');
+		expect(logo?.sourcePath).toBe('public/icons/logo.png');
+	});
+
 	// ── No staticDir → no CDN assets ──
 
 	test('generic project without staticDir produces no CDN assets', async () => {
