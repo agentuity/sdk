@@ -11,6 +11,8 @@ import { streamUrlToWritable } from '../../../utils/stream-url.ts';
 const EXECUTION_WAIT_DURATION = '5m';
 const EMPTY_STREAM_FAST_POLL_MS = 100;
 const EMPTY_STREAM_FAST_TIMEOUT_MS = 2000;
+const STREAM_DRAIN_TIMEOUT_MS = 30_000;
+const STDOUT_DRAIN_GRACE_MS = 2000;
 
 const SandboxExecResponseSchema = z.object({
 	executionId: z.string().describe('Unique execution identifier'),
@@ -296,40 +298,68 @@ export const execSubcommand = createCommand({
 				finalExecution.exitCode ?? 'undefined'
 			);
 
+			let streamDrainTimedOut = false;
 			if (streamPromises.length > 0) {
 				logger.debug('[exec] waiting for %d stream(s) to EOF', streamPromises.length);
 				const streamWaitStart = Date.now();
-				let graceTriggered = false;
 				if (!streamResults) {
-					const streamGraceMs = 500;
-					const streamGrace = setTimeout(() => {
-						graceTriggered = true;
-						logger.debug(
-							'[exec] stream grace period (%dms) expired after execution complete — aborting streams',
-							streamGraceMs
-						);
-						streamAbortController.abort();
-					}, streamGraceMs);
+					const streamDrainPromise = Promise.all(streamPromises);
+					let drainTimeout: ReturnType<typeof setTimeout> | undefined;
 					try {
-						streamResults = await Promise.all(streamPromises);
+						const drainResult = await Promise.race([
+							streamDrainPromise.then((results) => ({ type: 'streams' as const, results })),
+							new Promise<{ type: 'timeout' }>((resolve) => {
+								drainTimeout = setTimeout(
+									() => resolve({ type: 'timeout' }),
+									STREAM_DRAIN_TIMEOUT_MS
+								);
+							}),
+						]);
+
+						if (drainResult.type === 'streams') {
+							streamResults = drainResult.results;
+						} else {
+							streamDrainTimedOut = true;
+							tui.warning(
+								`Timed out after ${STREAM_DRAIN_TIMEOUT_MS / 1000}s waiting for execution output streams to finish; output may be incomplete`
+							);
+							streamAbortController.abort();
+							void streamDrainPromise.catch((err) => {
+								logger.debug('[exec] stream failed after drain timeout: %s', err);
+							});
+						}
 					} finally {
-						clearTimeout(streamGrace);
+						if (drainTimeout) {
+							clearTimeout(drainTimeout);
+						}
 					}
 				}
-				logger.debug(
-					'[exec] all streams done in %dms (graceTriggered=%s)',
-					Date.now() - streamWaitStart,
-					graceTriggered
-				);
+				logger.debug('[exec] stream wait finished in %dms', Date.now() - streamWaitStart);
 			}
 
 			if (!options.json && process.stdout.writable) {
 				await new Promise<void>((resolve) => {
-					if (process.stdout.writableNeedDrain) {
-						process.stdout.once('drain', () => resolve());
-					} else {
+					if (!process.stdout.writableNeedDrain) {
 						resolve();
+						return;
 					}
+					// After a stream-drain timeout the output is already known
+					// incomplete, so a stuck stdout consumer must not hold the
+					// command open indefinitely.
+					let drainWait: ReturnType<typeof setTimeout> | undefined;
+					const onDrain = () => {
+						if (drainWait) {
+							clearTimeout(drainWait);
+						}
+						resolve();
+					};
+					if (streamDrainTimedOut) {
+						drainWait = setTimeout(() => {
+							process.stdout.removeListener('drain', onDrain);
+							resolve();
+						}, STDOUT_DRAIN_GRACE_MS);
+					}
+					process.stdout.once('drain', onDrain);
 				});
 			}
 
